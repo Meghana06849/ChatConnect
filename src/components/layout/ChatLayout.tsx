@@ -4,8 +4,10 @@ import { Navigation } from './Navigation';
 import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ModeSwitch } from '@/components/settings/ModeSwitch';
+import { DreamRoom } from '@/components/dreamroom/DreamRoom';
+import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy } from 'lucide-react';
+import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -91,11 +93,14 @@ export const ChatLayout = () => {
           </div>
         );
 
+      case 'dreamroom':
+        return <DreamRoom />;
+
       case 'stories':
         return (
           <div className="flex-1 p-6">
             <div className="max-w-4xl mx-auto text-center">
-              <BookOpen className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+              <Star className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} animate-blink-star`} />
               <h1 className="text-3xl font-bold mb-2">
                 {isLoversMode ? 'Love Stories' : 'Stories'}
               </h1>
@@ -112,12 +117,44 @@ export const ChatLayout = () => {
       case 'calls':
         return (
           <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto text-center">
-              <Phone className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-              <h1 className="text-3xl font-bold mb-2">Call History</h1>
-              <p className="text-muted-foreground mb-8">Your recent voice and video calls</p>
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-8">
+                <Phone className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+                <h1 className="text-3xl font-bold mb-2">Call History</h1>
+                <p className="text-muted-foreground mb-8">Your recent voice and video calls</p>
+              </div>
+              
+              {/* Quick Call Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <Card className="glass border-white/20 hover:shadow-lg transition-all cursor-pointer">
+                  <CardHeader className="text-center">
+                    <Video className={`w-12 h-12 mx-auto mb-2 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+                    <CardTitle>Video Call</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-muted-foreground mb-4">High-quality video calls</p>
+                    <button className={`${isLoversMode ? 'btn-lovers' : 'btn-general'} w-full`}>
+                      Start Video Call
+                    </button>
+                  </CardContent>
+                </Card>
+                
+                <Card className="glass border-white/20 hover:shadow-lg transition-all cursor-pointer">
+                  <CardHeader className="text-center">
+                    <Mic className={`w-12 h-12 mx-auto mb-2 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+                    <CardTitle>Voice Call</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                    <p className="text-muted-foreground mb-4">Crystal clear voice calls</p>
+                    <button className={`${isLoversMode ? 'btn-lovers' : 'btn-general'} w-full`}>
+                      Start Voice Call
+                    </button>
+                  </CardContent>
+                </Card>
+              </div>
+              
               <div className="glass p-8 rounded-2xl border-white/20">
-                <p className="text-muted-foreground">No calls yet. Start your first call!</p>
+                <p className="text-muted-foreground text-center">No calls yet. Start your first call!</p>
               </div>
             </div>
           </div>
@@ -284,12 +321,15 @@ export const ChatLayout = () => {
   };
 
   return (
-    <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'}`}>
+    <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
+      <FloatingBackground />
       <Navigation 
         activeSection={activeSection}
         onSectionChange={setActiveSection}
       />
-      {renderContent()}
+      <div className="relative z-10 flex-1">
+        {renderContent()}
+      </div>
     </div>
   );
 };

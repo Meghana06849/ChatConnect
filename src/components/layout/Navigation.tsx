@@ -12,25 +12,28 @@ import {
   LogOut,
   Heart,
   Lock,
-  Home
+  Home,
+  Star,
+  Coins
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const navigationItems = {
   general: [
     { icon: Home, label: 'Home', id: 'home' },
-    { icon: MessageCircle, label: 'Chats', id: 'chats' },
+    { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: BookOpen, label: 'Stories', id: 'stories' },
+    { icon: Star, label: 'Stories', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Users, label: 'Friends', id: 'friends' },
   ],
   lovers: [
     { icon: Home, label: 'Home', id: 'home' },
-    { icon: Heart, label: 'Chat', id: 'chats' },
+    { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: BookOpen, label: 'Stories', id: 'stories' },
+    { icon: Star, label: 'Stories', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
+    { icon: Home, label: 'Dream Room', id: 'dreamroom' },
     { icon: Lock, label: 'Vault', id: 'vault' },
   ]
 };
@@ -69,9 +72,6 @@ export const Navigation: React.FC<NavigationProps> = ({
         <div className="flex items-center space-x-3">
           <div className="relative">
             <MessageCircle className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-            {isLoversMode && (
-              <Heart className="w-4 h-4 text-lovers-primary absolute -top-1 -right-1 animate-heart-beat" />
-            )}
           </div>
           <div className="hidden lg:block">
             <h1 className={`
@@ -84,10 +84,21 @@ export const Navigation: React.FC<NavigationProps> = ({
               ChatConnect
             </h1>
             <p className="text-xs text-muted-foreground">
-              {isLoversMode ? 'Lovers Mode 💕' : 'General Mode'}
+              {isLoversMode ? 'Private Mode' : 'Connect & Chat'}
             </p>
           </div>
         </div>
+        
+        {/* Love Coins Display for Lovers Mode */}
+        {isLoversMode && (
+          <div className="mt-3 p-2 rounded-xl bg-lovers-primary/10 border border-lovers-primary/20">
+            <div className="flex items-center justify-center space-x-2">
+              <Heart className="w-4 h-4 text-lovers-primary animate-heart-beat" />
+              <span className="text-sm font-medium text-lovers-primary">1,250</span>
+              <span className="text-xs text-muted-foreground">Love Coins</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Navigation Items */}
@@ -112,7 +123,9 @@ export const Navigation: React.FC<NavigationProps> = ({
                 }
               `}
             >
-              <Icon className="w-5 h-5 mr-3 lg:mr-3" />
+              <Icon className={`w-5 h-5 mr-3 lg:mr-3 ${
+                item.special === 'blink' ? 'animate-blink-star' : ''
+              }`} />
               <span className="hidden lg:inline font-medium">{item.label}</span>
             </Button>
           );

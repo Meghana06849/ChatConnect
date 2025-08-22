@@ -128,7 +128,56 @@
     box-shadow: var(--shadow-glass);
   }
 
-  /* Heart Animation for Lovers Mode */
+  /* Floating Hearts Background Animation */
+  @keyframes floatingHearts {
+    0% { 
+      transform: translateY(100vh) rotate(0deg);
+      opacity: 0;
+    }
+    10% { 
+      opacity: 1;
+    }
+    90% { 
+      opacity: 1;
+    }
+    100% { 
+      transform: translateY(-10vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  /* Floating Stars Background Animation */
+  @keyframes floatingStars {
+    0% { 
+      transform: translateY(100vh) rotate(0deg) scale(0);
+      opacity: 0;
+    }
+    10% { 
+      opacity: 1;
+      transform: translateY(90vh) rotate(36deg) scale(1);
+    }
+    90% { 
+      opacity: 1;
+    }
+    100% { 
+      transform: translateY(-10vh) rotate(360deg) scale(0);
+      opacity: 0;
+    }
+  }
+
+  /* Blinking Star Animation */
+  @keyframes blinkStar {
+    0%, 100% { 
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% { 
+      opacity: 0.3;
+      transform: scale(1.2);
+    }
+  }
+
+  /* Heart Beat Animation */
   @keyframes heartBeat {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.1); }
@@ -136,6 +185,10 @@
 
   .heart-beat {
     animation: heartBeat 1.5s ease-in-out infinite;
+  }
+
+  .blink-star {
+    animation: blinkStar 2s ease-in-out infinite;
   }
 
   /* Floating Animation */
@@ -146,6 +199,49 @@
 
   .float {
     animation: float 3s ease-in-out infinite;
+  }
+
+  /* Floating Background Elements */
+  .floating-hearts {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .floating-stars {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  .floating-heart {
+    position: absolute;
+    font-size: 1.5rem;
+    color: hsl(var(--lovers-primary));
+    animation: floatingHearts linear infinite;
+    animation-duration: calc(8s + var(--random-duration, 0s));
+    left: var(--random-left, 50%);
+    animation-delay: var(--random-delay, 0s);
+  }
+
+  .floating-star {
+    position: absolute;
+    font-size: 1.2rem;
+    color: hsl(var(--general-primary));
+    animation: floatingStars linear infinite;
+    animation-duration: calc(6s + var(--random-duration, 0s));
+    left: var(--random-left, 50%);
+    animation-delay: var(--random-delay, 0s);
   }
 
   /* Chat Bubble Styles */
