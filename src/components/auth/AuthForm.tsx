@@ -74,10 +74,7 @@ export const AuthForm = () => {
         {/* Logo */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="flex items-center justify-center mb-4">
-            <div className="relative">
-              <MessageCircle className="w-12 h-12 text-general-primary" />
-              <Heart className="w-6 h-6 text-lovers-primary absolute -top-1 -right-1 animate-heart-beat" />
-            </div>
+            <MessageCircle className="w-12 h-12 text-general-primary" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-general-primary to-lovers-primary bg-clip-text text-transparent">
             ChatConnect
