@@ -5,6 +5,9 @@ import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
+import { Stories } from '@/components/stories/Stories';
+import { FriendsManager } from '@/components/friends/FriendsManager';
+import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star } from 'lucide-react';
@@ -40,17 +43,7 @@ export const ChatLayout = () => {
         );
       
       case 'settings':
-        return (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">Settings</h1>
-                <p className="text-muted-foreground">Customize your ChatConnect experience</p>
-              </div>
-              <ModeSwitch />
-            </div>
-          </div>
-        );
+        return <AdvancedSettings />;
 
       case 'games':
         return (
@@ -97,22 +90,7 @@ export const ChatLayout = () => {
         return <DreamRoom />;
 
       case 'stories':
-        return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto text-center">
-              <Star className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} animate-blink-star`} />
-              <h1 className="text-3xl font-bold mb-2">
-                {isLoversMode ? 'Love Stories' : 'Stories'}
-              </h1>
-              <p className="text-muted-foreground mb-8">
-                {isLoversMode ? 'Share your romantic moments' : 'Share your daily moments'}
-              </p>
-              <div className="glass p-8 rounded-2xl border-white/20">
-                <p className="text-muted-foreground">No stories yet. Be the first to share!</p>
-              </div>
-            </div>
-          </div>
-        );
+        return <Stories />;
 
       case 'calls':
         return (
@@ -161,30 +139,20 @@ export const ChatLayout = () => {
         );
 
       case 'friends':
+        return <FriendsManager />;
+      
       case 'vault':
         return (
           <div className="flex-1 p-6">
             <div className="max-w-4xl mx-auto text-center">
-              {activeSection === 'vault' ? (
-                <Heart className="w-16 h-16 mx-auto mb-4 text-lovers-primary animate-heart-beat" />
-              ) : (
-                <Users className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-              )}
-              <h1 className="text-3xl font-bold mb-2">
-                {activeSection === 'vault' ? 'Secret Vault' : 'Friends'}
-              </h1>
+              <Heart className="w-16 h-16 mx-auto mb-4 text-lovers-primary animate-heart-beat" />
+              <h1 className="text-3xl font-bold mb-2">Secret Vault</h1>
               <p className="text-muted-foreground mb-8">
-                {activeSection === 'vault' 
-                  ? 'Extra secure conversations for your most private moments'
-                  : 'Manage your contacts and friendships'
-                }
+                Extra secure conversations for your most private moments
               </p>
               <div className="glass p-8 rounded-2xl border-white/20">
                 <p className="text-muted-foreground">
-                  {activeSection === 'vault' 
-                    ? 'Vault is empty. Start a secret conversation!'
-                    : 'Add friends to start chatting!'
-                  }
+                  Vault is empty. Start a secret conversation!
                 </p>
               </div>
             </div>
