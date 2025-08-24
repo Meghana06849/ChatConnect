@@ -5,6 +5,8 @@ import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
+import { CallHistory } from '@/components/features/CallHistory';
+import { GamesHub } from '@/components/features/GamesHub';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
@@ -46,45 +48,7 @@ export const ChatLayout = () => {
         return <AdvancedSettings />;
 
       case 'games':
-        return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <Gamepad2 className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-                <h1 className="text-3xl font-bold mb-2">
-                  {isLoversMode ? 'Love Games' : 'Mini Games'}
-                </h1>
-                <p className="text-muted-foreground">
-                  {isLoversMode ? 'Fun activities for couples' : 'Play games with friends'}
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {(isLoversMode ? [
-                  { name: 'Truth or Dare', desc: 'Get to know each other better', icon: '💕' },
-                  { name: 'Love Quiz', desc: 'Test how well you know your partner', icon: '🧠' },
-                  { name: 'Would You Rather', desc: 'Fun relationship questions', icon: '🤔' }
-                ] : [
-                  { name: 'Tic Tac Toe', desc: 'Classic game for two', icon: '⭕' },
-                  { name: 'Word Guess', desc: 'Guess the hidden word', icon: '🔤' },
-                  { name: 'Quick Math', desc: 'Fast calculation challenge', icon: '🧮' }
-                ]).map((game, idx) => (
-                  <Card key={idx} className="glass border-white/20 hover:shadow-lg transition-all duration-200 cursor-pointer">
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <span className="text-2xl">{game.icon}</span>
-                        <span>{game.name}</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground">{game.desc}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
+        return <GamesHub />;
 
       case 'dreamroom':
         return <DreamRoom />;
@@ -93,50 +57,7 @@ export const ChatLayout = () => {
         return <Stories />;
 
       case 'calls':
-        return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <Phone className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-                <h1 className="text-3xl font-bold mb-2">Call History</h1>
-                <p className="text-muted-foreground mb-8">Your recent voice and video calls</p>
-              </div>
-              
-              {/* Quick Call Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <Card className="glass border-white/20 hover:shadow-lg transition-all cursor-pointer">
-                  <CardHeader className="text-center">
-                    <Video className={`w-12 h-12 mx-auto mb-2 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-                    <CardTitle>Video Call</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <p className="text-muted-foreground mb-4">High-quality video calls</p>
-                    <button className={`${isLoversMode ? 'btn-lovers' : 'btn-general'} w-full`}>
-                      Start Video Call
-                    </button>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass border-white/20 hover:shadow-lg transition-all cursor-pointer">
-                  <CardHeader className="text-center">
-                    <Mic className={`w-12 h-12 mx-auto mb-2 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-                    <CardTitle>Voice Call</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <p className="text-muted-foreground mb-4">Crystal clear voice calls</p>
-                    <button className={`${isLoversMode ? 'btn-lovers' : 'btn-general'} w-full`}>
-                      Start Voice Call
-                    </button>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="glass p-8 rounded-2xl border-white/20">
-                <p className="text-muted-foreground text-center">No calls yet. Start your first call!</p>
-              </div>
-            </div>
-          </div>
-        );
+        return <CallHistory />;
 
       case 'friends':
         return <FriendsManager />;

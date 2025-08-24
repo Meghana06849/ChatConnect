@@ -52,6 +52,9 @@ export const AdvancedSettings: React.FC = () => {
   const { coins, dailyStreak } = useLoveCoins();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showChangePIN, setShowChangePIN] = useState(false);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
+  const [showNotificationsDialog, setShowNotificationsDialog] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -65,17 +68,23 @@ export const AdvancedSettings: React.FC = () => {
       calls: true,
       stories: true,
       loveCoins: isLoversMode,
+      sound: true,
+      vibration: true,
+      popup: true,
     },
     privacy: {
       readReceipts: true,
       lastSeen: true,
       profilePhoto: 'everyone',
-      status: 'contacts'
+      status: 'contacts',
+      blockedContacts: 0,
+      disappearingMessages: false,
     },
     security: {
       twoFactor: false,
       biometric: false,
-      autoLock: false
+      autoLock: false,
+      pinLock: isLoversMode,
     }
   });
 
@@ -160,13 +169,13 @@ export const AdvancedSettings: React.FC = () => {
                   icon={<User className="w-5 h-5" />}
                   title="Account"
                   subtitle="Security notifications, change number"
-                  onClick={() => {}}
+                  onClick={() => setShowAccountDialog(true)}
                 />
                 <SettingsItem 
                   icon={<Shield className="w-5 h-5" />}
                   title="Privacy"
                   subtitle="Block contacts, disappearing messages"
-                  onClick={() => {}}
+                  onClick={() => setShowPrivacyDialog(true)}
                 />
                 <SettingsItem 
                   icon={<Image className="w-5 h-5" />}
@@ -206,7 +215,7 @@ export const AdvancedSettings: React.FC = () => {
                   icon={<Bell className="w-5 h-5" />}
                   title="Notifications"
                   subtitle="Message, group & call tones"
-                  onClick={() => {}}
+                  onClick={() => setShowNotificationsDialog(true)}
                 />
                 <SettingsItem 
                   icon={<Database className="w-5 h-5" />}
@@ -271,35 +280,20 @@ export const AdvancedSettings: React.FC = () => {
             </Card>
           )}
 
-          {/* Social Connections */}
+          {/* App Status */}
           <Card className="glass border-white/20">
             <CardContent className="p-4">
-              <h4 className="font-medium text-sm text-muted-foreground mb-4">Also from Meta</h4>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <Instagram className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-xs font-medium">Instagram</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span>App Status</span>
+                  </h4>
+                  <p className="text-sm text-muted-foreground">Ready for launch</p>
                 </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <Facebook className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-xs font-medium">Facebook</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <Twitter className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-xs font-medium">Threads</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                    <RefreshCw className="w-6 h-6 text-white" />
-                  </div>
-                  <p className="text-xs font-medium">Meta AI</p>
-                </div>
+                <Badge className="bg-green-500/20 text-green-600">
+                  ✓ All systems operational
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -317,6 +311,204 @@ export const AdvancedSettings: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Account Settings Dialog */}
+        <Dialog open={showAccountDialog} onOpenChange={setShowAccountDialog}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <User className="w-5 h-5" />
+                <span>Account Settings</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="display-name">Display Name</Label>
+                  <Input id="display-name" defaultValue={user?.name} className="glass border-white/20" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input id="username" placeholder="@username" className="glass border-white/20" />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="status">Status Message</Label>
+                <Input id="status" placeholder="Hey there! I'm using ChatConnect" className="glass border-white/20" />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Two-Factor Authentication</h4>
+                  <p className="text-sm text-muted-foreground">Add extra security to your account</p>
+                </div>
+                <Switch 
+                  checked={settings.security.twoFactor}
+                  onCheckedChange={(checked) => handleSettingChange('security', 'twoFactor', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">PIN Lock</h4>
+                  <p className="text-sm text-muted-foreground">Secure app with PIN</p>
+                </div>
+                <Switch 
+                  checked={settings.security.pinLock}
+                  onCheckedChange={(checked) => handleSettingChange('security', 'pinLock', checked)}
+                />
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button className={`flex-1 ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}>
+                  Save Changes
+                </Button>
+                <Button variant="outline" onClick={() => setShowAccountDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Privacy Settings Dialog */}
+        <Dialog open={showPrivacyDialog} onOpenChange={setShowPrivacyDialog}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>Privacy Settings</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Read Receipts</h4>
+                  <p className="text-sm text-muted-foreground">Let others know when you've read messages</p>
+                </div>
+                <Switch 
+                  checked={settings.privacy.readReceipts}
+                  onCheckedChange={(checked) => handleSettingChange('privacy', 'readReceipts', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Last Seen</h4>
+                  <p className="text-sm text-muted-foreground">Show when you were last online</p>
+                </div>
+                <Switch 
+                  checked={settings.privacy.lastSeen}
+                  onCheckedChange={(checked) => handleSettingChange('privacy', 'lastSeen', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Disappearing Messages</h4>
+                  <p className="text-sm text-muted-foreground">Messages disappear after 24h</p>
+                </div>
+                <Switch 
+                  checked={settings.privacy.disappearingMessages}
+                  onCheckedChange={(checked) => handleSettingChange('privacy', 'disappearingMessages', checked)}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Profile Photo Visibility</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button 
+                    size="sm" 
+                    variant={settings.privacy.profilePhoto === 'everyone' ? 'default' : 'outline'}
+                    onClick={() => handleSettingChange('privacy', 'profilePhoto', 'everyone')}
+                  >
+                    Everyone
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant={settings.privacy.profilePhoto === 'contacts' ? 'default' : 'outline'}
+                    onClick={() => handleSettingChange('privacy', 'profilePhoto', 'contacts')}
+                  >
+                    Contacts
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant={settings.privacy.profilePhoto === 'nobody' ? 'default' : 'outline'}
+                    onClick={() => handleSettingChange('privacy', 'profilePhoto', 'nobody')}
+                  >
+                    Nobody
+                  </Button>
+                </div>
+              </div>
+              
+              <Button className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}>
+                Save Privacy Settings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Notifications Dialog */}
+        <Dialog open={showNotificationsDialog} onOpenChange={setShowNotificationsDialog}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Bell className="w-5 h-5" />
+                <span>Notification Settings</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Message Notifications</h4>
+                  <p className="text-sm text-muted-foreground">Get notified for new messages</p>
+                </div>
+                <Switch 
+                  checked={settings.notifications.messages}
+                  onCheckedChange={(checked) => handleSettingChange('notifications', 'messages', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Sound</h4>
+                  <p className="text-sm text-muted-foreground">Play notification sounds</p>
+                </div>
+                <Switch 
+                  checked={settings.notifications.sound}
+                  onCheckedChange={(checked) => handleSettingChange('notifications', 'sound', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Vibration</h4>
+                  <p className="text-sm text-muted-foreground">Vibrate on notifications</p>
+                </div>
+                <Switch 
+                  checked={settings.notifications.vibration}
+                  onCheckedChange={(checked) => handleSettingChange('notifications', 'vibration', checked)}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Popup Notifications</h4>
+                  <p className="text-sm text-muted-foreground">Show popup notifications</p>
+                </div>
+                <Switch 
+                  checked={settings.notifications.popup}
+                  onCheckedChange={(checked) => handleSettingChange('notifications', 'popup', checked)}
+                />
+              </div>
+              
+              <Button className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}>
+                Save Notification Settings
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
