@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Home, 
   Clock, 
@@ -12,7 +16,19 @@ import {
   Music,
   Heart,
   Lock,
-  Sparkles
+  Sparkles,
+  Star,
+  Calendar,
+  StickyNote,
+  Camera,
+  Gamepad2,
+  Smile,
+  TreePine,
+  Play,
+  Pin,
+  Shield,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface DreamRoomProps {
@@ -22,6 +38,13 @@ interface DreamRoomProps {
 export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAccessible, setIsAccessible] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [petMood, setPetMood] = useState('happy');
+  const [currentMusic, setCurrentMusic] = useState('None');
+  const [nightModeStars, setNightModeStars] = useState(true);
 
   useEffect(() => {
     const updateTime = () => {
@@ -51,13 +74,91 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
     { name: 'Cozy Couch', icon: '🛋️', price: 200 },
     { name: 'Love Mirror', icon: '🪞', price: 150 },
     { name: 'Heart Balloons', icon: '🎈', price: 25 },
+    { name: 'Dream Jar', icon: '🏺', price: 75 },
+    { name: 'Virtual Plant', icon: '🌱', price: 100 },
   ];
 
   const themes = [
     { name: 'Midnight Romance', colors: ['#1a1a2e', '#16213e', '#0f3460'], price: 100 },
     { name: 'Sunset Dreams', colors: ['#ff6b6b', '#feca57', '#ff9ff3'], price: 120 },
     { name: 'Ethereal Garden', colors: ['#a8e6cf', '#dcedc1', '#ffd3a5'], price: 110 },
+    { name: 'Starlit Night', colors: ['#0c0c0c', '#1a1a2e', '#16213e'], price: 130 },
   ];
+
+  const dreamFeatures = [
+    { name: 'Dream Jar', description: 'Drop wishes that open later', icon: '🏺' },
+    { name: 'Shared Playlist', description: 'Auto-sync music with Spotify', icon: '🎵' },
+    { name: 'Virtual Pet', description: 'Grows as you chat together', icon: '🐱' },
+    { name: 'Night Mode', description: 'Stars change based on moods', icon: '🌟' },
+    { name: 'Dream Board', description: 'Upload memories & quotes', icon: '📌' },
+    { name: 'Mini-Games', description: 'Play together in your space', icon: '🎮' },
+  ];
+
+  const handlePinSubmit = () => {
+    if (pin === '1234') { // Default PIN - would be stored securely in real app
+      setIsUnlocked(true);
+      setShowPinDialog(false);
+      setPin('');
+    } else {
+      alert('Invalid PIN');
+    }
+  };
+
+  // PIN Protection Screen
+  if (!isUnlocked) {
+    return (
+      <div className="flex-1 p-6">
+        <div className="max-w-md mx-auto text-center">
+          <div className="glass p-8 rounded-3xl border-white/20">
+            <Shield className="w-16 h-16 mx-auto mb-6 text-lovers-primary" />
+            <h1 className="text-2xl font-bold mb-4 text-lovers-primary">Dream Room Access</h1>
+            <p className="text-muted-foreground mb-6">
+              Enter your secret PIN to access your private Dream Room
+            </p>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="pin">Secret PIN</Label>
+                <div className="relative">
+                  <Input
+                    id="pin"
+                    type={showPin ? "text" : "password"}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="Enter PIN"
+                    className="glass border-white/20 pr-10"
+                    maxLength={4}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    onClick={() => setShowPin(!showPin)}
+                  >
+                    {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              
+              <Button 
+                onClick={handlePinSubmit}
+                className="w-full btn-lovers"
+                disabled={pin.length < 4}
+              >
+                <Lock className="w-4 h-4 mr-2" />
+                Unlock Dream Room
+              </Button>
+              
+              <p className="text-xs text-muted-foreground">
+                Default PIN: 1234 (Change in settings)
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAccessible && isTimeRestricted) {
     return (
@@ -118,29 +219,66 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Room View */}
-          <div className="lg:col-span-2">
-            <Card className="glass border-white/20 h-96">
+          <div className="lg:col-span-2 space-y-6">
+            <Card className="glass border-white/20">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Home className="w-6 h-6 text-lovers-primary" />
-                  <span>Your Dream Space</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Home className="w-6 h-6 text-lovers-primary" />
+                    <span>Your Dream Space</span>
+                  </div>
+                  <Badge className="bg-lovers-primary/20 text-lovers-primary">
+                    🔒 Private Mode
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="h-full">
-                <div className="w-full h-64 bg-gradient-to-br from-lovers-accent/20 to-lovers-primary/10 rounded-2xl border border-lovers-primary/20 flex items-center justify-center relative overflow-hidden">
-                  {/* Simulated 3D Room Preview */}
-                  <div className="text-center z-10">
-                    <Heart className="w-16 h-16 text-lovers-primary mx-auto mb-4 animate-heart-beat" />
-                    <p className="text-lovers-primary font-medium">Your cozy space awaits...</p>
-                    <p className="text-sm text-muted-foreground mt-2">Add decorations to personalize</p>
+              <CardContent>
+                <div className="w-full h-80 bg-gradient-to-br from-lovers-accent/20 to-lovers-primary/10 rounded-2xl border border-lovers-primary/20 flex items-center justify-center relative overflow-hidden">
+                  {/* Night Mode Stars */}
+                  {nightModeStars && (
+                    <div className="absolute inset-0">
+                      {[...Array(20)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className="absolute text-yellow-400 w-4 h-4 blink-star"
+                          style={{
+                            left: `${Math.random() * 90 + 5}%`,
+                            top: `${Math.random() * 90 + 5}%`,
+                            animationDelay: `${Math.random() * 2}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Virtual Pet */}
+                  <div className="absolute top-4 left-4">
+                    <div className="bg-white/10 rounded-full p-3">
+                      <TreePine className="w-8 h-8 text-green-400" />
+                    </div>
+                    <p className="text-xs text-center mt-1 text-lovers-primary">Growing!</p>
                   </div>
                   
-                  {/* Floating hearts in the room */}
+                  {/* Main Content */}
+                  <div className="text-center z-10">
+                    <div className="flex items-center justify-center space-x-4 mb-4">
+                      <Heart className="w-16 h-16 text-lovers-primary animate-heart-beat" />
+                      <div className="text-4xl animate-float">
+                        {petMood === 'happy' ? '😊' : petMood === 'love' ? '😍' : '🥰'}
+                      </div>
+                    </div>
+                    <p className="text-lovers-primary font-medium">Your Dream Space</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {currentMusic !== 'None' ? `🎵 Playing: ${currentMusic}` : 'Add music for ambiance'}
+                    </p>
+                  </div>
+                  
+                  {/* Floating hearts */}
                   <div className="absolute inset-0">
-                    {[...Array(8)].map((_, i) => (
+                    {[...Array(12)].map((_, i) => (
                       <div
                         key={i}
-                        className="absolute text-2xl opacity-20"
+                        className="absolute text-2xl opacity-20 animate-float"
                         style={{
                           left: `${Math.random() * 80 + 10}%`,
                           top: `${Math.random() * 80 + 10}%`,
@@ -151,6 +289,27 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
                       </div>
                     ))}
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Dream Features */}
+            <Card className="glass border-white/20">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Sparkles className="w-5 h-5 text-lovers-primary" />
+                  <span>Dream Features</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {dreamFeatures.map((feature, idx) => (
+                    <div key={idx} className="text-center p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+                      <div className="text-3xl mb-2">{feature.icon}</div>
+                      <h4 className="font-medium text-sm">{feature.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -218,19 +377,76 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
+            {/* Dream Tools */}
             <Card className="glass border-white/20">
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle>Dream Tools</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button className="w-full btn-lovers">
+              <CardContent className="space-y-3">
+                <Button 
+                  className="w-full btn-lovers"
+                  onClick={() => setCurrentMusic('Romantic Vibes')}
+                >
                   <Music className="w-4 h-4 mr-2" />
-                  Play Romantic Music
+                  Shared Playlist
                 </Button>
                 <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Private Mode
+                  <StickyNote className="w-4 h-4 mr-2" />
+                  Shared Notes
+                </Button>
+                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Dream Dates
+                </Button>
+                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Memory Board
+                </Button>
+                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
+                  <Gamepad2 className="w-4 h-4 mr-2" />
+                  Mini-Games
+                </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Mood & Settings */}
+            <Card className="glass border-white/20">
+              <CardHeader>
+                <CardTitle>Room Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Night Mode Stars</h4>
+                    <p className="text-sm text-muted-foreground">Constellation ambiance</p>
+                  </div>
+                  <Switch 
+                    checked={nightModeStars}
+                    onCheckedChange={setNightModeStars}
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium">Pet Mood</Label>
+                  <div className="flex space-x-2 mt-2">
+                    {['happy', 'love', 'excited'].map((mood) => (
+                      <Button
+                        key={mood}
+                        size="sm"
+                        variant={petMood === mood ? "default" : "outline"}
+                        onClick={() => setPetMood(mood)}
+                        className={petMood === mood ? "btn-lovers" : "border-lovers-primary/50 text-lovers-primary"}
+                      >
+                        <Smile className="w-4 h-4 mr-1" />
+                        {mood}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
+                  <Pin className="w-4 h-4 mr-2" />
+                  Change PIN
                 </Button>
               </CardContent>
             </Card>

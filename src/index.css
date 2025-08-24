@@ -187,6 +187,14 @@
     animation: heartBeat 1.5s ease-in-out infinite;
   }
 
+  .animate-heart-beat {
+    animation: heartBeat 1.5s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
   .blink-star {
     animation: blinkStar 2s ease-in-out infinite;
   }
