@@ -1,206 +1,188 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageCircle, Heart, Lock } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Heart, MessageCircle, Users, Sparkles } from 'lucide-react';
 
 export const AuthForm = () => {
-  const { login, signup, loading } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    confirmPassword: ''
-  });
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await login(formData.email, formData.password);
-      toast({
-        title: "Welcome back!",
-        description: "Successfully logged in to ChatConnect"
-      });
-    } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "Please check your credentials and try again",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match",
-        variant: "destructive"
-      });
-      return;
-    }
+    setLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.name);
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              display_name: displayName || email.split('@')[0]
+            }
+          }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Welcome back!",
+          description: "You've been signed in successfully.",
+        });
+      }
+    } catch (error: any) {
       toast({
-        title: "Account created!",
-        description: "Welcome to ChatConnect"
+        title: "Authentication failed",
+        description: error.message,
+        variant: "destructive",
       });
-    } catch (error) {
-      toast({
-        title: "Signup failed",
-        description: "Please try again",
-        variant: "destructive"
-      });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8 animate-fade-in">
-          <div className="flex items-center justify-center mb-4">
-            <MessageCircle className="w-12 h-12 text-general-primary" />
+        {/* Logo and Branding */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <div className="relative">
+              <MessageCircle className="w-8 h-8 text-primary" />
+              <Heart className="w-4 h-4 text-lovers-primary absolute -top-1 -right-1 animate-heart-beat" />
+            </div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-lovers-primary bg-clip-text text-transparent">
+              ChatConnect
+            </span>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-general-primary to-lovers-primary bg-clip-text text-transparent">
-            ChatConnect
-          </h1>
-          <p className="text-muted-foreground mt-2">Connect in every way that matters</p>
+          <p className="text-muted-foreground text-sm">
+            Connect with friends • Share moments • Create memories
+          </p>
         </div>
 
-        <Card className="glass border-white/20 shadow-2xl">
+        {/* Features Preview */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="text-center p-3 glass rounded-lg border-white/20">
+            <Users className="w-6 h-6 text-primary mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">Real-time Chat</p>
+          </div>
+          <div className="text-center p-3 glass rounded-lg border-white/20">
+            <Heart className="w-6 h-6 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
+            <p className="text-xs text-muted-foreground">Lovers Mode</p>
+          </div>
+          <div className="text-center p-3 glass rounded-lg border-white/20">
+            <Sparkles className="w-6 h-6 text-accent mx-auto mb-2" />
+            <p className="text-xs text-muted-foreground">Dream Room</p>
+          </div>
+        </div>
+
+        {/* Auth Form */}
+        <Card className="glass border-white/20">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome</CardTitle>
+            <CardTitle className="text-2xl">
+              {isSignUp ? 'Join ChatConnect' : 'Welcome Back'}
+            </CardTitle>
             <CardDescription>
-              Join the conversation or create your account
+              {isSignUp 
+                ? 'Create your account to start connecting' 
+                : 'Sign in to continue your conversations'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleAuth} className="space-y-4">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="displayName">Display Name</Label>
+                  <Input
+                    id="displayName"
+                    type="text"
+                    placeholder="How should we call you?"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="glass border-white/20"
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="glass border-white/20"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="glass border-white/20"
+                />
+              </div>
 
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full btn-general"
-                  >
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      type="text"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      required
-                      className="glass"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full btn-general"
-                  >
-                    {loading ? 'Creating Account...' : 'Create Account'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-primary to-lovers-primary hover:opacity-90"
+                disabled={loading}
+              >
+                {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              </Button>
+            </form>
 
             <div className="mt-6 text-center">
-              <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
-                <Lock className="w-4 h-4" />
-                <span>Your privacy is protected</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                {isSignUp 
+                  ? 'Already have an account? Sign in' 
+                  : "Don't have an account? Sign up"
+                }
+              </button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Beta Notice */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-muted-foreground">
+            🚀 Experience the future of social connection
+          </p>
+        </div>
       </div>
     </div>
   );

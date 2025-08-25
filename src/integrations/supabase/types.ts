@@ -14,7 +14,285 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      call_history: {
+        Row: {
+          call_type: string | null
+          callee_id: string
+          caller_id: string
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          call_type?: string | null
+          callee_id: string
+          caller_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          call_type?: string | null
+          callee_id?: string
+          caller_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          contact_user_id: string
+          created_at: string
+          id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          contact_user_id: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          contact_user_id?: string
+          created_at?: string
+          id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      conversation_participants: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_lovers_conversation: boolean | null
+          name: string | null
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_lovers_conversation?: boolean | null
+          name?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_lovers_conversation?: boolean | null
+          name?: string | null
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dream_features: {
+        Row: {
+          created_at: string
+          data: Json
+          feature_type: string
+          id: string
+          partner_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          feature_type: string
+          id?: string
+          partner_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          feature_type?: string
+          id?: string
+          partner_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      love_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number | null
+          id: string
+          last_interaction_date: string | null
+          longest_streak: number | null
+          partner_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_interaction_date?: string | null
+          longest_streak?: number | null
+          partner_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          last_interaction_date?: string | null
+          longest_streak?: number | null
+          partner_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          dream_reveal_at: string | null
+          id: string
+          is_dream_message: boolean | null
+          message_type: string | null
+          metadata: Json | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          dream_reveal_at?: string | null
+          id?: string
+          is_dream_message?: boolean | null
+          message_type?: string | null
+          metadata?: Json | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          dream_reveal_at?: string | null
+          id?: string
+          is_dream_message?: boolean | null
+          message_type?: string | null
+          metadata?: Json | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          dream_room_pin: string | null
+          id: string
+          is_online: boolean | null
+          last_seen: string | null
+          love_coins: number | null
+          lovers_mode_enabled: boolean | null
+          lovers_partner_id: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          dream_room_pin?: string | null
+          id?: string
+          is_online?: boolean | null
+          last_seen?: string | null
+          love_coins?: number | null
+          lovers_mode_enabled?: boolean | null
+          lovers_partner_id?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          dream_room_pin?: string | null
+          id?: string
+          is_online?: boolean | null
+          last_seen?: string | null
+          love_coins?: number | null
+          lovers_mode_enabled?: boolean | null
+          lovers_partner_id?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_lovers_partner_id_fkey"
+            columns: ["lovers_partner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
