@@ -50,15 +50,18 @@ export const SharedPlaylist: React.FC = () => {
 
       if (error) throw error;
 
-      const songData = data?.map(item => ({
-        id: item.id,
-        title: item.data.title,
-        artist: item.data.artist,
-        url: item.data.url,
-        added_by: item.user_id,
-        mood: item.data.mood,
-        created_at: item.created_at
-      })) || [];
+      const songData = data?.map(item => {
+        const songInfo = item.data as { title: string; artist: string; url?: string; mood: string };
+        return {
+          id: item.id,
+          title: songInfo.title,
+          artist: songInfo.artist,
+          url: songInfo.url,
+          added_by: item.user_id,
+          mood: songInfo.mood,
+          created_at: item.created_at
+        };
+      }) || [];
 
       setSongs(songData);
     } catch (error: any) {

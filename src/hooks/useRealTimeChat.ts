@@ -52,7 +52,21 @@ export const useRealTimeChat = () => {
         `);
 
       if (error) throw error;
-      setConversations(conversationsData || []);
+      
+      // Type-safe conversation mapping
+      const typedConversations = (conversationsData || []).map(conv => ({
+        ...conv,
+        conversation_participants: (conv.conversation_participants as any[])?.map((p: any) => ({
+          user_id: p.user_id,
+          profiles: {
+            display_name: p.profiles?.display_name || 'Unknown',
+            avatar_url: p.profiles?.avatar_url,
+            is_online: p.profiles?.is_online || false
+          }
+        })) || []
+      })) as Conversation[];
+      
+      setConversations(typedConversations);
     } catch (error: any) {
       toast({
         title: "Error loading conversations",

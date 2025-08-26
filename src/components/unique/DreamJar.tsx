@@ -42,13 +42,16 @@ export const DreamJar: React.FC = () => {
 
       if (error) throw error;
 
-      const wishData = data?.map(item => ({
-        id: item.id,
-        content: item.data.content,
-        reveal_date: item.data.reveal_date,
-        is_revealed: new Date(item.data.reveal_date) <= new Date(),
-        created_at: item.created_at
-      })) || [];
+      const wishData = data?.map(item => {
+        const dreamData = item.data as { content: string; reveal_date: string };
+        return {
+          id: item.id,
+          content: dreamData.content,
+          reveal_date: dreamData.reveal_date,
+          is_revealed: new Date(dreamData.reveal_date) <= new Date(),
+          created_at: item.created_at
+        };
+      }) || [];
 
       setWishes(wishData);
     } catch (error: any) {

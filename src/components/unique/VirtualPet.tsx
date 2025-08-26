@@ -57,7 +57,7 @@ export const VirtualPet: React.FC = () => {
       if (error && error.code !== 'PGRST116') throw error;
       
       if (data) {
-        setPet(data.data);
+        setPet(data.data as unknown as PetData);
       } else {
         // Create initial pet
         await createInitialPet(user.id);
@@ -127,8 +127,8 @@ export const VirtualPet: React.FC = () => {
         .upsert([{
           user_id: user.id,
           feature_type: 'virtual_pet',
-          data: updatedPet
-        }]);
+          data: updatedPet as any
+        }], { onConflict: 'user_id,feature_type' });
 
       if (error) throw error;
     } catch (error: any) {
