@@ -40,7 +40,62 @@ export const GamesHub: React.FC = () => {
   
   const isLoversMode = mode === 'lovers';
 
-  const games: Game[] = [
+  const generalGames: Game[] = [
+    {
+      id: '1',
+      name: 'Word Match',
+      description: 'Find matching words with friends',
+      category: 'puzzle',
+      players: 'multi',
+      difficulty: 'medium',
+      rewards: 30,
+      icon: '🔤',
+      isNew: true,
+    },
+    {
+      id: '2',
+      name: 'Memory Cards',
+      description: 'Classic memory matching game',
+      category: 'puzzle',
+      players: '1',
+      difficulty: 'easy',
+      rewards: 20,
+      icon: '🃏',
+    },
+    {
+      id: '3',
+      name: 'Tic Tac Toe',
+      description: 'Classic strategy game',
+      category: 'strategy',
+      players: '2',
+      difficulty: 'easy',
+      rewards: 25,
+      icon: '⭕',
+    },
+    {
+      id: '4',
+      name: 'Emoji Puzzle',
+      description: 'Guess the movie from emojis',
+      category: 'puzzle',
+      players: 'multi',
+      difficulty: 'medium',
+      rewards: 35,
+      icon: '😊',
+      isPopular: true,
+    },
+    {
+      id: '5',
+      name: 'Quick Draw',
+      description: 'Draw and guess in real-time',
+      category: 'arcade',
+      players: '2',
+      difficulty: 'medium',
+      rewards: 45,
+      icon: '🎨',
+    },
+  ];
+
+  const loversGames: Game[] = [
     {
       id: '1',
       name: 'Love Quiz',
@@ -54,37 +109,17 @@ export const GamesHub: React.FC = () => {
     },
     {
       id: '2',
-      name: 'Word Match',
-      description: 'Find matching words together',
-      category: 'puzzle',
+      name: 'Dream Room Chat',
+      description: 'Private space for intimate conversations',
+      category: 'romance',
       players: '2',
-      difficulty: 'medium',
-      rewards: 30,
-      icon: '🔤',
+      difficulty: 'easy',
+      rewards: 100,
+      icon: '🌙',
       isNew: true,
     },
     {
       id: '3',
-      name: 'Memory Cards',
-      description: 'Classic memory matching game',
-      category: 'puzzle',
-      players: '1',
-      difficulty: 'easy',
-      rewards: 20,
-      icon: '🃏',
-    },
-    {
-      id: '4',
-      name: 'Tic Tac Love',
-      description: 'Romantic twist on tic-tac-toe',
-      category: 'strategy',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 25,
-      icon: '💕',
-    },
-    {
-      id: '5',
       name: 'Truth or Dare',
       description: 'Romantic questions and dares',
       category: 'romance',
@@ -95,17 +130,7 @@ export const GamesHub: React.FC = () => {
       isPopular: true,
     },
     {
-      id: '6',
-      name: 'Emoji Puzzle',
-      description: 'Guess the movie from emojis',
-      category: 'puzzle',
-      players: 'multi',
-      difficulty: 'medium',
-      rewards: 35,
-      icon: '😊',
-    },
-    {
-      id: '7',
+      id: '4',
       name: 'Love Story Builder',
       description: 'Create your romantic story together',
       category: 'romance',
@@ -113,19 +138,20 @@ export const GamesHub: React.FC = () => {
       difficulty: 'easy',
       rewards: 60,
       icon: '📖',
-      isNew: true,
     },
     {
-      id: '8',
-      name: 'Quick Draw',
-      description: 'Draw and guess in real-time',
-      category: 'arcade',
+      id: '5',
+      name: 'Virtual Pet',
+      description: 'Take care of your love pet together',
+      category: 'romance',
       players: '2',
-      difficulty: 'medium',
-      rewards: 45,
-      icon: '🎨',
+      difficulty: 'easy',
+      rewards: 75,
+      icon: '🐾',
     },
   ];
+
+  const games = isLoversMode ? loversGames : generalGames;
 
   const filteredGames = selectedCategory === 'all' 
     ? games 

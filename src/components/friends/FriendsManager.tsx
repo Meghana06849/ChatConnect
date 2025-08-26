@@ -51,44 +51,17 @@ export const FriendsManager: React.FC = () => {
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const isLoversMode = mode === 'lovers';
 
-  const [friends, setFriends] = useState<Friend[]>([
-    {
-      id: '1',
-      name: 'Alex Johnson',
-      username: 'alex_j',
-      email: 'alex@example.com',
-      isOnline: true,
-      mutualFriends: 5,
-      status: 'friend'
-    },
-    {
-      id: '2',
-      name: 'Sarah Wilson',
-      username: 'sarah_w',
-      phone: '+1234567890',
-      isOnline: false,
-      mutualFriends: 3,
-      status: 'friend'
-    },
-    {
-      id: '3',
-      name: 'Mike Chen',
-      username: 'mike_c',
-      email: 'mike@example.com',
-      isOnline: true,
-      mutualFriends: 8,
-      status: 'pending'
-    }
-  ]);
+  // Real friends data will be loaded from database
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([]);
 
-  const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([
-    {
-      id: '1',
-      name: 'Emma Davis',
-      username: 'emma_d',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
-    }
-  ]);
+  // TODO: Load real friends data from database
+  // useEffect(() => {
+  //   const loadFriends = async () => {
+  //     // Load from Supabase contacts table
+  //   };
+  //   loadFriends();
+  // }, []);
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -203,51 +176,70 @@ export const FriendsManager: React.FC = () => {
           </TabsList>
 
           <TabsContent value="friends" className="space-y-4">
-            {filteredFriends.filter(f => f.status === 'friend').map((friend) => (
-              <Card key={friend.id} className="glass border-white/20">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback className={`
-                          ${isLoversMode 
-                            ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
-                            : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                          }
-                        `}>
-                          {friend.name[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-semibold">{friend.name}</h4>
-                          <Badge 
-                            variant={friend.isOnline ? "default" : "secondary"}
-                            className={friend.isOnline ? (isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary') : ''}
-                          >
-                            {friend.isOnline ? 'Online' : 'Offline'}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">@{friend.username}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {friend.mutualFriends} mutual friends
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" className="glass border-white/20">
-                        Message
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <UserX className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+            {filteredFriends.filter(f => f.status === 'friend').length === 0 ? (
+              <Card className="glass border-white/20">
+                <CardContent className="p-8 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="font-semibold mb-2">No friends yet</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Add friends by their username, email, or phone number
+                  </p>
+                  <Button 
+                    onClick={() => setShowAddFriend(true)}
+                    className={isLoversMode ? 'btn-lovers' : 'btn-general'}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Your First Friend
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              filteredFriends.filter(f => f.status === 'friend').map((friend) => (
+                <Card key={friend.id} className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className={`
+                            ${isLoversMode 
+                              ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
+                              : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
+                            }
+                          `}>
+                            {friend.name[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-semibold">{friend.name}</h4>
+                            <Badge 
+                              variant={friend.isOnline ? "default" : "secondary"}
+                              className={friend.isOnline ? (isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary') : ''}
+                            >
+                              {friend.isOnline ? 'Online' : 'Offline'}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">@{friend.username}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {friend.mutualFriends} mutual friends
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" className="glass border-white/20">
+                          Message
+                        </Button>
+                        <Button variant="ghost" size="icon">
+                          <UserX className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </TabsContent>
 
           <TabsContent value="requests" className="space-y-4">

@@ -5,13 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Heart, MessageCircle, Users, Sparkles } from 'lucide-react';
+import { MessageCircle, Users, Sparkles } from 'lucide-react';
 
 export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -27,7 +28,8 @@ export const AuthForm = () => {
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              display_name: displayName || email.split('@')[0]
+              display_name: displayName || email.split('@')[0],
+              username: username || email.split('@')[0]
             }
           }
         });
@@ -36,7 +38,7 @@ export const AuthForm = () => {
 
         toast({
           title: "Account created!",
-          description: "Please check your email to verify your account.",
+          description: "Welcome to ChatConnect! You can start using the app immediately.",
         });
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -68,11 +70,8 @@ export const AuthForm = () => {
         {/* Logo and Branding */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="relative">
-              <MessageCircle className="w-8 h-8 text-primary" />
-              <Heart className="w-4 h-4 text-lovers-primary absolute -top-1 -right-1 animate-heart-beat" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-lovers-primary bg-clip-text text-transparent">
+            <MessageCircle className="w-8 h-8 text-primary" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               ChatConnect
             </span>
           </div>
@@ -82,18 +81,14 @@ export const AuthForm = () => {
         </div>
 
         {/* Features Preview */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="text-center p-3 glass rounded-lg border-white/20">
             <Users className="w-6 h-6 text-primary mx-auto mb-2" />
             <p className="text-xs text-muted-foreground">Real-time Chat</p>
           </div>
           <div className="text-center p-3 glass rounded-lg border-white/20">
-            <Heart className="w-6 h-6 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
-            <p className="text-xs text-muted-foreground">Lovers Mode</p>
-          </div>
-          <div className="text-center p-3 glass rounded-lg border-white/20">
             <Sparkles className="w-6 h-6 text-accent mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Dream Room</p>
+            <p className="text-xs text-muted-foreground">Games & Fun</p>
           </div>
         </div>
 
@@ -113,17 +108,31 @@ export const AuthForm = () => {
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
               {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="displayName">Display Name</Label>
-                  <Input
-                    id="displayName"
-                    type="text"
-                    placeholder="How should we call you?"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="glass border-white/20"
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="Choose a unique username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      className="glass border-white/20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Display Name</Label>
+                    <Input
+                      id="displayName"
+                      type="text"
+                      placeholder="How should we call you?"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="glass border-white/20"
+                    />
+                  </div>
+                </>
               )}
               
               <div className="space-y-2">
@@ -155,7 +164,7 @@ export const AuthForm = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-primary to-lovers-primary hover:opacity-90"
+                className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
                 disabled={loading}
               >
                 {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}

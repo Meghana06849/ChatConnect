@@ -30,52 +30,20 @@ interface CallRecord {
 export const CallHistory: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const callHistory: CallRecord[] = [
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      type: 'outgoing',
-      callType: 'video',
-      duration: '45:23',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    },
-    {
-      id: '2',
-      name: 'Mike Chen',
-      type: 'incoming',
-      callType: 'voice',
-      duration: '12:45',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    },
-    {
-      id: '3',
-      name: 'Emma Wilson',
-      type: 'missed',
-      callType: 'voice',
-      duration: '0:00',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-    },
-    {
-      id: '4',
-      name: 'Alex Rivera',
-      type: 'outgoing',
-      callType: 'video',
-      duration: '1:23:15',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    },
-    {
-      id: '5',
-      name: 'Love Partner ❤️',
-      type: 'incoming',
-      callType: 'video',
-      duration: '2:15:30',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-    },
-  ];
+  // Real call history will be loaded from database
+  const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
 
   const filteredCalls = callHistory.filter(call =>
     call.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // TODO: Load real call history from database
+  // useEffect(() => {
+  //   const loadCallHistory = async () => {
+  //     // Load from Supabase call_history table
+  //   };
+  //   loadCallHistory();
+  // }, []);
 
   const getCallIcon = (type: string, callType: string) => {
     if (type === 'incoming') return <PhoneIncoming className="w-4 h-4 text-green-500" />;
@@ -145,47 +113,14 @@ export const CallHistory: React.FC = () => {
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {filteredCalls.map((call) => (
-                  <div
-                    key={call.id}
-                    className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-colors"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-general-primary to-general-secondary rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium">{call.name}</h4>
-                          {getCallIcon(call.type, call.callType)}
-                          {getCallTypeIcon(call.callType)}
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatTimestamp(call.timestamp)}</span>
-                          {call.duration !== '0:00' && (
-                            <>
-                              <span>•</span>
-                              <span>{call.duration}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button size="sm" variant="outline" className="border-general-primary/50 text-general-primary">
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" className="border-general-primary/50 text-general-primary">
-                        <Video className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <CardContent className="space-y-3">
+                <p className="text-muted-foreground">No call history available.</p>
+                <div className="text-center p-8">
+                  <Phone className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">
+                    Make your first call to see history here
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
