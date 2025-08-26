@@ -155,7 +155,12 @@ export const GamesHub: React.FC = () => {
 
   const filteredGames = selectedCategory === 'all' 
     ? games 
-    : games.filter(game => game.category === selectedCategory);
+    : games.filter(game => {
+        if (selectedCategory === 'dreamroom') {
+          return game.category === 'romance' || game.name.includes('Dream');
+        }
+        return game.category === selectedCategory;
+      });
 
   const handlePlayGame = (game: Game) => {
     earnCoins(game.rewards, `Playing ${game.name}`);
@@ -201,12 +206,22 @@ export const GamesHub: React.FC = () => {
 
         {/* Category Tabs */}
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 glass border-white/20">
+          <TabsList className={`grid w-full glass border-white/20 ${
+            isLoversMode ? 'grid-cols-3' : 'grid-cols-4'
+          }`}>
             <TabsTrigger value="all">All Games</TabsTrigger>
-            <TabsTrigger value="romance">Romance</TabsTrigger>
-            <TabsTrigger value="puzzle">Puzzle</TabsTrigger>
-            <TabsTrigger value="arcade">Arcade</TabsTrigger>
-            <TabsTrigger value="strategy">Strategy</TabsTrigger>
+            {isLoversMode ? (
+              <>
+                <TabsTrigger value="romance">Romance</TabsTrigger>
+                <TabsTrigger value="dreamroom">Dream Room</TabsTrigger>
+              </>
+            ) : (
+              <>
+                <TabsTrigger value="puzzle">Puzzle</TabsTrigger>
+                <TabsTrigger value="arcade">Arcade</TabsTrigger>
+                <TabsTrigger value="strategy">Strategy</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value={selectedCategory} className="space-y-6">
@@ -319,40 +334,29 @@ export const GamesHub: React.FC = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Leaderboard */}
-        <Card className="glass border-white/20">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              <span>Leaderboard</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { rank: 1, name: 'You', score: 2450, badge: '👑' },
-                { rank: 2, name: 'Sarah', score: 2380, badge: '🥈' },
-                { rank: 3, name: 'Mike', score: 2200, badge: '🥉' },
-                { rank: 4, name: 'Emma', score: 1890, badge: '' },
-                { rank: 5, name: 'Alex', score: 1750, badge: '' },
-              ].map((player) => (
-                <div key={player.rank} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
-                  <div className="flex items-center space-x-3">
-                    <span className="w-8 h-8 bg-gradient-to-br from-general-primary to-general-secondary rounded-full flex items-center justify-center text-white font-bold text-sm">
-                      {player.rank}
-                    </span>
-                    <span className="font-medium">{player.name}</span>
-                    {player.badge && <span className="text-lg">{player.badge}</span>}
-                  </div>
-                  <div className="flex items-center space-x-1 text-general-primary">
-                    <Coins className="w-4 h-4" />
-                    <span className="font-bold">{player.score}</span>
-                  </div>
+        {/* Stats Card */}
+        {isLoversMode && (
+          <Card className="glass border-white/20">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
+                <span>Love Stats</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 rounded-xl bg-lovers-primary/10">
+                  <p className="text-2xl font-bold text-lovers-primary">0</p>
+                  <p className="text-sm text-muted-foreground">Games Played</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="text-center p-4 rounded-xl bg-lovers-primary/10">
+                  <p className="text-2xl font-bold text-lovers-primary">0</p>
+                  <p className="text-sm text-muted-foreground">Love Points</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -28,32 +28,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
   const { mode } = useChat();
   const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Hey! How are you doing? 😊',
-      sender: 'other',
-      timestamp: new Date(Date.now() - 3600000),
-      delivered: true,
-      seen: true
-    },
-    {
-      id: '2',
-      text: 'I\'m doing great! Thanks for asking. How about you?',
-      sender: 'user',
-      timestamp: new Date(Date.now() - 3300000),
-      delivered: true,
-      seen: true
-    },
-    {
-      id: '3',
-      text: mode === 'lovers' ? 'Missing you so much 💕' : 'Just finished work, finally have some free time!',
-      sender: 'other',
-      timestamp: new Date(Date.now() - 1800000),
-      delivered: true,
-      seen: false
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  // TODO: Load real messages from Supabase messages table
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoversMode = mode === 'lovers';
@@ -182,38 +158,69 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`
-                max-w-xs lg:max-w-md px-4 py-2 rounded-2xl relative
-                ${msg.sender === 'user'
-                  ? `chat-bubble-sent ${isLoversMode ? 'lovers-mode' : ''}`
-                  : `chat-bubble-received ${isLoversMode ? 'lovers-mode' : ''}`
+        {messages.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className={`
+                w-16 h-16 rounded-full flex items-center justify-center mx-auto
+                ${isLoversMode 
+                  ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
+                  : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
                 }
-              `}
-            >
-              <p className="text-sm">{msg.text}</p>
-              <div className="flex items-center justify-end space-x-1 mt-1">
-                <span className="text-xs opacity-70">
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                {msg.sender === 'user' && (
-                  <div className="flex">
-                    {isLoversMode ? (
-                      <Heart className={`w-3 h-3 ${msg.delivered ? 'text-lovers-primary fill-current' : 'text-gray-400'}`} />
-                    ) : (
-                      <CheckCheck className={`w-4 h-4 ${msg.delivered ? 'text-general-primary' : 'text-gray-400'}`} />
-                    )}
-                  </div>
+              `}>
+                {isLoversMode ? (
+                  <Heart className="w-8 h-8 text-lovers-primary animate-heart-beat" />
+                ) : (
+                  <Send className="w-8 h-8 text-general-primary" />
                 )}
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">
+                  {isLoversMode ? 'Share your heart' : 'No messages yet'}
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  {isLoversMode 
+                    ? 'Send a love message to start your conversation 💕'
+                    : 'Send a message to start chatting!'
+                  }
+                </p>
               </div>
             </div>
           </div>
-        ))}
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`
+                  max-w-xs lg:max-w-md px-4 py-2 rounded-2xl relative
+                  ${msg.sender === 'user'
+                    ? `chat-bubble-sent ${isLoversMode ? 'lovers-mode' : ''}`
+                    : `chat-bubble-received ${isLoversMode ? 'lovers-mode' : ''}`
+                  }
+                `}
+              >
+                <p className="text-sm">{msg.text}</p>
+                <div className="flex items-center justify-end space-x-1 mt-1">
+                  <span className="text-xs opacity-70">
+                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {msg.sender === 'user' && (
+                    <div className="flex">
+                      {isLoversMode ? (
+                        <Heart className={`w-3 h-3 ${msg.delivered ? 'text-lovers-primary fill-current' : 'text-gray-400'}`} />
+                      ) : (
+                        <CheckCheck className={`w-4 h-4 ${msg.delivered ? 'text-general-primary' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 

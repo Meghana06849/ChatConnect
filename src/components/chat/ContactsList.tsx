@@ -20,62 +20,10 @@ interface ContactsListProps {
   onContactSelect: (contact: Contact) => void;
 }
 
+// Real contacts will be loaded from database
 const generateContacts = (isLoversMode: boolean): Contact[] => {
-  const generalContacts = [
-    { 
-      id: '1', 
-      name: 'Alex Johnson', 
-      lastMessage: 'Hey, are we still on for lunch tomorrow?', 
-      timestamp: new Date(Date.now() - 300000),
-      isOnline: true,
-      unreadCount: 2
-    },
-    { 
-      id: '2', 
-      name: 'Sarah Wilson', 
-      lastMessage: 'Thanks for the help with the project! 🎉', 
-      timestamp: new Date(Date.now() - 1800000),
-      isOnline: false,
-      unreadCount: 0
-    },
-    { 
-      id: '3', 
-      name: 'Mike Chen', 
-      lastMessage: 'Did you see the game last night?', 
-      timestamp: new Date(Date.now() - 3600000),
-      isOnline: true,
-      unreadCount: 1
-    },
-    { 
-      id: '4', 
-      name: 'Team Workspace', 
-      lastMessage: 'New updates available for review', 
-      timestamp: new Date(Date.now() - 7200000),
-      isOnline: false,
-      unreadCount: 5
-    }
-  ];
-
-  const loversContacts = [
-    { 
-      id: '1', 
-      name: 'My Love 💕', 
-      lastMessage: 'Missing you so much right now 🥰', 
-      timestamp: new Date(Date.now() - 180000),
-      isOnline: true,
-      unreadCount: 3
-    },
-    { 
-      id: '2', 
-      name: 'Babe', 
-      lastMessage: 'Can\'t wait to see you tonight ❤️', 
-      timestamp: new Date(Date.now() - 1200000),
-      isOnline: false,
-      unreadCount: 0
-    }
-  ];
-
-  return isLoversMode ? loversContacts : generalContacts;
+  // TODO: Load real contacts from Supabase conversations table
+  return [];
 };
 
 export const ContactsList: React.FC<ContactsListProps> = ({ 
@@ -141,7 +89,14 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       <div className="flex-1 overflow-y-auto">
         {filteredContacts.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-muted-foreground">No contacts found</p>
+            <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="font-semibold mb-2">No conversations yet</h3>
+            <p className="text-muted-foreground text-sm">
+              {isLoversMode 
+                ? 'Start a romantic conversation with your partner'
+                : 'Add friends and start chatting!'
+              }
+            </p>
           </div>
         ) : (
           filteredContacts.map((contact) => (
