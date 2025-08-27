@@ -32,6 +32,7 @@ import {
   Database
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ModeSwitch } from './ModeSwitch';
 
 const SettingsItem: React.FC<{
   icon: React.ReactNode;
@@ -153,39 +154,28 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<User className="w-5 h-5" />}
                 title="Account"
                 subtitle="Profile settings and security"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Account Settings", description: "Feature coming soon!" })}
               />
-              
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center space-x-3">
-                  <Heart className={`w-5 h-5 ${isLoversMode ? 'text-lovers-primary animate-heart-beat' : 'text-muted-foreground'}`} />
-                  <div>
-                    <p className="font-medium">Lovers Mode</p>
-                    <p className="text-sm text-muted-foreground">Enable private couple features</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={profile?.lovers_mode_enabled || false}
-                  onCheckedChange={handleLoversToggle}
-                />
-              </div>
               
               <SettingsItem 
                 icon={<Shield className="w-5 h-5" />}
                 title="Privacy"
                 subtitle="Control your data and visibility"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Privacy Settings", description: "Feature coming soon!" })}
               />
               
               <SettingsItem 
                 icon={<Bell className="w-5 h-5" />}
                 title="Notifications"
                 subtitle="Message and call alerts"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Notification Settings", description: "Feature coming soon!" })}
               />
             </div>
           </CardContent>
         </Card>
+
+        {/* Mode Switch Component */}
+        <ModeSwitch />
 
         {isLoversMode && (
           <Card className="glass border-white/20">
@@ -214,19 +204,19 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<MessageSquare className="w-5 h-5" />}
                 title="Chats"
                 subtitle="Theme, wallpapers, chat history"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Chat Settings", description: "Feature coming soon!" })}
               />
               <SettingsItem 
                 icon={<Users className="w-5 h-5" />}
                 title="Friends & Contacts"
                 subtitle="Manage your connections"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Friends Settings", description: "Feature coming soon!" })}
               />
               <SettingsItem 
                 icon={<Database className="w-5 h-5" />}
                 title="Storage"
                 subtitle="Manage app data and media"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Storage Settings", description: "Feature coming soon!" })}
               />
             </div>
           </CardContent>
@@ -239,13 +229,13 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<HelpCircle className="w-5 h-5" />}
                 title="Help & Support"
                 subtitle="Get help and contact support"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Help & Support", description: "Visit our help center or contact support team!" })}
               />
               <SettingsItem 
                 icon={<UserPlus className="w-5 h-5" />}
                 title="Invite Friends"
                 subtitle="Share ChatConnect with others"
-                onClick={() => {}}
+                onClick={() => toast({ title: "Invite Friends", description: "Feature coming soon! Share the love!" })}
               />
             </div>
           </CardContent>

@@ -28,13 +28,11 @@ const navigationItems = {
     { icon: Users, label: 'Friends', id: 'friends' },
   ],
   lovers: [
-    { icon: Home, label: 'Home', id: 'home' },
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
     { icon: Star, label: 'Stories', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
-    { icon: Home, label: 'Dream Room', id: 'dreamroom' },
-    { icon: Lock, label: 'Vault', id: 'vault' },
+    { icon: Heart, label: 'Dream Room', id: 'dreamroom' },
   ]
 };
 

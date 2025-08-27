@@ -57,8 +57,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
       }
 
       const hour = now.getHours();
-      // Accessible from 12 AM (0) to 5 AM (5)
-      setIsAccessible(hour >= 0 && hour < 5);
+      // Accessible from 12 AM (0) to 5 AM (5) - 00:00 to 04:59
+      setIsAccessible(hour >= 0 && hour <= 4);
     };
 
     updateTime();

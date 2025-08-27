@@ -52,7 +52,7 @@ export const ChatLayout = () => {
         return <GamesHub />;
 
       case 'dreamroom':
-        return <DreamRoom />;
+        return <DreamRoom isTimeRestricted={true} />;
 
       case 'stories':
         return <Stories />;
