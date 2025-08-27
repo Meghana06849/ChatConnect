@@ -24,24 +24,7 @@ interface Story {
 export const Stories: React.FC = () => {
   const { mode } = useChat();
   const { user } = useAuth();
-  const [stories, setStories] = useState<Story[]>([
-    {
-      id: '1',
-      userId: 'user1',
-      userName: 'Alex Johnson',
-      content: mode === 'lovers' ? 'Missing you 💕' : 'Great day at the beach! 🏖️',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      viewed: false
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      userName: 'Sarah Wilson',
-      content: mode === 'lovers' ? 'Can\'t wait to see you tonight ❤️' : 'Just finished my workout! 💪',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-      viewed: true
-    }
-  ]);
+  const [stories, setStories] = useState<Story[]>([]);
   
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [newStoryContent, setNewStoryContent] = useState('');

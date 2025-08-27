@@ -1,361 +1,252 @@
 import React, { useState } from 'react';
+import { useChat } from '@/contexts/ChatContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useChat } from '@/contexts/ChatContext';
-import { useLoveCoins } from '@/contexts/LoveCoinsContext';
 import { 
   Gamepad2, 
+  Play, 
   Trophy, 
   Users, 
-  Play, 
   Star,
-  Heart,
-  Zap,
-  Target,
-  Crown,
-  Gift,
-  Coins
+  Send
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Game {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  category: 'puzzle' | 'arcade' | 'strategy' | 'romance';
-  players: '1' | '2' | 'multi';
-  difficulty: 'easy' | 'medium' | 'hard';
-  rewards: number;
   icon: string;
-  isPopular?: boolean;
-  isNew?: boolean;
+  category: 'puzzle' | 'arcade' | 'strategy' | 'romance' | 'couples';
+  players: 'single' | 'multiplayer';
+  difficulty: 'easy' | 'medium' | 'hard';
+  isOnline?: boolean;
 }
+
+const gameCategories = {
+  general: [
+    {
+      id: 'puzzle1',
+      title: 'Word Chain',
+      description: 'Create words from the last letter',
+      icon: '🔤',
+      category: 'puzzle' as const,
+      players: 'multiplayer' as const,
+      difficulty: 'easy' as const
+    },
+    {
+      id: 'arcade1', 
+      title: 'Quick Math',
+      description: 'Fast calculation challenges',
+      icon: '🧮',
+      category: 'arcade' as const,
+      players: 'single' as const,
+      difficulty: 'medium' as const
+    },
+    {
+      id: 'strategy1',
+      title: 'Tic Tac Toe',
+      description: 'Classic strategy game',
+      icon: '⭕',
+      category: 'strategy' as const,
+      players: 'multiplayer' as const,
+      difficulty: 'easy' as const
+    }
+  ],
+  lovers: [
+    {
+      id: 'romance1',
+      title: 'Love Quiz',
+      description: 'How well do you know each other?',
+      icon: '💕',
+      category: 'romance' as const,
+      players: 'multiplayer' as const,
+      difficulty: 'medium' as const
+    },
+    {
+      id: 'couples1',
+      title: 'Truth or Dare',
+      description: 'Romantic edition for couples',
+      icon: '💋',
+      category: 'couples' as const,
+      players: 'multiplayer' as const,
+      difficulty: 'easy' as const
+    },
+    {
+      id: 'romance2',
+      title: 'Memory Lane',
+      description: 'Remember your special moments',
+      icon: '📸',
+      category: 'romance' as const,
+      players: 'multiplayer' as const,
+      difficulty: 'medium' as const
+    }
+  ]
+};
 
 export const GamesHub: React.FC = () => {
   const { mode } = useChat();
-  const { coins, earnCoins } = useLoveCoins();
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  
   const isLoversMode = mode === 'lovers';
+  const games = gameCategories[isLoversMode ? 'lovers' : 'general'];
 
-  const generalGames: Game[] = [
-    {
-      id: '1',
-      name: 'Word Match',
-      description: 'Find matching words with friends',
-      category: 'puzzle',
-      players: 'multi',
-      difficulty: 'medium',
-      rewards: 30,
-      icon: '🔤',
-      isNew: true,
-    },
-    {
-      id: '2',
-      name: 'Memory Cards',
-      description: 'Classic memory matching game',
-      category: 'puzzle',
-      players: '1',
-      difficulty: 'easy',
-      rewards: 20,
-      icon: '🃏',
-    },
-    {
-      id: '3',
-      name: 'Tic Tac Toe',
-      description: 'Classic strategy game',
-      category: 'strategy',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 25,
-      icon: '⭕',
-    },
-    {
-      id: '4',
-      name: 'Emoji Puzzle',
-      description: 'Guess the movie from emojis',
-      category: 'puzzle',
-      players: 'multi',
-      difficulty: 'medium',
-      rewards: 35,
-      icon: '😊',
-      isPopular: true,
-    },
-    {
-      id: '5',
-      name: 'Quick Draw',
-      description: 'Draw and guess in real-time',
-      category: 'arcade',
-      players: '2',
-      difficulty: 'medium',
-      rewards: 45,
-      icon: '🎨',
-    },
-  ];
+  const filteredGames = games.filter(game => {
+    if (selectedCategory === 'all') return true;
+    return game.category === selectedCategory;
+  });
 
-  const loversGames: Game[] = [
-    {
-      id: '1',
-      name: 'Love Quiz',
-      description: 'Test how well you know your partner',
-      category: 'romance',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 50,
-      icon: '❤️',
-      isPopular: true,
-    },
-    {
-      id: '2',
-      name: 'Dream Room Chat',
-      description: 'Private space for intimate conversations',
-      category: 'romance',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 100,
-      icon: '🌙',
-      isNew: true,
-    },
-    {
-      id: '3',
-      name: 'Truth or Dare',
-      description: 'Romantic questions and dares',
-      category: 'romance',
-      players: '2',
-      difficulty: 'medium',
-      rewards: 40,
-      icon: '🎭',
-      isPopular: true,
-    },
-    {
-      id: '4',
-      name: 'Love Story Builder',
-      description: 'Create your romantic story together',
-      category: 'romance',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 60,
-      icon: '📖',
-    },
-    {
-      id: '5',
-      name: 'Virtual Pet',
-      description: 'Take care of your love pet together',
-      category: 'romance',
-      players: '2',
-      difficulty: 'easy',
-      rewards: 75,
-      icon: '🐾',
-    },
-  ];
+  const sendGameInvite = (game: Game, friendId?: string) => {
+    toast({
+      title: `Game Invite Sent!`,
+      description: `Invited ${friendId || 'friend'} to play ${game.title}`,
+    });
+  };
 
-  const games = isLoversMode ? loversGames : generalGames;
-
-  const filteredGames = selectedCategory === 'all' 
-    ? games 
-    : games.filter(game => {
-        if (selectedCategory === 'dreamroom') {
-          return game.category === 'romance' || game.name.includes('Dream');
-        }
-        return game.category === selectedCategory;
+  const playGame = (game: Game) => {
+    if (game.players === 'multiplayer') {
+      // For multiplayer games, send invite instead of playing directly
+      sendGameInvite(game);
+    } else {
+      toast({
+        title: `Starting ${game.title}`,
+        description: 'Game will load in a moment...',
       });
-
-  const handlePlayGame = (game: Game) => {
-    earnCoins(game.rewards, `Playing ${game.name}`);
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'easy': return 'text-green-500';
-      case 'medium': return 'text-yellow-500';
-      case 'hard': return 'text-red-500';
-      default: return 'text-gray-500';
     }
   };
 
-  const getPlayersIcon = (players: string) => {
-    switch (players) {
-      case '1': return <Target className="w-4 h-4" />;
-      case '2': return <Users className="w-4 h-4" />;
-      case 'multi': return <Crown className="w-4 h-4" />;
-      default: return <Gamepad2 className="w-4 h-4" />;
-    }
+  const getDifficultyBadge = (difficulty: string) => {
+    const colors = {
+      easy: 'bg-green-500/20 text-green-500',
+      medium: 'bg-yellow-500/20 text-yellow-500', 
+      hard: 'bg-red-500/20 text-red-500'
+    };
+    return colors[difficulty as keyof typeof colors] || colors.easy;
   };
+
+  const categories = isLoversMode 
+    ? [
+        { id: 'all', label: 'All', icon: '💕' },
+        { id: 'romance', label: 'Romance', icon: '💝' },
+        { id: 'couples', label: 'Couples', icon: '👫' }
+      ]
+    : [
+        { id: 'all', label: 'All', icon: '🎮' },
+        { id: 'puzzle', label: 'Puzzle', icon: '🧩' },
+        { id: 'arcade', label: 'Arcade', icon: '🕹️' },
+        { id: 'strategy', label: 'Strategy', icon: '♟️' }
+      ];
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <Gamepad2 className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-          <h1 className="text-3xl font-bold mb-2">Games Hub</h1>
-          <p className="text-muted-foreground">
-            {isLoversMode ? 'Play romantic games together' : 'Fun games to enjoy with friends'}
-          </p>
-          
-          {/* Coins Display */}
-          <div className="flex items-center justify-center space-x-4 mt-4">
-            <div className={`flex items-center space-x-2 px-4 py-2 rounded-full ${isLoversMode ? 'bg-lovers-primary/20 text-lovers-primary' : 'bg-general-primary/20 text-general-primary'}`}>
-              <Coins className="w-5 h-5" />
-              <span className="font-bold">{coins} Coins</span>
-            </div>
+          <div className={`
+            inline-flex items-center justify-center w-24 h-24 rounded-full mb-6
+            ${isLoversMode 
+              ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
+              : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
+            }
+          `}>
+            <Gamepad2 className={`w-12 h-12 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
           </div>
+          <h1 className="text-3xl font-bold mb-2">
+            {isLoversMode ? 'Love Games' : 'Games Hub'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isLoversMode ? 'Play romantic games together' : 'Send game invites to friends'}
+          </p>
         </div>
 
-        {/* Category Tabs */}
-        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-6">
-          <TabsList className={`grid w-full glass border-white/20 ${
-            isLoversMode ? 'grid-cols-3' : 'grid-cols-4'
-          }`}>
-            <TabsTrigger value="all">All Games</TabsTrigger>
-            {isLoversMode ? (
-              <>
-                <TabsTrigger value="romance">Romance</TabsTrigger>
-                <TabsTrigger value="dreamroom">Dream Room</TabsTrigger>
-              </>
-            ) : (
-              <>
-                <TabsTrigger value="puzzle">Puzzle</TabsTrigger>
-                <TabsTrigger value="arcade">Arcade</TabsTrigger>
-                <TabsTrigger value="strategy">Strategy</TabsTrigger>
-              </>
-            )}
-          </TabsList>
+        {/* Category Filters */}
+        <Card className="glass border-white/20">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap gap-3">
+              {categories.map((category) => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? 'default' : 'outline'}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`
+                    ${selectedCategory === category.id 
+                      ? (isLoversMode ? 'bg-lovers-primary hover:bg-lovers-primary/90' : 'bg-general-primary hover:bg-general-primary/90')
+                      : 'glass border-white/20 hover:bg-white/10'
+                    }
+                  `}
+                >
+                  <span className="mr-2">{category.icon}</span>
+                  {category.label}
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value={selectedCategory} className="space-y-6">
-            {/* Featured Games */}
-            <Card className="glass border-white/20">
+        {/* Games Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredGames.map((game) => (
+            <Card key={game.id} className="glass border-white/20 hover:shadow-lg transition-all duration-200 group">
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Star className={`w-5 h-5 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-                  <span>Featured Games</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredGames.slice(0, 3).map((game) => (
-                    <div
-                      key={game.id}
-                      className="relative p-6 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105 cursor-pointer border border-white/10"
-                    >
-                      {game.isPopular && (
-                        <Badge className="absolute -top-2 -right-2 bg-orange-500 text-white">
-                          🔥 Popular
-                        </Badge>
-                      )}
-                      {game.isNew && (
-                        <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">
-                          ✨ New
-                        </Badge>
-                      )}
-                      
-                      <div className="text-center">
-                        <div className="text-4xl mb-4">{game.icon}</div>
-                        <h3 className="text-lg font-bold mb-2">{game.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-4">{game.description}</p>
-                        
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-2">
-                            {getPlayersIcon(game.players)}
-                            <span className="text-sm">{game.players} Player{game.players !== '1' ? 's' : ''}</span>
-                          </div>
-                          <div className={`flex items-center space-x-1 ${getDifficultyColor(game.difficulty)}`}>
-                            <Zap className="w-4 h-4" />
-                            <span className="text-sm capitalize">{game.difficulty}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between mb-4">
-                          <div className={`flex items-center space-x-1 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`}>
-                            <Gift className="w-4 h-4" />
-                            <span className="text-sm font-medium">+{game.rewards} coins</span>
-                          </div>
-                        </div>
-                        
-                        <Button 
-                          onClick={() => handlePlayGame(game)}
-                          className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
-                        >
-                          <Play className="w-4 h-4 mr-2" />
-                          Play Now
-                        </Button>
-                      </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="text-3xl">{game.icon}</div>
+                    <div>
+                      <CardTitle className="text-lg">{game.title}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{game.description}</p>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* All Games Grid */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>All Games</span>
-                  <Badge variant="outline" className={`${isLoversMode ? 'text-lovers-primary border-lovers-primary/50' : 'text-general-primary border-general-primary/50'}`}>
-                    {filteredGames.length} games
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Badge className={getDifficultyBadge(game.difficulty)}>
+                    {game.difficulty}
                   </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {filteredGames.map((game) => (
-                    <div
-                      key={game.id}
-                      className="p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer border border-white/10"
-                    >
-                      <div className="text-center">
-                        <div className="text-3xl mb-3">{game.icon}</div>
-                        <h4 className="font-medium mb-2">{game.name}</h4>
-                        <p className="text-xs text-muted-foreground mb-3">{game.description}</p>
-                        
-                        <div className="flex items-center justify-between text-xs mb-3">
-                          <span className={getDifficultyColor(game.difficulty)}>{game.difficulty}</span>
-                          <span className={isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}>
-                            +{game.rewards}
-                          </span>
-                        </div>
-                        
-                        <Button 
-                          size="sm"
-                          onClick={() => handlePlayGame(game)}
-                          className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          Play
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                  <Badge variant="outline" className={`
+                    ${isLoversMode ? 'border-lovers-primary/50 text-lovers-primary' : 'border-general-primary/50 text-general-primary'}
+                  `}>
+                    {game.players === 'multiplayer' ? '👥 Multiplayer' : '👤 Single'}
+                  </Badge>
                 </div>
+                
+                <Button 
+                  onClick={() => playGame(game)}
+                  className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
+                >
+                  {game.players === 'multiplayer' ? (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Invite
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Play Now
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          ))}
+        </div>
 
-        {/* Stats Card */}
-        {isLoversMode && (
-          <Card className="glass border-white/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
-                <span>Love Stats</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 rounded-xl bg-lovers-primary/10">
-                  <p className="text-2xl font-bold text-lovers-primary">0</p>
-                  <p className="text-sm text-muted-foreground">Games Played</p>
-                </div>
-                <div className="text-center p-4 rounded-xl bg-lovers-primary/10">
-                  <p className="text-2xl font-bold text-lovers-primary">0</p>
-                  <p className="text-sm text-muted-foreground">Love Points</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Empty State for No Games */}
+        {filteredGames.length === 0 && (
+          <div className="text-center py-12">
+            <div className={`
+              w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4
+              ${isLoversMode 
+                ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
+                : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
+              }
+            `}>
+              <Gamepad2 className={`w-12 h-12 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">No games in this category</h3>
+            <p className="text-muted-foreground">Try selecting a different category!</p>
+          </div>
         )}
       </div>
     </div>

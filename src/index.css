@@ -234,22 +234,39 @@
 
   .floating-heart {
     position: absolute;
-    font-size: 1.5rem;
-    color: hsl(var(--lovers-primary));
-    animation: floatingHearts linear infinite;
-    animation-duration: calc(8s + var(--random-duration, 0s));
-    left: var(--random-left, 50%);
-    animation-delay: var(--random-delay, 0s);
+    opacity: 0.4;
+    font-size: calc(1.5rem * var(--random-size));
+    animation: floatUp var(--random-duration) infinite linear;
+    animation-delay: var(--random-delay);
+    left: var(--random-left);
+    filter: drop-shadow(0 0 8px rgba(255, 182, 193, 0.4));
   }
 
   .floating-star {
     position: absolute;
-    font-size: 1.2rem;
-    color: hsl(var(--general-primary));
-    animation: floatingStars linear infinite;
-    animation-duration: calc(6s + var(--random-duration, 0s));
-    left: var(--random-left, 50%);
-    animation-delay: var(--random-delay, 0s);
+    opacity: 0.6;
+    font-size: calc(1rem * var(--random-size));
+    animation: floatUp var(--random-duration) infinite linear;
+    animation-delay: var(--random-delay);
+    left: var(--random-left);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
+  }
+
+  @keyframes floatUp {
+    0% {
+      transform: translateY(100vh) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.6;
+    }
+    90% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateY(-10vh) rotate(360deg);
+      opacity: 0;
+    }
   }
 
   /* Chat Bubble Styles */

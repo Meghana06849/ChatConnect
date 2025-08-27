@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { 
   MessageCircle, 
   Gamepad2, 
-  BookOpen, 
+  Calendar, 
   Phone, 
   Users, 
   Settings, 
@@ -23,14 +23,14 @@ const navigationItems = {
     { icon: Home, label: 'Home', id: 'home' },
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: Star, label: 'Stories', id: 'stories', special: 'blink' },
+    { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Users, label: 'Friends', id: 'friends' },
   ],
   lovers: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: Star, label: 'Stories', id: 'stories', special: 'blink' },
+    { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Heart, label: 'Dream Room', id: 'dreamroom' },
   ]

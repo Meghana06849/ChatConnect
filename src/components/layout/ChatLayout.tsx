@@ -119,31 +119,31 @@ export const ChatLayout = () => {
 
               {/* Quick Actions */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                {[
-                  { 
-                    icon: isLoversMode ? Heart : Users, 
-                    title: isLoversMode ? 'Start Love Chat' : 'Message Friends', 
-                    desc: isLoversMode ? 'Send love messages' : 'Connect with friends',
-                    action: 'chats'
-                  },
-                  { 
-                    icon: Gamepad2, 
-                    title: isLoversMode ? 'Love Games' : 'Mini Games', 
-                    desc: isLoversMode ? 'Play together' : 'Fun with friends',
-                    action: 'games'
-                  },
-                  { 
-                    icon: BookOpen, 
-                    title: 'Stories', 
-                    desc: isLoversMode ? 'Share moments' : 'Daily updates',
-                    action: 'stories'
-                  },
-                  { 
-                    icon: Phone, 
-                    title: 'Voice Calls', 
-                    desc: 'High quality calls',
-                    action: 'calls'
-                  }
+                 {[
+                   { 
+                     icon: isLoversMode ? Heart : Users, 
+                     title: isLoversMode ? 'Start Love Chat' : 'Message Friends', 
+                     desc: isLoversMode ? 'Send love messages' : 'Connect with friends',
+                     action: 'chats'
+                   },
+                   { 
+                     icon: Gamepad2, 
+                     title: isLoversMode ? 'Love Games' : 'Mini Games', 
+                     desc: isLoversMode ? 'Play together' : 'Fun with friends',
+                     action: 'games'
+                   },
+                   { 
+                     icon: Calendar, 
+                     title: 'Daily Moments', 
+                     desc: isLoversMode ? 'Share moments' : 'Daily updates',
+                     action: 'stories'
+                   },
+                   { 
+                     icon: Phone, 
+                     title: 'Voice & Video', 
+                     desc: 'High quality calls',
+                     action: 'calls'
+                   }
                 ].map((item, idx) => {
                   const Icon = item.icon;
                   return (

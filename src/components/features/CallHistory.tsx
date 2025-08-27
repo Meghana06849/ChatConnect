@@ -163,21 +163,39 @@ export const CallHistory: React.FC = () => {
         </Tabs>
 
         {/* Quick Actions */}
-        <Card className="glass border-white/20">
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full btn-general">
-              <PhoneCall className="w-4 h-4 mr-2" />
-              Start New Call
-            </Button>
-            <Button variant="outline" className="w-full border-general-primary/50 text-general-primary">
-              <Video className="w-4 h-4 mr-2" />
-              Start Video Call
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="glass border-white/20">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Phone className="w-5 h-5 text-green-500" />
+                <span>Voice Calls</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+                <PhoneCall className="w-4 h-4 mr-2" />
+                Start Voice Call
+              </Button>
+              <p className="text-sm text-muted-foreground">High quality voice calling</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass border-white/20">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Video className="w-5 h-5 text-blue-500" />
+                <span>Video Calls</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                <Video className="w-4 h-4 mr-2" />
+                Start Video Call
+              </Button>
+              <p className="text-sm text-muted-foreground">Face-to-face conversations</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
