@@ -101,6 +101,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          group_id: string | null
           id: string
           is_lovers_conversation: boolean | null
           name: string | null
@@ -110,6 +111,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          group_id?: string | null
           id?: string
           is_lovers_conversation?: boolean | null
           name?: string | null
@@ -119,13 +121,22 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          group_id?: string | null
           id?: string
           is_lovers_conversation?: boolean | null
           name?: string | null
           type?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dream_features: {
         Row: {
@@ -154,6 +165,71 @@ export type Database = {
           partner_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_private: boolean | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -292,6 +368,39 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      user_songs: {
+        Row: {
+          artist: string
+          created_at: string
+          duration: number | null
+          file_url: string | null
+          genre: string | null
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          artist: string
+          created_at?: string
+          duration?: number | null
+          file_url?: string | null
+          genre?: string | null
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          artist?: string
+          created_at?: string
+          duration?: number | null
+          file_url?: string | null
+          genre?: string | null
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

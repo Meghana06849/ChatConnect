@@ -26,6 +26,7 @@ const navigationItems = {
     { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Users, label: 'Friends', id: 'friends' },
+    { icon: Users, label: 'Groups', id: 'groups' },
   ],
   lovers: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },

@@ -9,6 +9,7 @@ import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
+import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { AnimatedBackground } from '@/components/background/AnimatedBackground';
@@ -60,8 +61,10 @@ export const ChatLayout = () => {
       case 'calls':
         return <CallHistory />;
 
-      case 'friends':
-        return <FriendsManager />;
+        case 'friends':
+          return <FriendsManager />;
+        case 'groups':
+          return <GroupManager />;
       
       case 'vault':
         return (

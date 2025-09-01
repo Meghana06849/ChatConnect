@@ -29,10 +29,15 @@ import {
   Download,
   LogOut,
   HelpCircle,
-  Database
+  Database,
+  Music,
+  Edit3
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
+import { ProfileEditor } from '@/components/profile/ProfileEditor';
+import { SongManager } from '@/components/media/SongManager';
+import { ImageEditor } from '@/components/media/ImageEditor';
 
 const SettingsItem: React.FC<{
   icon: React.ReactNode;
@@ -62,6 +67,9 @@ export const AdvancedSettings: React.FC = () => {
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pin, setPin] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showSongManager, setShowSongManager] = useState(false);
+  const [showImageEditor, setShowImageEditor] = useState(false);
   
   const isLoversMode = mode === 'lovers';
 
@@ -152,9 +160,9 @@ export const AdvancedSettings: React.FC = () => {
             <div className="divide-y divide-white/10">
               <SettingsItem 
                 icon={<User className="w-5 h-5" />}
-                title="Account"
-                subtitle="Profile settings and security"
-                onClick={() => toast({ title: "Account Settings", description: "Feature coming soon!" })}
+                title="Profile"
+                subtitle="Edit profile picture and bio"
+                onClick={() => setShowProfileEditor(true)}
               />
               
               <SettingsItem 
@@ -211,6 +219,18 @@ export const AdvancedSettings: React.FC = () => {
                 title="Friends & Contacts"
                 subtitle="Manage your connections"
                 onClick={() => toast({ title: "Friends Settings", description: "Feature coming soon!" })}
+              />
+              <SettingsItem 
+                icon={<Music className="w-5 h-5" />}
+                title="Music Collection"
+                subtitle="Manage your songs and playlists"
+                onClick={() => setShowSongManager(true)}
+              />
+              <SettingsItem 
+                icon={<Edit3 className="w-5 h-5" />}
+                title="Image Editor"
+                subtitle="Edit and enhance your photos"
+                onClick={() => setShowImageEditor(true)}
               />
               <SettingsItem 
                 icon={<Database className="w-5 h-5" />}
@@ -299,6 +319,29 @@ export const AdvancedSettings: React.FC = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Profile Editor Dialog */}
+        <Dialog open={showProfileEditor} onOpenChange={setShowProfileEditor}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <ProfileEditor />
+          </DialogContent>
+        </Dialog>
+
+        {/* Song Manager Dialog */}
+        <Dialog open={showSongManager} onOpenChange={setShowSongManager}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Music Collection</DialogTitle>
+            </DialogHeader>
+            <SongManager />
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Editor */}
+        <ImageEditor 
+          isOpen={showImageEditor} 
+          onClose={() => setShowImageEditor(false)} 
+        />
       </div>
     </div>
   );
