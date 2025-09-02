@@ -142,19 +142,18 @@ export const FriendsManager: React.FC = () => {
                 <Input
                   value={addFriendQuery}
                   onChange={(e) => setAddFriendQuery(e.target.value)}
-                  placeholder="Username, email, or phone number"
+                  placeholder="Enter username or user ID"
                   className="glass border-white/20"
                 />
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="glass border-white/20">
-                    <QrCode className="w-4 h-4 mr-2" />
-                    QR Code
-                  </Button>
-                  <Button variant="outline" className="glass border-white/20">
-                    <Phone className="w-4 h-4 mr-2" />
-                    Contacts
-                  </Button>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    <p className="text-sm font-medium text-blue-900">Connect by User ID only</p>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Find friends using their unique username or user ID for secure connections
+                  </p>
                 </div>
                 
                 <Button 

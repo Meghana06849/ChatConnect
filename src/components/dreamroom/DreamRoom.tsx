@@ -38,10 +38,7 @@ interface DreamRoomProps {
 export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAccessible, setIsAccessible] = useState(false);
-  const [showPinDialog, setShowPinDialog] = useState(false);
-  const [pin, setPin] = useState('');
-  const [showPin, setShowPin] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(true); // Auto-unlock since PIN is verified at entry
   const [petMood, setPetMood] = useState('happy');
   const [currentMusic, setCurrentMusic] = useState('None');
   const [nightModeStars, setNightModeStars] = useState(true);
@@ -94,71 +91,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
     { name: 'Mini-Games', description: 'Play together in your space', icon: '🎮' },
   ];
 
-  const handlePinSubmit = () => {
-    if (pin === '1234') { // Default PIN - would be stored securely in real app
-      setIsUnlocked(true);
-      setShowPinDialog(false);
-      setPin('');
-    } else {
-      alert('Invalid PIN');
-    }
-  };
-
-  // PIN Protection Screen
-  if (!isUnlocked) {
-    return (
-      <div className="flex-1 p-6">
-        <div className="max-w-md mx-auto text-center">
-          <div className="glass p-8 rounded-3xl border-white/20">
-            <Shield className="w-16 h-16 mx-auto mb-6 text-lovers-primary" />
-            <h1 className="text-2xl font-bold mb-4 text-lovers-primary">Dream Room Access</h1>
-            <p className="text-muted-foreground mb-6">
-              Enter your secret PIN to access your private Dream Room
-            </p>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pin">Secret PIN</Label>
-                <div className="relative">
-                  <Input
-                    id="pin"
-                    type={showPin ? "text" : "password"}
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Enter PIN"
-                    className="glass border-white/20 pr-10"
-                    maxLength={4}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
-                    onClick={() => setShowPin(!showPin)}
-                  >
-                    {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-              
-              <Button 
-                onClick={handlePinSubmit}
-                className="w-full btn-lovers"
-                disabled={pin.length < 4}
-              >
-                <Lock className="w-4 h-4 mr-2" />
-                Unlock Dream Room
-              </Button>
-              
-              <p className="text-xs text-muted-foreground">
-                Default PIN: 1234 (Change in settings)
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Dream Room is accessible since PIN was verified at entry
 
   if (!isAccessible && isTimeRestricted) {
     return (
@@ -259,18 +192,31 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
                     <p className="text-xs text-center mt-1 text-lovers-primary">Growing!</p>
                   </div>
                   
-                  {/* Main Content */}
+                  {/* Magical Connection Center */}
                   <div className="text-center z-10">
-                    <div className="flex items-center justify-center space-x-4 mb-4">
-                      <Heart className="w-16 h-16 text-lovers-primary animate-heart-beat" />
-                      <div className="text-4xl animate-float">
-                        {petMood === 'happy' ? '😊' : petMood === 'love' ? '😍' : '🥰'}
+                    <div className="relative mb-4">
+                      <div className="absolute inset-0 animate-pulse">
+                        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-lovers-primary/30 to-lovers-secondary/30 blur-xl"></div>
+                      </div>
+                      <div className="relative flex items-center justify-center space-x-4">
+                        <Heart className="w-16 h-16 text-lovers-primary animate-heart-beat" />
+                        <div className="text-4xl animate-float">
+                          💞
+                        </div>
+                        <Heart className="w-16 h-16 text-lovers-secondary animate-heart-beat" style={{ animationDelay: '0.5s' }} />
                       </div>
                     </div>
-                    <p className="text-lovers-primary font-medium">Your Dream Space</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {currentMusic !== 'None' ? `🎵 Playing: ${currentMusic}` : 'Add music for ambiance'}
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-lovers-primary font-medium text-lg">Connected Hearts</p>
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-2 h-2 bg-lovers-primary rounded-full animate-pulse"></div>
+                        <p className="text-sm text-muted-foreground">Your souls are synchronized</p>
+                        <div className="w-2 h-2 bg-lovers-secondary rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {currentMusic !== 'None' ? `🎵 Playing: ${currentMusic}` : 'Add music to enhance your connection'}
+                      </p>
+                    </div>
                   </div>
                   
                   {/* Floating hearts */}

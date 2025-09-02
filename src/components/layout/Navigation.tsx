@@ -66,10 +66,24 @@ export const Navigation: React.FC<NavigationProps> = ({
       flex flex-col transition-all duration-300
       ${isLoversMode ? 'lovers-mode bg-gradient-to-b from-lovers-accent/20 to-lovers-primary/10' : ''}
     `}>
-      {/* Logo */}
+      {/* Logo with Triple-tap */}
       <div className="p-4 border-b border-white/20">
         <div className="flex items-center space-x-3">
-          <div className="relative">
+          <div 
+            className="relative cursor-pointer"
+            onClick={() => {
+              const now = Date.now();
+              const tapKey = 'tap_times';
+              const taps = JSON.parse(localStorage.getItem(tapKey) || '[]').filter((time: number) => now - time < 1000);
+              taps.push(now);
+              localStorage.setItem(tapKey, JSON.stringify(taps));
+              
+              if (taps.length >= 3) {
+                localStorage.removeItem(tapKey);
+                onSectionChange('lovers-unlock');
+              }
+            }}
+          >
             <MessageCircle className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
           </div>
           <div className="hidden lg:block">
@@ -80,7 +94,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 : 'from-general-primary to-general-secondary'
               }
             `}>
-              ChatConnect
+              Aurora
             </h1>
             <p className="text-xs text-muted-foreground">
               {isLoversMode ? 'Private Mode' : 'Connect & Chat'}

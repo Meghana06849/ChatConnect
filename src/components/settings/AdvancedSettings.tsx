@@ -169,7 +169,7 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<Shield className="w-5 h-5" />}
                 title="Privacy"
                 subtitle="Control your data and visibility"
-                onClick={() => toast({ title: "Privacy Settings", description: "Feature coming soon!" })}
+                onClick={() => toast({ title: "Privacy Settings", description: "Manage who can see your profile, stories, and last seen status" })}
               />
               
               <SettingsItem 

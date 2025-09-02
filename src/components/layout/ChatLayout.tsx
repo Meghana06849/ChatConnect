@@ -5,6 +5,7 @@ import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
+import { LoversUnlock } from '@/components/lovers/LoversUnlock';
 import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
 import { Stories } from '@/components/stories/Stories';
@@ -63,8 +64,8 @@ export const ChatLayout = () => {
 
         case 'friends':
           return <FriendsManager />;
-        case 'groups':
-          return <GroupManager />;
+      case 'lovers-unlock':
+        return <LoversUnlock onSectionChange={setActiveSection} />;
       
       case 'vault':
         return (
@@ -221,6 +222,7 @@ export const ChatLayout = () => {
         onSectionChange={setActiveSection}
       />
       <div className="relative z-10 flex-1">
+        <FloatingBackground />
         {renderContent()}
       </div>
     </div>

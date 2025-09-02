@@ -104,14 +104,10 @@ export const Stories: React.FC = () => {
                       rows={4}
                     />
                     
-                    <div className="flex space-x-2">
-                      <Button variant="outline" className="flex-1 glass border-white/20">
-                        <Camera className="w-4 h-4 mr-2" />
-                        Camera
-                      </Button>
-                      <Button variant="outline" className="flex-1 glass border-white/20">
-                        <Image className="w-4 h-4 mr-2" />
-                        Gallery
+                    <div className="flex justify-center">
+                      <Button variant="outline" className="glass border-white/20">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Media
                       </Button>
                     </div>
                     
