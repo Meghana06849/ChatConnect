@@ -184,52 +184,136 @@ export const GamesHub: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Games Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredGames.map((game) => (
-            <Card key={game.id} className="glass border-white/20 hover:shadow-lg transition-all duration-200 group">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-3xl">{game.icon}</div>
-                    <div>
-                      <CardTitle className="text-lg">{game.title}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{game.description}</p>
+        {/* Games Grid - Unique Aurora Design */}
+        <div className="space-y-6">
+          {/* Featured Games */}
+          <div className="relative">
+            <div className={`
+              absolute inset-0 rounded-3xl blur-xl opacity-30
+              ${isLoversMode 
+                ? 'bg-gradient-to-r from-lovers-primary via-lovers-secondary to-lovers-primary' 
+                : 'bg-gradient-to-r from-general-primary via-general-secondary to-general-primary'
+              }
+            `}></div>
+            <div className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredGames.slice(0, 3).map((game, index) => (
+                <Card key={game.id} className={`
+                  glass border-white/20 hover:shadow-2xl transition-all duration-500 group relative overflow-hidden
+                  transform hover:-translate-y-2 hover:scale-105
+                `}>
+                  {/* Game glow effect */}
+                  <div className={`
+                    absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500
+                    ${isLoversMode 
+                      ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary' 
+                      : 'bg-gradient-to-br from-general-primary to-general-secondary'
+                    }
+                  `}></div>
+                  
+                  <CardHeader className="relative z-10">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`
+                        text-6xl group-hover:scale-110 transition-transform duration-300
+                        ${index === 0 ? 'animate-bounce' : index === 1 ? 'animate-pulse' : 'animate-float'}
+                      `}>
+                        {game.icon}
+                      </div>
+                      <div className="flex flex-col items-end space-y-2">
+                        <Badge className={getDifficultyBadge(game.difficulty)}>
+                          {game.difficulty}
+                        </Badge>
+                        <Badge variant="outline" className={`
+                          ${isLoversMode ? 'border-lovers-primary/50 text-lovers-primary' : 'border-general-primary/50 text-general-primary'}
+                          group-hover:bg-white/10
+                        `}>
+                          {game.players === 'multiplayer' ? '👥 Multi' : '👤 Solo'}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Badge className={getDifficultyBadge(game.difficulty)}>
-                    {game.difficulty}
-                  </Badge>
-                  <Badge variant="outline" className={`
-                    ${isLoversMode ? 'border-lovers-primary/50 text-lovers-primary' : 'border-general-primary/50 text-general-primary'}
-                  `}>
-                    {game.players === 'multiplayer' ? '👥 Multiplayer' : '👤 Single'}
-                  </Badge>
-                </div>
-                
-                <Button 
-                  onClick={() => playGame(game)}
-                  className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
-                >
-                  {game.players === 'multiplayer' ? (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Send Invite
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      Play Now
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                    <CardTitle className="text-xl mb-2 group-hover:text-white transition-colors">
+                      {game.title}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground group-hover:text-white/80 transition-colors">
+                      {game.description}
+                    </p>
+                  </CardHeader>
+                  
+                  <CardContent className="relative z-10">
+                    <Button 
+                      onClick={() => playGame(game)}
+                      className={`
+                        w-full relative overflow-hidden group/btn
+                        ${isLoversMode ? 'btn-lovers' : 'btn-general'}
+                        transform transition-all duration-300 hover:scale-105
+                      `}
+                    >
+                      <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700"></div>
+                      {game.players === 'multiplayer' ? (
+                        <>
+                          <Send className="w-4 h-4 mr-2 group-hover/btn:animate-bounce" />
+                          Send Invite
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 mr-2 group-hover/btn:animate-spin" />
+                          Play Now
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Regular Games Grid */}
+          {filteredGames.length > 3 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredGames.slice(3).map((game) => (
+                <Card key={game.id} className="glass border-white/20 hover:shadow-lg transition-all duration-300 group hover:scale-105">
+                  <CardHeader className="pb-2">
+                    <div className="text-center">
+                      <div className="text-4xl mb-3 group-hover:scale-125 transition-transform duration-300">
+                        {game.icon}
+                      </div>
+                      <CardTitle className="text-base mb-1">{game.title}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{game.description}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex justify-between items-center mb-3">
+                      <Badge className={getDifficultyBadge(game.difficulty)} style={{ fontSize: '10px' }}>
+                        {game.difficulty}
+                      </Badge>
+                      <Badge variant="outline" className={`
+                        text-xs ${isLoversMode ? 'border-lovers-primary/50 text-lovers-primary' : 'border-general-primary/50 text-general-primary'}
+                      `}>
+                        {game.players === 'multiplayer' ? '👥' : '👤'}
+                      </Badge>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => playGame(game)}
+                      size="sm"
+                      className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'} text-xs py-2`}
+                    >
+                      {game.players === 'multiplayer' ? (
+                        <>
+                          <Send className="w-3 h-3 mr-1" />
+                          Invite
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3 h-3 mr-1" />
+                          Play
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Empty State for No Games */}

@@ -19,6 +19,7 @@ import {
   Video,
   Phone
 } from 'lucide-react';
+import { CreateGroup } from './CreateGroup';
 import { useToast } from '@/hooks/use-toast';
 
 interface Group {
@@ -46,6 +47,7 @@ interface GroupMember {
 }
 
 export const GroupManager: React.FC = () => {
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
@@ -226,50 +228,21 @@ export const GroupManager: React.FC = () => {
           <h2 className="text-2xl font-bold">My Groups</h2>
         </div>
         
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <Dialog open={showCreateGroup} onOpenChange={setShowCreateGroup}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-primary to-accent">
               <Plus className="w-4 h-4 mr-2" />
               Create Group
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass border-white/20">
-            <DialogHeader>
-              <DialogTitle>Create New Group</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Group Name</Label>
-                <Input
-                  value={newGroup.name}
-                  onChange={(e) => setNewGroup(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter group name"
-                  className="glass border-white/20"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Description (Optional)</Label>
-                <Textarea
-                  value={newGroup.description}
-                  onChange={(e) => setNewGroup(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="What's this group about?"
-                  className="glass border-white/20"
-                />
-              </div>
-
-              <div className="flex space-x-2">
-                <Button 
-                  onClick={createGroup}
-                  className="flex-1 bg-gradient-to-r from-primary to-accent"
-                >
-                  Create Group
-                </Button>
-                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
+          <DialogContent className="glass border-white/20 max-w-2xl max-h-[90vh] overflow-y-auto">
+            <CreateGroup 
+              onClose={() => setShowCreateGroup(false)}
+              onGroupCreated={(group) => {
+                setGroups(prev => [group, ...prev]);
+                setShowCreateGroup(false);
+              }}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -280,7 +253,7 @@ export const GroupManager: React.FC = () => {
             <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No groups yet</h3>
             <p className="text-muted-foreground mb-4">Create or join groups to start chatting with friends</p>
-            <Button onClick={() => setShowCreateDialog(true)}>
+            <Button onClick={() => setShowCreateGroup(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Group
             </Button>
