@@ -7,6 +7,7 @@ import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
 import { LoversUnlock } from '@/components/lovers/LoversUnlock';
 import { CallInterface } from '@/components/features/CallInterface';
+import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
