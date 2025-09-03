@@ -20,12 +20,10 @@ import { toast } from '@/hooks/use-toast';
 
 const navigationItems = {
   general: [
-    { icon: Home, label: 'Home', id: 'home' },
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
     { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
     { icon: Phone, label: 'Calls', id: 'calls' },
-    { icon: Users, label: 'Friends', id: 'friends' },
     { icon: Users, label: 'Groups', id: 'groups' },
   ],
   lovers: [
@@ -94,7 +92,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 : 'from-general-primary to-general-secondary'
               }
             `}>
-              Aurora
+              ChatConnect
             </h1>
             <p className="text-xs text-muted-foreground">
               {isLoversMode ? 'Private Mode' : 'Connect & Chat'}
@@ -107,7 +105,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="mt-3 p-2 rounded-xl bg-lovers-primary/10 border border-lovers-primary/20">
             <div className="flex items-center justify-center space-x-2">
               <Heart className="w-4 h-4 text-lovers-primary animate-heart-beat" />
-              <span className="text-sm font-medium text-lovers-primary">1,250</span>
+              <span className="text-sm font-medium text-lovers-primary">100</span>
               <span className="text-xs text-muted-foreground">Love Coins</span>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { ChatInterface } from '@/components/chat/ChatInterface';
 import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
 import { LoversUnlock } from '@/components/lovers/LoversUnlock';
-import { CallHistory } from '@/components/features/CallHistory';
+import { CallInterface } from '@/components/features/CallInterface';
 import { GamesHub } from '@/components/features/GamesHub';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';

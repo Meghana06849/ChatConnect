@@ -168,15 +168,15 @@ export const AdvancedSettings: React.FC = () => {
               <SettingsItem 
                 icon={<Shield className="w-5 h-5" />}
                 title="Privacy"
-                subtitle="Control your data and visibility"
-                onClick={() => toast({ title: "Privacy Settings", description: "Manage who can see your profile, stories, and last seen status" })}
+                subtitle="Control who can see your profile and status"
+                onClick={() => toast({ title: "Privacy Settings", description: "Manage who can see your profile, stories, and last seen status. Control read receipts and online status visibility." })}
               />
               
               <SettingsItem 
                 icon={<Bell className="w-5 h-5" />}
                 title="Notifications"
-                subtitle="Message and call alerts"
-                onClick={() => toast({ title: "Notification Settings", description: "Feature coming soon!" })}
+                subtitle="Message, call and story alerts"
+                onClick={() => toast({ title: "Notification Settings", description: "Customize notification sounds, vibration patterns, and alert preferences for messages, calls, and story updates." })}
               />
             </div>
           </CardContent>
@@ -211,14 +211,14 @@ export const AdvancedSettings: React.FC = () => {
               <SettingsItem 
                 icon={<MessageSquare className="w-5 h-5" />}
                 title="Chats"
-                subtitle="Theme, wallpapers, chat history"
-                onClick={() => toast({ title: "Chat Settings", description: "Feature coming soon!" })}
+                subtitle="Theme, wallpapers, backup & export"
+                onClick={() => toast({ title: "Chat Settings", description: "Customize chat themes, wallpapers, font size, and manage chat backup & export options." })}
               />
               <SettingsItem 
                 icon={<Users className="w-5 h-5" />}
                 title="Friends & Contacts"
-                subtitle="Manage your connections"
-                onClick={() => toast({ title: "Friends Settings", description: "Feature coming soon!" })}
+                subtitle="Block list, contact sync, invitations"
+                onClick={() => toast({ title: "Friends Settings", description: "Manage blocked users, contact synchronization, friend invitations, and privacy settings for friend suggestions." })}
               />
               <SettingsItem 
                 icon={<Music className="w-5 h-5" />}
@@ -235,8 +235,8 @@ export const AdvancedSettings: React.FC = () => {
               <SettingsItem 
                 icon={<Database className="w-5 h-5" />}
                 title="Storage"
-                subtitle="Manage app data and media"
-                onClick={() => toast({ title: "Storage Settings", description: "Feature coming soon!" })}
+                subtitle="Cache, downloads, auto-delete settings"
+                onClick={() => toast({ title: "Storage Settings", description: "Manage cache size, downloaded media, auto-delete old messages, and storage optimization settings." })}
               />
             </div>
           </CardContent>
@@ -254,8 +254,8 @@ export const AdvancedSettings: React.FC = () => {
               <SettingsItem 
                 icon={<UserPlus className="w-5 h-5" />}
                 title="Invite Friends"
-                subtitle="Share ChatConnect with others"
-                onClick={() => toast({ title: "Invite Friends", description: "Feature coming soon! Share the love!" })}
+                subtitle="Share ChatConnect via link or code"
+                onClick={() => toast({ title: "Invite Friends", description: "Share ChatConnect with friends using your personal invite link or unique friend code!" })}
               />
             </div>
           </CardContent>

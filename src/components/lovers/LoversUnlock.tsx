@@ -216,10 +216,10 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
         <div className="text-center mt-6">
           <Button 
             variant="ghost" 
-            onClick={() => onSectionChange('home')}
+            onClick={() => onSectionChange('chats')}
             className="text-muted-foreground hover:text-foreground"
           >
-            Back to Home
+            Back to Chat
           </Button>
         </div>
       </div>
