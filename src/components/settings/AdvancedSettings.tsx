@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -70,6 +70,21 @@ export const AdvancedSettings: React.FC = () => {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showSongManager, setShowSongManager] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [showChatSettings, setShowChatSettings] = useState(false);
+  
+  // Privacy settings
+  const [lastSeenVisible, setLastSeenVisible] = useState(true);
+  const [profilePhotoVisible, setProfilePhotoVisible] = useState(true);
+  const [statusVisible, setStatusVisible] = useState(true);
+  const [readReceipts, setReadReceipts] = useState(true);
+  
+  // Notification settings
+  const [messageNotifications, setMessageNotifications] = useState(true);
+  const [callNotifications, setCallNotifications] = useState(true);
+  const [groupNotifications, setGroupNotifications] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   
   const isLoversMode = mode === 'lovers';
 
@@ -169,14 +184,14 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<Shield className="w-5 h-5" />}
                 title="Privacy"
                 subtitle="Control who can see your profile and status"
-                onClick={() => toast({ title: "Privacy Settings", description: "Manage who can see your profile, stories, and last seen status. Control read receipts and online status visibility." })}
+                onClick={() => setShowPrivacySettings(true)}
               />
               
               <SettingsItem 
                 icon={<Bell className="w-5 h-5" />}
                 title="Notifications"
                 subtitle="Message, call and story alerts"
-                onClick={() => toast({ title: "Notification Settings", description: "Customize notification sounds, vibration patterns, and alert preferences for messages, calls, and story updates." })}
+                onClick={() => setShowNotificationSettings(true)}
               />
             </div>
           </CardContent>
@@ -212,7 +227,7 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<MessageSquare className="w-5 h-5" />}
                 title="Chats"
                 subtitle="Theme, wallpapers, backup & export"
-                onClick={() => toast({ title: "Chat Settings", description: "Customize chat themes, wallpapers, font size, and manage chat backup & export options." })}
+                onClick={() => setShowChatSettings(true)}
               />
               <SettingsItem 
                 icon={<Users className="w-5 h-5" />}
@@ -282,6 +297,9 @@ export const AdvancedSettings: React.FC = () => {
                 <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
                 <span>Set Your Lovers Mode PIN</span>
               </DialogTitle>
+              <DialogDescription>
+                Create a secure PIN to protect your private conversations and Dream Room access.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-muted-foreground">Create a secure PIN to protect your private conversations and Dream Room access.</p>
@@ -320,9 +338,148 @@ export const AdvancedSettings: React.FC = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Privacy Settings Dialog */}
+        <Dialog open={showPrivacySettings} onOpenChange={setShowPrivacySettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>Privacy Settings</span>
+              </DialogTitle>
+              <DialogDescription>
+                Control who can see your information and activity
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Last Seen</Label>
+                    <p className="text-sm text-muted-foreground">Show when you were last online</p>
+                  </div>
+                  <Switch checked={lastSeenVisible} onCheckedChange={setLastSeenVisible} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Profile Photo</Label>
+                    <p className="text-sm text-muted-foreground">Who can see your profile picture</p>
+                  </div>
+                  <Switch checked={profilePhotoVisible} onCheckedChange={setProfilePhotoVisible} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Status</Label>
+                    <p className="text-sm text-muted-foreground">Show your bio and status updates</p>
+                  </div>
+                  <Switch checked={statusVisible} onCheckedChange={setStatusVisible} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Read Receipts</Label>
+                    <p className="text-sm text-muted-foreground">Show when you've read messages</p>
+                  </div>
+                  <Switch checked={readReceipts} onCheckedChange={setReadReceipts} />
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Notification Settings Dialog */}
+        <Dialog open={showNotificationSettings} onOpenChange={setShowNotificationSettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Bell className="w-5 h-5" />
+                <span>Notification Settings</span>
+              </DialogTitle>
+              <DialogDescription>
+                Customize your notification preferences
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Message Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Get notified for new messages</p>
+                  </div>
+                  <Switch checked={messageNotifications} onCheckedChange={setMessageNotifications} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Call Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Get notified for incoming calls</p>
+                  </div>
+                  <Switch checked={callNotifications} onCheckedChange={setCallNotifications} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Group Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Get notified for group activities</p>
+                  </div>
+                  <Switch checked={groupNotifications} onCheckedChange={setGroupNotifications} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Sound & Vibration</Label>
+                    <p className="text-sm text-muted-foreground">Enable notification sounds</p>
+                  </div>
+                  <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Chat Settings Dialog */}
+        <Dialog open={showChatSettings} onOpenChange={setShowChatSettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <MessageSquare className="w-5 h-5" />
+                <span>Chat Settings</span>
+              </DialogTitle>
+              <DialogDescription>
+                Customize your chat experience
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Theme Options</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button variant="outline" size="sm">Default</Button>
+                      <Button variant="outline" size="sm">Dark</Button>
+                      <Button variant="outline" size="sm">Colorful</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Chat Backup</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Export your chat history</p>
+                    <Button variant="outline" size="sm">
+                      <Download className="w-4 h-4 mr-2" />
+                      Export Chats
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Profile Editor Dialog */}
         <Dialog open={showProfileEditor} onOpenChange={setShowProfileEditor}>
           <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Profile</DialogTitle>
+              <DialogDescription>
+                Update your profile information and avatar
+              </DialogDescription>
+            </DialogHeader>
             <ProfileEditor />
           </DialogContent>
         </Dialog>
@@ -332,6 +489,9 @@ export const AdvancedSettings: React.FC = () => {
           <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Music Collection</DialogTitle>
+              <DialogDescription>
+                Manage your personal music library
+              </DialogDescription>
             </DialogHeader>
             <SongManager />
           </DialogContent>

@@ -9,12 +9,15 @@ import { LoversUnlock } from '@/components/lovers/LoversUnlock';
 import { CallInterface } from '@/components/features/CallInterface';
 import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
+import { MoodSync } from '@/components/unique/MoodSync';
+import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { AnimatedBackground } from '@/components/background/AnimatedBackground';
+import { NightBackground } from '@/components/background/NightBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star } from 'lucide-react';
 
@@ -34,6 +37,10 @@ export const ChatLayout = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>();
   
   const isLoversMode = mode === 'lovers';
+  
+  // Check if it's after 6 PM for night theme
+  const currentHour = new Date().getHours();
+  const isNightTime = currentHour >= 18 || currentHour <= 6;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -67,6 +74,36 @@ export const ChatLayout = () => {
           return <FriendsManager />;
       case 'lovers-unlock':
         return <LoversUnlock onSectionChange={setActiveSection} />;
+        
+      case 'mood-sync':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
+                  Mood Sync
+                </h1>
+                <p className="text-muted-foreground">Share your feelings and connect emotionally</p>
+              </div>
+              <MoodSync />
+            </div>
+          </div>
+        );
+        
+      case 'couple-challenge':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
+                  Couple Challenges
+                </h1>
+                <p className="text-muted-foreground">Complete fun challenges together to strengthen your bond</p>
+              </div>
+              <CoupleChallenge />
+            </div>
+          </div>
+        );
       
       case 'vault':
         return (
@@ -175,20 +212,30 @@ export const ChatLayout = () => {
 
               {/* Stats/Features for Lovers Mode */}
               {isLoversMode && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="glass border-white/20 text-center">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('mood-sync')}>
                     <CardHeader>
-                      <Calendar className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Shared Calendar</CardTitle>
+                      <Heart className="w-8 h-8 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
+                      <CardTitle className="text-lg">Mood Sync</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground text-sm">Plan dates and special moments together</p>
+                      <p className="text-muted-foreground text-sm">Share your feelings together</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('couple-challenge')}>
+                    <CardHeader>
+                      <Trophy className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
+                      <CardTitle className="text-lg">Challenges</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground text-sm">Fun activities to do together</p>
                     </CardContent>
                   </Card>
                   
                   <Card className="glass border-white/20 text-center">
                     <CardHeader>
-                      <Trophy className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
+                      <Calendar className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
                       <CardTitle className="text-lg">Love Streak</CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -199,12 +246,12 @@ export const ChatLayout = () => {
                   
                   <Card className="glass border-white/20 text-center">
                     <CardHeader>
-                      <Heart className="w-8 h-8 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
-                      <CardTitle className="text-lg">Messages</CardTitle>
+                      <Star className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
+                      <CardTitle className="text-lg">Love Points</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-2xl font-bold text-lovers-primary mb-1">💕</p>
-                      <p className="text-muted-foreground text-sm">Spread the love</p>
+                      <p className="text-muted-foreground text-sm">Earn through activities</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -218,6 +265,7 @@ export const ChatLayout = () => {
   return (
     <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
       <AnimatedBackground />
+      {isLoversMode && isNightTime && <NightBackground />}
       <Navigation 
         activeSection={activeSection}
         onSectionChange={setActiveSection}

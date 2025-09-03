@@ -62,16 +62,20 @@ export const ProfileEditor: React.FC = () => {
     if (!displayName.trim()) return;
     
     try {
-      await updateProfile({ display_name: displayName });
-      setEditingName(false);
-      toast({
-        title: "Name updated!",
-        description: "Your display name has been updated.",
-      });
-    } catch (error) {
+      const success = await updateProfile({ display_name: displayName });
+      if (success) {
+        setEditingName(false);
+        toast({
+          title: "Name updated!",
+          description: "Your display name has been updated.",
+        });
+      } else {
+        throw new Error("Update failed");
+      }
+    } catch (error: any) {
       toast({
         title: "Update failed",
-        description: "Failed to update display name",
+        description: error.message || "Failed to update display name",
         variant: "destructive",
       });
     }
@@ -79,16 +83,20 @@ export const ProfileEditor: React.FC = () => {
 
   const handleSaveBio = async () => {
     try {
-      await updateProfile({ bio: bio });
-      setEditingBio(false);
-      toast({
-        title: "Bio updated!",
-        description: "Your bio has been updated.",
-      });
-    } catch (error) {
+      const success = await updateProfile({ bio: bio });
+      if (success) {
+        setEditingBio(false);
+        toast({
+          title: "Bio updated!",
+          description: "Your bio has been updated.",
+        });
+      } else {
+        throw new Error("Update failed");
+      }
+    } catch (error: any) {
       toast({
         title: "Update failed", 
-        description: "Failed to update bio",
+        description: error.message || "Failed to update bio",
         variant: "destructive",
       });
     }
