@@ -31,7 +31,8 @@ import {
   HelpCircle,
   Database,
   Music,
-  Edit3
+  Edit3,
+  Mail
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
@@ -73,6 +74,8 @@ export const AdvancedSettings: React.FC = () => {
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
+  const [showStorageSettings, setShowStorageSettings] = useState(false);
+  const [showHelpSettings, setShowHelpSettings] = useState(false);
   
   // Privacy settings
   const [lastSeenVisible, setLastSeenVisible] = useState(true);
@@ -231,9 +234,9 @@ export const AdvancedSettings: React.FC = () => {
               />
               <SettingsItem 
                 icon={<Users className="w-5 h-5" />}
-                title="Friends & Contacts"
-                subtitle="Block list, contact sync, invitations"
-                onClick={() => toast({ title: "Friends Settings", description: "Manage blocked users, contact synchronization, friend invitations, and privacy settings for friend suggestions." })}
+                title="Friends"
+                subtitle="Block list, friend invitations, privacy"
+                onClick={() => toast({ title: "Friends Settings", description: "Manage blocked users, friend invitations, and privacy settings for friend suggestions." })}
               />
               <SettingsItem 
                 icon={<Music className="w-5 h-5" />}
@@ -251,7 +254,7 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<Database className="w-5 h-5" />}
                 title="Storage"
                 subtitle="Cache, downloads, auto-delete settings"
-                onClick={() => toast({ title: "Storage Settings", description: "Manage cache size, downloaded media, auto-delete old messages, and storage optimization settings." })}
+                onClick={() => setShowStorageSettings(true)}
               />
             </div>
           </CardContent>
@@ -264,7 +267,7 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<HelpCircle className="w-5 h-5" />}
                 title="Help & Support"
                 subtitle="Get help and contact support"
-                onClick={() => toast({ title: "Help & Support", description: "Visit our help center or contact support team!" })}
+                onClick={() => setShowHelpSettings(true)}
               />
               <SettingsItem 
                 icon={<UserPlus className="w-5 h-5" />}
@@ -449,10 +452,9 @@ export const AdvancedSettings: React.FC = () => {
                 <Card className="glass border-white/20">
                   <CardContent className="p-4">
                     <h4 className="font-semibold mb-2">Theme Options</h4>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button variant="outline" size="sm">Default</Button>
                       <Button variant="outline" size="sm">Dark</Button>
-                      <Button variant="outline" size="sm">Colorful</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -494,6 +496,104 @@ export const AdvancedSettings: React.FC = () => {
               </DialogDescription>
             </DialogHeader>
             <SongManager />
+          </DialogContent>
+        </Dialog>
+
+        {/* Storage Settings Dialog */}
+        <Dialog open={showStorageSettings} onOpenChange={setShowStorageSettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Database className="w-5 h-5" />
+                <span>Storage Settings</span>
+              </DialogTitle>
+              <DialogDescription>
+                Manage app storage and downloads
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Auto-delete old messages</Label>
+                    <p className="text-sm text-muted-foreground">Delete messages older than 30 days</p>
+                  </div>
+                  <Switch />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Download media on WiFi only</Label>
+                    <p className="text-sm text-muted-foreground">Save mobile data usage</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Storage Usage</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Messages</span>
+                        <span>12.5 MB</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Media</span>
+                        <span>245 MB</span>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full mt-2">
+                        Clear Cache
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Help Settings Dialog */}
+        <Dialog open={showHelpSettings} onOpenChange={setShowHelpSettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <HelpCircle className="w-5 h-5" />
+                <span>Help & Support</span>
+              </DialogTitle>
+              <DialogDescription>
+                Get help and contact our support team
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Frequently Asked Questions</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Find answers to common questions</p>
+                    <Button variant="outline" size="sm">
+                      View FAQ
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Contact Support</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Get help from our team</p>
+                    <Button variant="outline" size="sm">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email Support
+                    </Button>
+                  </CardContent>
+                </Card>
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Report a Bug</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Help us improve ChatConnect</p>
+                    <Button variant="outline" size="sm">
+                      Report Issue
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 

@@ -67,28 +67,13 @@ export const AuthForm = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20">
       <div className="w-full max-w-md">
-        {/* Logo and Branding */}
+        {/* Simple Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <MessageCircle className="w-8 h-8 text-primary" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <MessageCircle className="w-10 h-10 text-primary" />
+            <span className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               ChatConnect
             </span>
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Connect with friends • Share moments • Create memories
-          </p>
-        </div>
-
-        {/* Features Preview */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="text-center p-3 glass rounded-lg border-white/20">
-            <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Real-time Chat</p>
-          </div>
-          <div className="text-center p-3 glass rounded-lg border-white/20">
-            <Sparkles className="w-6 h-6 text-accent mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Games & Fun</p>
           </div>
         </div>
 
@@ -182,16 +167,24 @@ export const AuthForm = () => {
                   : "Don't have an account? Sign up"
                 }
               </button>
+              
+              {!isSignUp && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => toast({ 
+                      title: "Password Reset", 
+                      description: "Check your email for reset instructions" 
+                    })}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Forgot your password?
+                  </button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-
-        {/* Beta Notice */}
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            🚀 Experience the future of social connection
-          </p>
-        </div>
       </div>
     </div>
   );

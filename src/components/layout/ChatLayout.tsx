@@ -11,6 +11,10 @@ import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
 import { MoodSync } from '@/components/unique/MoodSync';
 import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
+import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
+import { ScreenshotDetection } from '@/components/unique/ScreenshotDetection';
+import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
+import { MusicNotes } from '@/components/media/MusicNotes';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
@@ -19,7 +23,7 @@ import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { AnimatedBackground } from '@/components/background/AnimatedBackground';
 import { NightBackground } from '@/components/background/NightBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star } from 'lucide-react';
+import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -119,6 +123,42 @@ export const ChatLayout = () => {
                   Vault is empty. Start a secret conversation!
                 </p>
               </div>
+            </div>
+          </div>
+        );
+
+      case 'disappearing-messages':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <DisappearingMessages />
+            </div>
+          </div>
+        );
+
+      case 'screenshot-detection':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <ScreenshotDetection />
+            </div>
+          </div>
+        );
+
+      case 'heartbeat-sync':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <HeartbeatSync />
+            </div>
+          </div>
+        );
+
+      case 'music-notes':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <MusicNotes />
             </div>
           </div>
         );
@@ -256,6 +296,41 @@ export const ChatLayout = () => {
                   </Card>
                 </div>
               )}
+
+              {/* Unique Features Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('disappearing-messages')}>
+                  <CardHeader>
+                    <Timer className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">Disappearing Messages</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Self-destructing secret messages</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('screenshot-detection')}>
+                  <CardHeader>
+                    <Shield className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">Screenshot Detection</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Privacy protection alerts</p>
+                  </CardContent>
+                </Card>
+                
+                {isLoversMode && (
+                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('heartbeat-sync')}>
+                    <CardHeader>
+                      <Activity className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
+                      <CardTitle className="text-lg">Heartbeat Sync</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground text-sm">Share your heartbeat live</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
         );

@@ -15,6 +15,7 @@ import {
   Shield
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ForgotPinDialog } from '@/components/auth/ForgotPinDialog';
 
 interface LoversUnlockProps {
   onSectionChange: (section: string) => void;
@@ -30,6 +31,7 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [showConfirmPin, setShowConfirmPin] = useState(false);
+  const [showForgotPin, setShowForgotPin] = useState(false);
 
   const handleCreatePin = async () => {
     if (pin.length < 4) {
@@ -209,6 +211,16 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
                 <Heart className="w-4 h-4 mr-2" />
                 Enter Lovers Mode
               </Button>
+
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPin(true)}
+                  className="text-sm text-muted-foreground hover:text-lovers-primary transition-colors"
+                >
+                  Forgot your PIN?
+                </button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -222,6 +234,11 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
             Back to Chat
           </Button>
         </div>
+
+        <ForgotPinDialog 
+          open={showForgotPin} 
+          onOpenChange={setShowForgotPin} 
+        />
       </div>
     </div>
   );
