@@ -30,7 +30,7 @@ export const useProfile = () => {
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
       
@@ -56,7 +56,7 @@ export const useProfile = () => {
         .update(updates)
         .eq('user_id', user.id)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       

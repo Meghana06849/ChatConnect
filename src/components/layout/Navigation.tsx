@@ -24,7 +24,7 @@ const navigationItems = {
     { icon: Gamepad2, label: 'Games', id: 'games' },
     { icon: Calendar, label: 'Moments', id: 'stories' },
     { icon: Phone, label: 'Calls', id: 'calls' },
-    { icon: Users, label: 'Groups', id: 'groups' },
+    { icon: Users, label: 'Friends', id: 'friends' },
   ],
   lovers: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },

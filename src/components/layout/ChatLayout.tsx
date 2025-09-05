@@ -14,6 +14,9 @@ import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
 import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
 import { ScreenshotDetection } from '@/components/unique/ScreenshotDetection';
 import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
+import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
+import { ARFilters } from '@/components/unique/ARFilters';
+import { SecretVault } from '@/components/unique/SecretVault';
 import { MusicNotes } from '@/components/media/MusicNotes';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
@@ -21,9 +24,8 @@ import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { FloatingBackground } from '@/components/background/FloatingBackground';
 import { AnimatedBackground } from '@/components/background/AnimatedBackground';
-import { NightBackground } from '@/components/background/NightBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, BookOpen, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
+import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -154,7 +156,34 @@ export const ChatLayout = () => {
           </div>
         );
 
-      case 'music-notes':
+        case 'voice-change':
+          return (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <VoiceChangeChat />
+              </div>
+            </div>
+          );
+
+        case 'ar-filters':
+          return (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <ARFilters />
+              </div>
+            </div>
+          );
+
+        case 'secret-vault':
+          return (
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <SecretVault />
+              </div>
+            </div>
+          );
+
+        case 'music-notes':
         return (
           <div className="flex-1 p-6">
             <div className="max-w-4xl mx-auto">
@@ -297,7 +326,40 @@ export const ChatLayout = () => {
                 </div>
               )}
 
-              {/* Unique Features Grid */}
+              {/* Enhanced Unique Features Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('voice-change')}>
+                  <CardHeader>
+                    <Mic className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">Voice Changer</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Transform voice with real-time effects</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('ar-filters')}>
+                  <CardHeader>
+                    <Star className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">AR Filters</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Magic AR effects for photos & videos</p>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('secret-vault')}>
+                  <CardHeader>
+                    <Shield className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">Secret Vault</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Ultra-secure storage with decoy mode</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Additional Features */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('disappearing-messages')}>
                   <CardHeader>
@@ -340,7 +402,6 @@ export const ChatLayout = () => {
   return (
     <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
       <AnimatedBackground />
-      {isLoversMode && isNightTime && <NightBackground />}
       <Navigation 
         activeSection={activeSection}
         onSectionChange={setActiveSection}
