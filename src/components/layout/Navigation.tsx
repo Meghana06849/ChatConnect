@@ -22,14 +22,14 @@ const navigationItems = {
   general: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
+    { icon: Calendar, label: 'Moments', id: 'stories' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Users, label: 'Groups', id: 'groups' },
   ],
   lovers: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
     { icon: Gamepad2, label: 'Games', id: 'games' },
-    { icon: Calendar, label: 'Moments', id: 'stories', special: 'blink' },
+    { icon: Calendar, label: 'Moments', id: 'stories' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Heart, label: 'Dream Room', id: 'dreamroom' },
   ]
@@ -134,9 +134,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 }
               `}
             >
-              <Icon className={`w-5 h-5 mr-3 lg:mr-3 ${
-                item.special === 'blink' ? 'animate-blink-star' : ''
-              }`} />
+              <Icon className="w-5 h-5 mr-3 lg:mr-3" />
               <span className="hidden lg:inline font-medium">{item.label}</span>
             </Button>
           );

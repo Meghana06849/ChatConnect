@@ -189,7 +189,7 @@ export const ChatLayout = () => {
                     : 'from-general-primary to-general-secondary'
                   }
                 `}>
-                  Welcome to {isLoversMode ? 'Lovers Mode' : 'ChatConnect'}
+                  Welcome to {isLoversMode ? 'Lovers Mode' : 'Chat'}
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                   {isLoversMode 

@@ -25,8 +25,21 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
   const { switchMode } = useChat();
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
-  const [showCreatePin, setShowCreatePin] = useState(!profile?.dream_room_pin);
-  const [showVerifyPin, setShowVerifyPin] = useState(!!profile?.dream_room_pin);
+  const [showCreatePin, setShowCreatePin] = useState(false);
+  const [showVerifyPin, setShowVerifyPin] = useState(false);
+  
+  // Determine what to show based on profile state
+  React.useEffect(() => {
+    if (profile) {
+      if (!profile.dream_room_pin) {
+        setShowCreatePin(true);
+        setShowVerifyPin(false);
+      } else {
+        setShowCreatePin(false);
+        setShowVerifyPin(true);
+      }
+    }
+  }, [profile]);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
