@@ -32,11 +32,13 @@ import {
   Database,
   Music,
   Edit3,
-  Mail
+  Mail,
+  Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
 import { ProfileEditor } from '@/components/profile/ProfileEditor';
+import { ActivityDashboard } from '@/components/profile/ActivityDashboard';
 import { SongManager } from '@/components/media/SongManager';
 import { ImageEditor } from '@/components/media/ImageEditor';
 
@@ -69,6 +71,7 @@ export const AdvancedSettings: React.FC = () => {
   const [pin, setPin] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showActivityDashboard, setShowActivityDashboard] = useState(false);
   const [showSongManager, setShowSongManager] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -181,6 +184,13 @@ export const AdvancedSettings: React.FC = () => {
                 title="Profile"
                 subtitle="Edit profile picture and bio"
                 onClick={() => setShowProfileEditor(true)}
+              />
+              
+              <SettingsItem 
+                icon={<Activity className="w-5 h-5" />}
+                title="Activity Dashboard"
+                subtitle="View your app usage and statistics"
+                onClick={() => setShowActivityDashboard(true)}
               />
               
               <SettingsItem 
@@ -594,6 +604,38 @@ export const AdvancedSettings: React.FC = () => {
                 </Card>
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Profile Editor Dialog */}
+        <Dialog open={showProfileEditor} onOpenChange={setShowProfileEditor}>
+          <DialogContent className="glass border-white/20 max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <User className="w-5 h-5" />
+                <span>Edit Profile</span>
+              </DialogTitle>
+              <DialogDescription>
+                Update your profile information and picture
+              </DialogDescription>
+            </DialogHeader>
+            <ProfileEditor />
+          </DialogContent>
+        </Dialog>
+
+        {/* Activity Dashboard Dialog */}
+        <Dialog open={showActivityDashboard} onOpenChange={setShowActivityDashboard}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Activity className="w-5 h-5" />
+                <span>Activity Dashboard</span>
+              </DialogTitle>
+              <DialogDescription>
+                View your app usage statistics and achievements
+              </DialogDescription>
+            </DialogHeader>
+            <ActivityDashboard />
           </DialogContent>
         </Dialog>
 

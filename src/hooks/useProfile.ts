@@ -24,7 +24,10 @@ export const useProfile = () => {
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -32,13 +35,38 @@ export const useProfile = () => {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Profile loading error:', error);
+        throw error;
+      }
       
-      setProfile(profileData);
+      // If no profile exists, create one
+      if (!profileData) {
+        const newProfile = {
+          user_id: user.id,
+          username: user.email || `user_${user.id.substring(0, 8)}`,
+          display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+          is_online: true,
+          lovers_mode_enabled: false,
+          love_coins: 100
+        };
+        
+        const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile)
+          .select()
+          .single();
+          
+        if (createError) throw createError;
+        setProfile(createdProfile);
+      } else {
+        setProfile(profileData);
+      }
     } catch (error: any) {
+      console.error('Profile error:', error);
       toast({
         title: "Error loading profile",
-        description: error.message,
+        description: error.message || "Failed to load profile data",
         variant: "destructive",
       });
     } finally {

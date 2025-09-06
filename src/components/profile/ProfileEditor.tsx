@@ -18,8 +18,16 @@ export const ProfileEditor: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const [displayName, setDisplayName] = useState(profile?.display_name || '');
-  const [bio, setBio] = useState(profile?.bio || '');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+
+  // Update local state when profile changes
+  React.useEffect(() => {
+    if (profile) {
+      setDisplayName(profile.display_name || '');
+      setBio(profile.bio || '');
+    }
+  }, [profile]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -59,20 +67,20 @@ export const ProfileEditor: React.FC = () => {
   };
 
   const handleSaveName = async () => {
-    if (!displayName.trim()) return;
+    if (!displayName.trim()) {
+      toast({
+        title: "Name required",
+        description: "Display name cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
-      const success = await updateProfile({ display_name: displayName });
-      if (success) {
-        setEditingName(false);
-        toast({
-          title: "Name updated!",
-          description: "Your display name has been updated.",
-        });
-      } else {
-        throw new Error("Update failed");
-      }
+      await updateProfile({ display_name: displayName.trim() });
+      setEditingName(false);
     } catch (error: any) {
+      console.error('Name update error:', error);
       toast({
         title: "Update failed",
         description: error.message || "Failed to update display name",
@@ -83,17 +91,10 @@ export const ProfileEditor: React.FC = () => {
 
   const handleSaveBio = async () => {
     try {
-      const success = await updateProfile({ bio: bio });
-      if (success) {
-        setEditingBio(false);
-        toast({
-          title: "Bio updated!",
-          description: "Your bio has been updated.",
-        });
-      } else {
-        throw new Error("Update failed");
-      }
+      await updateProfile({ bio: bio });
+      setEditingBio(false);
     } catch (error: any) {
+      console.error('Bio update error:', error);
       toast({
         title: "Update failed", 
         description: error.message || "Failed to update bio",
