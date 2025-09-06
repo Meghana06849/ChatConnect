@@ -98,9 +98,12 @@ export const GamesHub: React.FC = () => {
   });
 
   const sendGameInvite = (game: Game, friendId?: string) => {
+    const gameLink = `${window.location.origin}/game/${game.id}?mode=lovers&invite=${Math.random().toString(36).substr(2, 9)}`;
+    navigator.clipboard.writeText(gameLink);
+    
     toast({
-      title: `Game Invite Sent!`,
-      description: `Invited ${friendId || 'friend'} to play ${game.title}`,
+      title: `Game Invite Link Created!`,
+      description: `Link copied to clipboard. Share with your partner to play ${game.title}`,
     });
   };
 

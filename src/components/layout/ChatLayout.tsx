@@ -17,6 +17,8 @@ import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
 import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
 import { ARFilters } from '@/components/unique/ARFilters';
 import { SecretVault } from '@/components/unique/SecretVault';
+import { DreamRoomInvite } from '@/components/unique/DreamRoomInvite';
+import { VirtualPet } from '@/components/unique/VirtualPet';
 import { MusicNotes } from '@/components/media/MusicNotes';
 import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
@@ -78,6 +80,13 @@ export const ChatLayout = () => {
 
         case 'friends':
           return <FriendsManager />;
+          
+        case 'dream-invite':
+          return <DreamRoomInvite />;
+          
+        case 'virtual-pet':
+          return <VirtualPet />;
+          
       case 'lovers-unlock':
         return <LoversUnlock onSectionChange={setActiveSection} />;
         
@@ -313,14 +322,14 @@ export const ChatLayout = () => {
                     </CardContent>
                   </Card>
                   
-                  <Card className="glass border-white/20 text-center">
+                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('virtual-pet')}>
                     <CardHeader>
                       <Star className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Love Points</CardTitle>
+                      <CardTitle className="text-lg">Virtual Pet</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-lovers-primary mb-1">💕</p>
-                      <p className="text-muted-foreground text-sm">Earn through activities</p>
+                      <p className="text-2xl font-bold text-lovers-primary mb-1">😇</p>
+                      <p className="text-muted-foreground text-sm">Care for your love pet</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -389,6 +398,18 @@ export const ChatLayout = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-muted-foreground text-sm">Share your heartbeat live</p>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {isLoversMode && (
+                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('dream-invite')}>
+                    <CardHeader>
+                      <Heart className="w-8 h-8 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
+                      <CardTitle className="text-lg">Dream Room Invite</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground text-sm">Create secure room invites</p>
                     </CardContent>
                   </Card>
                 )}

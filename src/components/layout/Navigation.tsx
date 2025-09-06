@@ -21,7 +21,6 @@ import { toast } from '@/hooks/use-toast';
 const navigationItems = {
   general: [
     { icon: MessageCircle, label: 'Chat', id: 'chats' },
-    { icon: Gamepad2, label: 'Games', id: 'games' },
     { icon: Calendar, label: 'Moments', id: 'stories' },
     { icon: Phone, label: 'Calls', id: 'calls' },
     { icon: Users, label: 'Friends', id: 'friends' },

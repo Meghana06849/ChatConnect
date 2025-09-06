@@ -71,6 +71,15 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
   };
 
   const startCall = (contact: Contact, video = false) => {
+    if (contact.status === 'offline') {
+      toast({
+        title: "Contact unavailable",
+        description: `${contact.name} is currently offline`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setActiveCall(contact);
     setIsVideoCall(video);
     setCallDuration(0);
