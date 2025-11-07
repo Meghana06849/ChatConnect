@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthForm } from "@/components/auth/AuthForm";
+import { ChatLayout } from "@/components/layout/ChatLayout";
 import { User } from '@supabase/supabase-js';
 
-const Index = () => {
+const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -13,8 +13,8 @@ const Index = () => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        navigate('/dashboard');
+      if (!session?.user) {
+        navigate('/');
       }
       setLoading(false);
     });
@@ -23,8 +23,8 @@ const Index = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
-        if (session?.user) {
-          navigate('/dashboard');
+        if (!session?.user) {
+          navigate('/');
         }
         setLoading(false);
       }
@@ -41,11 +41,11 @@ const Index = () => {
     );
   }
 
-  if (user) {
-    return null; // Will redirect to dashboard
+  if (!user) {
+    return null;
   }
 
-  return <AuthForm />;
+  return <ChatLayout />;
 };
 
-export default Index;
+export default Dashboard;

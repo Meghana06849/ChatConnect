@@ -1,5 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChat } from '@/contexts/ChatContext';
+import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { 
@@ -44,13 +46,21 @@ export const Navigation: React.FC<NavigationProps> = ({
   onSectionChange 
 }) => {
   const { mode } = useChat();
+  const { profile } = useProfile();
+  const navigate = useNavigate();
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    navigate('/');
     toast({
       title: "Logged out",
       description: "See you soon!"
     });
+  };
+
+  const handleLogoClick = () => {
+    navigate('/dashboard');
+    onSectionChange('home');
   };
   
   const items = navigationItems[mode];
@@ -64,10 +74,14 @@ export const Navigation: React.FC<NavigationProps> = ({
     `}>
       {/* Logo with Triple-tap */}
       <div className="p-4 border-b border-white/20">
-        <div className="flex items-center space-x-3">
+        <div 
+          className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={handleLogoClick}
+        >
           <div 
-            className="relative cursor-pointer"
-            onClick={() => {
+            className="relative"
+            onClick={(e) => {
+              e.stopPropagation();
               const now = Date.now();
               const tapKey = 'tap_times';
               const taps = JSON.parse(localStorage.getItem(tapKey) || '[]').filter((time: number) => now - time < 1000);
@@ -103,7 +117,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           <div className="mt-3 p-2 rounded-xl bg-lovers-primary/10 border border-lovers-primary/20">
             <div className="flex items-center justify-center space-x-2">
               <Heart className="w-4 h-4 text-lovers-primary animate-heart-beat" />
-              <span className="text-sm font-medium text-lovers-primary">100</span>
+              <span className="text-sm font-medium text-lovers-primary">{profile?.love_coins || 0}</span>
               <span className="text-xs text-muted-foreground">Love Coins</span>
             </div>
           </div>

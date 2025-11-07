@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
+import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 import { Navigation } from './Navigation';
 import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
@@ -41,10 +43,33 @@ interface Contact {
 
 export const ChatLayout = () => {
   const { mode } = useChat();
+  const { profile } = useProfile();
   const [activeSection, setActiveSection] = useState('home');
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>();
+  const [loveStreak, setLoveStreak] = useState(0);
   
   const isLoversMode = mode === 'lovers';
+  
+  // Load love streak data
+  useEffect(() => {
+    const loadLoveStreak = async () => {
+      if (!profile?.user_id) return;
+      
+      const { data, error } = await supabase
+        .from('love_streaks')
+        .select('current_streak')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setLoveStreak(data.current_streak);
+      }
+    };
+    
+    if (isLoversMode && profile) {
+      loadLoveStreak();
+    }
+  }, [profile, isLoversMode]);
   
   // Check if it's after 6 PM for night theme
   const currentHour = new Date().getHours();
@@ -317,7 +342,7 @@ export const ChatLayout = () => {
                       <CardTitle className="text-lg">Love Streak</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-lovers-primary mb-1">0 days</p>
+                      <p className="text-2xl font-bold text-lovers-primary mb-1">{loveStreak} days</p>
                       <p className="text-muted-foreground text-sm">Keep chatting daily!</p>
                     </CardContent>
                   </Card>
