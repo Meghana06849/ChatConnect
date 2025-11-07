@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,6 @@ interface ActivityMetrics {
 }
 
 export const ActivityDashboard: React.FC = () => {
-  const { user } = useAuth();
   const { profile } = useProfile();
   const [metrics, setMetrics] = useState<ActivityMetrics>({
     messagesCount: 0,
@@ -90,7 +89,7 @@ export const ActivityDashboard: React.FC = () => {
             <div className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
                 <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                  {profile?.display_name?.[0] || user?.email?.[0] || 'U'}
+                  {profile?.display_name?.[0] || profile?.username?.[0] || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div>

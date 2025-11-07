@@ -1,6 +1,6 @@
 import React from 'react';
 import { useChat } from '@/contexts/ChatContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { 
   MessageCircle, 
@@ -44,18 +44,17 @@ export const Navigation: React.FC<NavigationProps> = ({
   onSectionChange 
 }) => {
   const { mode } = useChat();
-  const { logout } = useAuth();
   
-  const items = navigationItems[mode];
-  const isLoversMode = mode === 'lovers';
-
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast({
       title: "Logged out",
       description: "See you soon!"
     });
   };
+  
+  const items = navigationItems[mode];
+  const isLoversMode = mode === 'lovers';
 
   return (
     <nav className={`

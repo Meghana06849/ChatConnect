@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -23,20 +23,30 @@ interface Story {
 
 export const Stories: React.FC = () => {
   const { mode } = useChat();
-  const { user } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('You');
   const [stories, setStories] = useState<Story[]>([]);
   
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [newStoryContent, setNewStoryContent] = useState('');
   const isLoversMode = mode === 'lovers';
 
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data?.user?.id || null);
+      setUserName(data?.user?.email?.split('@')[0] || 'You');
+    };
+    getUser();
+  }, []);
+
   const createStory = () => {
     if (!newStoryContent.trim()) return;
     
     const newStory: Story = {
       id: Date.now().toString(),
-      userId: user?.id || 'current-user',
-      userName: user?.name || 'You',
+      userId: userId || 'current-user',
+      userName: userName,
       content: newStoryContent,
       timestamp: new Date(),
       viewed: false
@@ -77,7 +87,7 @@ export const Stories: React.FC = () => {
                     : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
                   }
                 `}>
-                  {user?.name?.[0] || 'Y'}
+                  {userName?.[0] || 'Y'}
                 </AvatarFallback>
               </Avatar>
               
