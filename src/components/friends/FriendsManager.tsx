@@ -63,42 +63,169 @@ export const FriendsManager: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([]);
 
-  // TODO: Load real friends data from database
-  // useEffect(() => {
-  //   const loadFriends = async () => {
-  //     // Load from Supabase contacts table
-  //   };
-  //   loadFriends();
-  // }, []);
+  useEffect(() => {
+    if (!userId) return;
+    
+    const loadFriends = async () => {
+      // Load contacts where user is either sender or receiver
+      const { data: contacts, error } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          user_id,
+          contact_user_id,
+          status,
+          profiles!contacts_contact_user_id_fkey(username, display_name, avatar_url, is_online)
+        `)
+        .or(`user_id.eq.${userId},contact_user_id.eq.${userId}`);
+
+      if (error) {
+        console.error('Error loading friends:', error);
+        return;
+      }
+
+      const friendsList: Friend[] = (contacts || []).map(contact => {
+        const profile = contact.profiles as any;
+        const isContactUser = contact.contact_user_id === userId;
+        
+        return {
+          id: contact.id,
+          name: profile?.display_name || 'Unknown',
+          username: profile?.username || 'unknown',
+          avatar: profile?.avatar_url,
+          isOnline: profile?.is_online || false,
+          mutualFriends: 0,
+          status: contact.status === 'accepted' ? 'friend' : 
+                  (isContactUser ? 'requested' : 'pending')
+        };
+      });
+
+      setFriends(friendsList);
+    };
+
+    loadFriends();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('contacts-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'contacts' },
+        () => loadFriends()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     friend.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFriendAction = (friendId: string, action: 'accept' | 'decline' | 'block' | 'unblock') => {
-    setFriends(prev => prev.map(friend => {
-      if (friend.id === friendId) {
-        switch (action) {
-          case 'accept':
-            return { ...friend, status: 'friend' };
-          case 'decline':
-            return { ...friend, status: 'blocked' };
-          case 'block':
-            return { ...friend, status: 'blocked' };
-          case 'unblock':
-            return { ...friend, status: 'friend' };
-          default:
-            return friend;
-        }
+  const handleFriendAction = async (friendId: string, action: 'accept' | 'decline' | 'block' | 'unblock') => {
+    try {
+      if (action === 'accept') {
+        await supabase
+          .from('contacts')
+          .update({ status: 'accepted' })
+          .eq('id', friendId);
+        
+        toast({
+          title: "Friend request accepted",
+          description: "You are now friends!"
+        });
+      } else if (action === 'decline') {
+        await supabase
+          .from('contacts')
+          .delete()
+          .eq('id', friendId);
+        
+        toast({
+          title: "Friend request declined",
+          description: "Request removed"
+        });
       }
-      return friend;
-    }));
+    } catch (error: any) {
+      toast({
+        title: "Action failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
 
-    toast({
-      title: "Friend request updated",
-      description: `Request ${action}ed successfully`
-    });
+  const sendFriendRequest = async () => {
+    if (!addFriendQuery.trim() || !userId) return;
+
+    try {
+      // Find user by username
+      const { data: targetUser, error: userError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('username', addFriendQuery.trim())
+        .maybeSingle();
+
+      if (userError || !targetUser) {
+        toast({
+          title: "User not found",
+          description: "No user exists with that username",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (targetUser.user_id === userId) {
+        toast({
+          title: "Invalid action",
+          description: "You cannot add yourself as a friend",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if contact already exists
+      const { data: existing } = await supabase
+        .from('contacts')
+        .select('id')
+        .or(`and(user_id.eq.${userId},contact_user_id.eq.${targetUser.user_id}),and(user_id.eq.${targetUser.user_id},contact_user_id.eq.${userId})`)
+        .maybeSingle();
+
+      if (existing) {
+        toast({
+          title: "Request exists",
+          description: "You already have a connection with this user",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Create friend request
+      const { error: insertError } = await supabase
+        .from('contacts')
+        .insert({
+          user_id: userId,
+          contact_user_id: targetUser.user_id,
+          status: 'pending'
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Friend request sent!",
+        description: `Request sent to @${addFriendQuery.trim()}`
+      });
+      
+      setShowAddFriend(false);
+      setAddFriendQuery('');
+    } catch (error: any) {
+      toast({
+        title: "Failed to send request",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const sendPartnerRequest = (requestId: string) => {
@@ -167,6 +294,7 @@ export const FriendsManager: React.FC = () => {
                 <Button 
                   className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
                   disabled={!addFriendQuery.trim()}
+                  onClick={sendFriendRequest}
                 >
                   Send Request
                 </Button>

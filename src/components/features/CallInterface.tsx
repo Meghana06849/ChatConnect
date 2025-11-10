@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Phone, 
   PhoneOff, 
@@ -39,14 +40,54 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const contacts: Contact[] = [
-    { id: '1', name: 'Sarah', status: 'online' },
-    { id: '2', name: 'Mike', status: 'online' },
-    { id: '3', name: 'Emma', status: 'busy' },
-    { id: '4', name: 'Alex', status: 'offline' },
-  ];
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data?.user?.id || null);
+    };
+    getUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadContacts = async () => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select(`
+          id,
+          user_id,
+          contact_user_id,
+          status,
+          profiles!contacts_contact_user_id_fkey(username, display_name, avatar_url, is_online)
+        `)
+        .or(`user_id.eq.${userId},contact_user_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      if (error) {
+        console.error('Error loading contacts:', error);
+        return;
+      }
+
+      const contactsList: Contact[] = (data || []).map(contact => {
+        const profile = contact.profiles as any;
+        return {
+          id: contact.id,
+          name: profile?.display_name || 'Unknown',
+          status: profile?.is_online ? 'online' : 'offline',
+          avatar: profile?.avatar_url
+        };
+      });
+
+      setContacts(contactsList);
+    };
+
+    loadContacts();
+  }, [userId]);
 
   const groups = [
     { id: '1', name: 'Family Group', members: 5, online: 3 },

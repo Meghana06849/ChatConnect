@@ -4,6 +4,8 @@ import { useChat } from '@/contexts/ChatContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { 
   MessageCircle, 
   Gamepad2, 
@@ -153,8 +155,8 @@ export const Navigation: React.FC<NavigationProps> = ({
         })}
       </div>
 
-      {/* Settings & Logout */}
-      <div className="p-2 border-t border-white/20 space-y-1">
+      {/* Settings */}
+      <div className="p-2 border-t border-white/20">
         <Button
           variant="ghost"
           onClick={() => onSectionChange('settings')}
@@ -172,15 +174,36 @@ export const Navigation: React.FC<NavigationProps> = ({
           <Settings className="w-5 h-5 mr-3 lg:mr-3" />
           <span className="hidden lg:inline font-medium">Settings</span>
         </Button>
-        
-        <Button
-          variant="ghost"
-          onClick={handleLogout}
-          className="w-full justify-start p-3 rounded-xl hover:bg-destructive/20 hover:text-destructive transition-all duration-200"
-        >
-          <LogOut className="w-5 h-5 mr-3 lg:mr-3" />
-          <span className="hidden lg:inline font-medium">Logout</span>
-        </Button>
+      </div>
+
+      <Separator className="bg-white/10" />
+      
+      {/* Profile & Logout */}
+      <div className="p-2">
+        <div className="flex items-center justify-between lg:justify-start lg:space-x-3 p-2">
+          <Avatar className="w-9 h-9 cursor-pointer" onClick={() => onSectionChange('settings')}>
+            <AvatarImage src={profile?.avatar_url} />
+            <AvatarFallback className={`text-sm ${
+              isLoversMode 
+                ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary' 
+                : 'bg-gradient-to-br from-general-primary to-general-secondary'
+            } text-white`}>
+              {profile?.display_name?.[0] || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="hidden lg:block flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{profile?.display_name}</p>
+            <p className="text-xs text-muted-foreground truncate">@{profile?.username}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-full"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </nav>
   );

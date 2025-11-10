@@ -44,7 +44,7 @@ export const useProfile = () => {
       if (!profileData) {
         const newProfile = {
           user_id: user.id,
-          username: user.email || `user_${user.id.substring(0, 8)}`,
+          username: user.user_metadata?.username || user.email || `user_${user.id.substring(0, 8)}`,
           display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
           is_online: true,
           lovers_mode_enabled: false,
