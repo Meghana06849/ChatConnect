@@ -21,7 +21,7 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { FloatingBackground } from '@/components/background/FloatingBackground';
+import { DynamicBackground } from '@/components/background/DynamicBackground';
 
 interface Contact {
   id: string;
@@ -152,7 +152,7 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
   if (activeCall) {
     return (
       <div className="flex-1 relative">
-        <FloatingBackground />
+        <DynamicBackground />
         <div className="absolute inset-0 flex items-center justify-center p-6">
           <Card className={`w-full max-w-md glass border-white/20 ${isLoversMode ? 'border-lovers-primary/30' : ''}`}>
             <CardContent className="p-8 text-center">
@@ -227,7 +227,7 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
 
   return (
     <div className="flex-1 p-6 overflow-y-auto relative">
-      <FloatingBackground />
+      <DynamicBackground />
       <div className="max-w-4xl mx-auto space-y-6 relative z-10">
         <div className="text-center mb-8">
           <PhoneCall className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
