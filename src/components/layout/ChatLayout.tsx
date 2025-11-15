@@ -27,7 +27,6 @@ import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { DynamicBackground } from '@/components/background/DynamicBackground';
-import { AnimatedBackground } from '@/components/background/AnimatedBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
 
@@ -447,7 +446,7 @@ export const ChatLayout = () => {
 
   return (
     <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
-      <AnimatedBackground />
+      <DynamicBackground />
       <Navigation 
         activeSection={activeSection}
         onSectionChange={setActiveSection}
