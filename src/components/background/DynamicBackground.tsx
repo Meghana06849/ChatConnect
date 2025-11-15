@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface UserWallpapers {
+  day_wallpaper_url: string | null;
+  night_wallpaper_url: string | null;
+}
 
 export const DynamicBackground = () => {
   const { mode } = useChat();
   const [isDay, setIsDay] = useState(true);
   const [elements, setElements] = useState<Array<{id: number, left: number, top: number, delay: number, duration: number}>>([]);
+  const [customWallpapers, setCustomWallpapers] = useState<UserWallpapers | null>(null);
   
   useEffect(() => {
     const checkTime = () => {
@@ -16,6 +23,29 @@ export const DynamicBackground = () => {
     const interval = setInterval(checkTime, 60000); // Check every minute
     
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const loadCustomWallpapers = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('user_wallpapers')
+          .select('day_wallpaper_url, night_wallpaper_url')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!error && data) {
+          setCustomWallpapers(data);
+        }
+      } catch (error) {
+        console.error('Error loading custom wallpapers:', error);
+      }
+    };
+
+    loadCustomWallpapers();
   }, []);
 
   useEffect(() => {
@@ -38,8 +68,17 @@ export const DynamicBackground = () => {
                  : 'bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950';
   };
 
+  const currentWallpaper = isDay ? customWallpapers?.day_wallpaper_url : customWallpapers?.night_wallpaper_url;
+
   return (
-    <div className={`fixed inset-0 -z-10 transition-colors duration-1000 ${getDayNightClass()}`}>
+    <div className={`fixed inset-0 -z-10 transition-all duration-1000 ${!currentWallpaper ? getDayNightClass() : ''}`}>
+      {/* Custom wallpaper background */}
+      {currentWallpaper && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000"
+          style={{ backgroundImage: `url(${currentWallpaper})` }}
+        />
+      )}
       {/* Day elements */}
       {isDay && mode === 'lovers' && (
         <div className="floating-hearts">
