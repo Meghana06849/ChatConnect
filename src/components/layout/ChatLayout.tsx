@@ -26,9 +26,10 @@ import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
+import { WallpaperUpload } from '@/components/settings/WallpaperUpload';
 import { DynamicBackground } from '@/components/background/DynamicBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
+import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity, Upload } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -89,6 +90,15 @@ export const ChatLayout = () => {
       
       case 'settings':
         return <AdvancedSettings />;
+      
+      case 'wallpapers':
+        return (
+          <div className="flex-1 p-6">
+            <div className="max-w-4xl mx-auto">
+              <WallpaperUpload />
+            </div>
+          </div>
+        );
 
       case 'games':
         return <GamesHub />;
@@ -394,6 +404,16 @@ export const ChatLayout = () => {
 
               {/* Additional Features */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('wallpapers')}>
+                  <CardHeader>
+                    <Upload className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
+                    <CardTitle className="text-lg">Custom Wallpapers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">Set your own day & night backgrounds</p>
+                  </CardContent>
+                </Card>
+                
                 <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('disappearing-messages')}>
                   <CardHeader>
                     <Timer className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />

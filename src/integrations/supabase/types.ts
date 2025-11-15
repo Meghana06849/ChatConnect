@@ -402,6 +402,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_wallpapers: {
+        Row: {
+          created_at: string | null
+          day_wallpaper_url: string | null
+          id: string
+          night_wallpaper_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          day_wallpaper_url?: string | null
+          id?: string
+          night_wallpaper_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          day_wallpaper_url?: string | null
+          id?: string
+          night_wallpaper_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
