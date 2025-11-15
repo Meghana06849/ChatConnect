@@ -13,6 +13,8 @@ interface Message {
   timestamp: Date;
   delivered: boolean;
   seen: boolean;
+  disappearAt?: Date;
+  reaction?: string;
 }
 
 interface ChatInterfaceProps {
@@ -28,7 +30,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
   const { mode } = useChat();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  // TODO: Load real messages from Supabase messages table
+  const [isTyping, setIsTyping] = useState(false);
+  const [disappearTimer, setDisappearTimer] = useState<'none' | '10s' | '1min' | 'custom'>('none');
+  const [showReactions, setShowReactions] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoversMode = mode === 'lovers';
@@ -41,6 +45,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    if (messages.length > 0) {
+      const interval = setInterval(() => {
+        const now = new Date();
+        setMessages(prev => prev.filter(msg => !msg.disappearAt || msg.disappearAt > now));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [messages]);
+
+  const getDisappearTime = (): Date | undefined => {
+    if (disappearTimer === 'none') return undefined;
+    const now = new Date();
+    if (disappearTimer === '10s') return new Date(now.getTime() + 10000);
+    if (disappearTimer === '1min') return new Date(now.getTime() + 60000);
+    return undefined;
+  };
+
   const sendMessage = () => {
     if (!message.trim()) return;
 
@@ -50,13 +72,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
       sender: 'user',
       timestamp: new Date(),
       delivered: false,
-      seen: false
+      seen: false,
+      disappearAt: getDisappearTime()
     };
 
     setMessages(prev => [...prev, newMessage]);
     setMessage('');
 
-    // Simulate delivery
     setTimeout(() => {
       setMessages(prev => 
         prev.map(msg => 
@@ -66,6 +88,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
         )
       );
     }, 1000);
+  };
+
+  const addReaction = (messageId: string, emoji: string) => {
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === messageId ? { ...msg, reaction: emoji } : msg
+      )
+    );
+    setShowReactions(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -137,15 +168,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button 
-              variant="ghost" 
+            <select
+              value={disappearTimer}
+              onChange={(e) => setDisappearTimer(e.target.value as any)}
+              className="glass border-white/20 rounded-lg px-2 py-1 text-xs"
+            >
+              <option value="none">Normal</option>
+              <option value="10s">10s 💣</option>
+              <option value="1min">1min ⏱️</option>
+            </select>
+            <Button
+              variant="ghost"
               size="icon"
               className="rounded-full hover:bg-white/10"
             >
               <Phone className="w-5 h-5" />
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="rounded-full hover:bg-white/10"
             >
@@ -192,33 +232,66 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
               key={msg.id}
               className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`
-                  max-w-xs lg:max-w-md px-4 py-2 rounded-2xl relative
-                  ${msg.sender === 'user'
-                    ? `chat-bubble-sent ${isLoversMode ? 'lovers-mode' : ''}`
-                    : `chat-bubble-received ${isLoversMode ? 'lovers-mode' : ''}`
-                  }
-                `}
-              >
-                <p className="text-sm">{msg.text}</p>
-                <div className="flex items-center justify-end space-x-1 mt-1">
-                  <span className="text-xs opacity-70">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  {msg.sender === 'user' && (
-                    <div className="flex">
-                      {isLoversMode ? (
-                        <Heart className={`w-3 h-3 ${msg.delivered ? 'text-lovers-primary fill-current' : 'text-gray-400'}`} />
-                      ) : (
-                        <CheckCheck className={`w-4 h-4 ${msg.delivered ? 'text-general-primary' : 'text-gray-400'}`} />
-                      )}
-                    </div>
+              <div className="relative group">
+                <div
+                  className={`
+                    max-w-[70%] rounded-2xl px-4 py-3 shadow-lg cursor-pointer
+                    ${msg.sender === 'user'
+                      ? isLoversMode 
+                        ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white'
+                        : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
+                      : 'bg-white/90 backdrop-blur-sm text-foreground'
+                    }
+                    ${msg.disappearAt ? 'animate-pulse border-2 border-destructive/50' : ''}
+                  `}
+                  onClick={() => setShowReactions(showReactions === msg.id ? null : msg.id)}
+                >
+                  <p className="break-words">{msg.text}</p>
+                  {msg.reaction && (
+                    <span className="absolute -top-2 -right-2 text-2xl">{msg.reaction}</span>
                   )}
+                  <div className="flex items-center justify-end space-x-1 mt-1">
+                    {msg.disappearAt && (
+                      <span className="text-xs text-destructive mr-2">
+                        💣 {Math.max(0, Math.floor((msg.disappearAt.getTime() - Date.now()) / 1000))}s
+                      </span>
+                    )}
+                    <span className={`text-xs ${msg.sender === 'user' ? 'text-white/70' : 'text-muted-foreground'}`}>
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {msg.sender === 'user' && (
+                      <CheckCheck className={`w-3 h-3 ${msg.seen ? 'text-blue-300' : msg.delivered ? 'text-white/70' : 'text-white/40'}`} />
+                    )}
+                  </div>
                 </div>
+                
+                {showReactions === msg.id && (
+                  <div className="absolute bottom-full mb-2 left-0 flex gap-2 bg-background/95 backdrop-blur-sm p-2 rounded-lg shadow-lg">
+                    {['❤️', '😂', '😮', '😢', '👍', '🎉'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => addReaction(msg.id, emoji)}
+                        className="text-2xl hover:scale-125 transition-transform"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))
+        )}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3">
+              <div className="flex space-x-2">
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+              </div>
+            </div>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>

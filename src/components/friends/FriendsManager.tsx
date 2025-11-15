@@ -104,20 +104,39 @@ export const FriendsManager: React.FC = () => {
     };
 
     loadFriends();
-
-    // Set up realtime subscription
+    
+    // Real-time friend request notifications
     const channel = supabase
-      .channel('contacts-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'contacts' },
-        () => loadFriends()
+      .channel('friend-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'contacts',
+          filter: `contact_user_id=eq.${userId}`
+        },
+        async (payload) => {
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('username, display_name')
+            .eq('user_id', payload.new.user_id)
+            .single();
+          
+          toast({
+            title: "New friend request! 🎉",
+            description: `${senderProfile?.display_name || senderProfile?.username || 'Someone'} wants to be friends`,
+          });
+          
+          loadFriends();
+        }
       )
       .subscribe();
-
+    
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, toast]);
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

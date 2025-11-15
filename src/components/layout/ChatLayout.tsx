@@ -26,7 +26,7 @@ import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
-import { FloatingBackground } from '@/components/background/FloatingBackground';
+import { DynamicBackground } from '@/components/background/DynamicBackground';
 import { AnimatedBackground } from '@/components/background/AnimatedBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity } from 'lucide-react';
@@ -453,7 +453,6 @@ export const ChatLayout = () => {
         onSectionChange={setActiveSection}
       />
       <div className="relative z-10 flex-1">
-        <FloatingBackground />
         {renderContent()}
       </div>
     </div>
