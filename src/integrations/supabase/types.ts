@@ -138,6 +138,48 @@ export type Database = {
           },
         ]
       }
+      couple_calendar: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          event_date: string
+          event_type: string | null
+          id: string
+          is_recurring: boolean | null
+          partner_id: string
+          reminder_time: number | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          event_date: string
+          event_type?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          partner_id: string
+          reminder_time?: number | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          event_date?: string
+          event_type?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          partner_id?: string
+          reminder_time?: number | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       dream_features: {
         Row: {
           created_at: string

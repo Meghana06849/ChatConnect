@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DreamRoomWelcome } from './DreamRoomWelcome';
+import { CoupleCalendar } from './CoupleCalendar';
 import { 
   Home, 
   Clock, 
@@ -42,6 +44,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
   const [petMood, setPetMood] = useState('happy');
   const [currentMusic, setCurrentMusic] = useState('None');
   const [nightModeStars, setNightModeStars] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
 
   useEffect(() => {
     const updateTime = () => {
@@ -86,12 +90,32 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
     { name: 'Dream Jar', description: 'Drop wishes that open later', icon: '🏺' },
     { name: 'Shared Playlist', description: 'Auto-sync music with Spotify', icon: '🎵' },
     { name: 'Virtual Pet', description: 'Grows as you chat together', icon: '🐱' },
+    { name: 'Couple Calendar', description: 'Never miss special moments', icon: '📅' },
     { name: 'Night Mode', description: 'Stars change based on moods', icon: '🌟' },
     { name: 'Dream Board', description: 'Upload memories & quotes', icon: '📌' },
     { name: 'Mini-Games', description: 'Play together in your space', icon: '🎮' },
   ];
 
   // Dream Room is accessible since PIN was verified at entry
+
+  if (showWelcome) {
+    return <DreamRoomWelcome onEnter={() => setShowWelcome(false)} />;
+  }
+
+  if (currentView === 'calendar') {
+    return (
+      <div className="relative">
+        <Button
+          onClick={() => setCurrentView('main')}
+          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Dream Room
+        </Button>
+        <CoupleCalendar />
+      </div>
+    );
+  }
 
   if (!isAccessible && isTimeRestricted) {
     return (
@@ -250,7 +274,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {dreamFeatures.map((feature, idx) => (
-                    <div key={idx} className="text-center p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+                    <div 
+                      key={idx} 
+                      className="text-center p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 cursor-pointer"
+                      onClick={() => {
+                        if (feature.name === 'Couple Calendar') {
+                          setCurrentView('calendar');
+                        }
+                      }}
+                    >
                       <div className="text-3xl mb-2">{feature.icon}</div>
                       <h4 className="font-medium text-sm">{feature.name}</h4>
                       <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
