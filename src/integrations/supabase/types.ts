@@ -471,6 +471,60 @@ export type Database = {
         }
         Relationships: []
       }
+      vault_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          encrypted_content: string | null
+          file_size: number | null
+          file_url: string | null
+          id: string
+          is_favorite: boolean | null
+          item_type: string
+          mime_type: string | null
+          partner_id: string
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          encrypted_content?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          item_type: string
+          mime_type?: string | null
+          partner_id: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          encrypted_content?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          item_type?: string
+          mime_type?: string | null
+          partner_id?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
