@@ -70,8 +70,8 @@ export const AuthForm = () => {
         {/* Simple Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <MessageCircle className="w-10 h-10 text-primary" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <MessageCircle className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.5)]" />
+            <span className="text-3xl font-bold bg-gradient-to-r from-cyan-300 via-teal-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_6px_rgba(0,255,255,0.3)]">
               ChatConnect
             </span>
           </div>
