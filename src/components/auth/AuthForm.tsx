@@ -69,9 +69,9 @@ export const AuthForm = () => {
       <div className="w-full max-w-md">
         {/* Simple Logo */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <MessageCircle className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.5)]" />
-            <span className="text-3xl font-bold bg-gradient-to-r from-cyan-300 via-teal-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_6px_rgba(0,255,255,0.3)]">
+          <div className="flex items-center justify-center space-x-2 mb-4 group cursor-pointer">
+            <MessageCircle className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_6px_rgba(0,255,255,0.5)] transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_12px_rgba(0,255,255,0.8)] group-hover:animate-pulse" />
+            <span className="text-3xl font-bold bg-gradient-to-r from-cyan-300 via-teal-400 to-emerald-400 bg-clip-text text-transparent drop-shadow-[0_0_6px_rgba(0,255,255,0.3)] transition-all duration-300 group-hover:drop-shadow-[0_0_10px_rgba(0,255,255,0.6)] group-hover:scale-105">
               ChatConnect
             </span>
           </div>
