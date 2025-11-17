@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DreamRoomWelcome } from './DreamRoomWelcome';
 import { CoupleCalendar } from './CoupleCalendar';
+import { LoveVault } from './LoveVault';
 import { 
   Home, 
   Clock, 
@@ -45,7 +46,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
   const [currentMusic, setCurrentMusic] = useState('None');
   const [nightModeStars, setNightModeStars] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
+  const [currentView, setCurrentView] = useState<'main' | 'calendar' | 'vault'>('main');
 
   useEffect(() => {
     const updateTime = () => {
@@ -88,6 +89,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
 
   const dreamFeatures = [
     { name: 'Dream Jar', description: 'Drop wishes that open later', icon: '🏺' },
+    { name: 'Love Vault', description: 'Encrypted private storage', icon: '🔒' },
     { name: 'Shared Playlist', description: 'Auto-sync music with Spotify', icon: '🎵' },
     { name: 'Virtual Pet', description: 'Grows as you chat together', icon: '🐱' },
     { name: 'Couple Calendar', description: 'Never miss special moments', icon: '📅' },
@@ -113,6 +115,21 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
           Back to Dream Room
         </Button>
         <CoupleCalendar />
+      </div>
+    );
+  }
+
+  if (currentView === 'vault') {
+    return (
+      <div className="relative">
+        <Button
+          onClick={() => setCurrentView('main')}
+          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Dream Room
+        </Button>
+        <LoveVault />
       </div>
     );
   }
@@ -280,6 +297,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
                       onClick={() => {
                         if (feature.name === 'Couple Calendar') {
                           setCurrentView('calendar');
+                        } else if (feature.name === 'Love Vault') {
+                          setCurrentView('vault');
                         }
                       }}
                     >
