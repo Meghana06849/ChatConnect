@@ -3,7 +3,7 @@ import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,13 +12,10 @@ import {
   Search, 
   UserPlus, 
   Users, 
-  QrCode, 
-  Heart, 
   Phone, 
   Mail,
   Check,
   X,
-  UserCheck,
   UserX
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -27,20 +24,9 @@ interface Friend {
   id: string;
   name: string;
   username: string;
-  email?: string;
-  phone?: string;
   avatar?: string;
   isOnline: boolean;
-  mutualFriends: number;
-  status: 'friend' | 'pending' | 'requested' | 'blocked';
-}
-
-interface PartnerRequest {
-  id: string;
-  name: string;
-  username: string;
-  avatar?: string;
-  timestamp: Date;
+  status: 'friend' | 'pending' | 'requested';
 }
 
 export const FriendsManager: React.FC = () => {
@@ -50,6 +36,7 @@ export const FriendsManager: React.FC = () => {
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const isLoversMode = mode === 'lovers';
+  const [friends, setFriends] = useState<Friend[]>([]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -59,15 +46,10 @@ export const FriendsManager: React.FC = () => {
     getUser();
   }, []);
 
-  // Real friends data will be loaded from database
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([]);
-
   useEffect(() => {
     if (!userId) return;
     
     const loadFriends = async () => {
-      // Load contacts where user is either sender or receiver
       const { data: contacts, error } = await supabase
         .from('contacts')
         .select(`
@@ -94,7 +76,6 @@ export const FriendsManager: React.FC = () => {
           username: profile?.username || 'unknown',
           avatar: profile?.avatar_url,
           isOnline: profile?.is_online || false,
-          mutualFriends: 0,
           status: contact.status === 'accepted' ? 'friend' : 
                   (isContactUser ? 'requested' : 'pending')
         };
@@ -105,7 +86,6 @@ export const FriendsManager: React.FC = () => {
 
     loadFriends();
     
-    // Real-time friend request notifications
     const channel = supabase
       .channel('friend-requests')
       .on(
@@ -121,11 +101,11 @@ export const FriendsManager: React.FC = () => {
             .from('profiles')
             .select('username, display_name')
             .eq('user_id', payload.new.user_id)
-            .single();
+            .maybeSingle();
           
           toast({
-            title: "New friend request! 🎉",
-            description: `${senderProfile?.display_name || senderProfile?.username || 'Someone'} wants to be friends`,
+            title: "New friend request!",
+            description: `${senderProfile?.display_name || 'Someone'} sent you a friend request`
           });
           
           loadFriends();
@@ -136,40 +116,103 @@ export const FriendsManager: React.FC = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, toast]);
+  }, [userId]);
 
   const filteredFriends = friends.filter(friend =>
     friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     friend.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleFriendAction = async (friendId: string, action: 'accept' | 'decline' | 'block' | 'unblock') => {
+  const acceptedFriends = filteredFriends.filter(f => f.status === 'friend');
+  const pendingFriends = filteredFriends.filter(f => f.status === 'pending');
+  const requestedFriends = filteredFriends.filter(f => f.status === 'requested');
+
+  const handleAcceptRequest = async (contactId: string) => {
     try {
-      if (action === 'accept') {
-        await supabase
-          .from('contacts')
-          .update({ status: 'accepted' })
-          .eq('id', friendId);
-        
-        toast({
-          title: "Friend request accepted",
-          description: "You are now friends!"
-        });
-      } else if (action === 'decline') {
-        await supabase
-          .from('contacts')
-          .delete()
-          .eq('id', friendId);
-        
-        toast({
-          title: "Friend request declined",
-          description: "Request removed"
-        });
-      }
-    } catch (error: any) {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ status: 'accepted' })
+        .eq('id', contactId);
+
+      if (error) throw error;
+
       toast({
-        title: "Action failed",
-        description: error.message,
+        title: "Friend request accepted!",
+        description: "You are now connected"
+      });
+
+      setFriends(prev => prev.map(f => 
+        f.id === contactId ? { ...f, status: 'friend' as const } : f
+      ));
+    } catch (error) {
+      toast({
+        title: "Failed to accept request",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeclineRequest = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Friend request declined"
+      });
+
+      setFriends(prev => prev.filter(f => f.id !== contactId));
+    } catch (error) {
+      toast({
+        title: "Failed to decline request",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCancelRequest = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Friend request cancelled"
+      });
+
+      setFriends(prev => prev.filter(f => f.id !== contactId));
+    } catch (error) {
+      toast({
+        title: "Failed to cancel request",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleRemoveFriend = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Friend removed"
+      });
+
+      setFriends(prev => prev.filter(f => f.id !== contactId));
+    } catch (error) {
+      toast({
+        title: "Failed to remove friend",
         variant: "destructive"
       });
     }
@@ -179,7 +222,6 @@ export const FriendsManager: React.FC = () => {
     if (!addFriendQuery.trim() || !userId) return;
 
     try {
-      // Find user by username
       const { data: targetUser, error: userError } = await supabase
         .from('profiles')
         .select('user_id')
@@ -204,7 +246,6 @@ export const FriendsManager: React.FC = () => {
         return;
       }
 
-      // Check if contact already exists
       const { data: existing } = await supabase
         .from('contacts')
         .select('id')
@@ -220,7 +261,6 @@ export const FriendsManager: React.FC = () => {
         return;
       }
 
-      // Create friend request
       const { error: insertError } = await supabase
         .from('contacts')
         .insert({
@@ -247,18 +287,9 @@ export const FriendsManager: React.FC = () => {
     }
   };
 
-  const sendPartnerRequest = (requestId: string) => {
-    setPartnerRequests(prev => prev.filter(req => req.id !== requestId));
-    toast({
-      title: "Partner request sent!",
-      description: "Waiting for acceptance to enable Lovers Mode"
-    });
-  };
-
   return (
     <div className="flex-1 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <Users className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
           <h1 className="text-3xl font-bold mb-2">
@@ -269,7 +300,6 @@ export const FriendsManager: React.FC = () => {
           </p>
         </div>
 
-        {/* Search and Add */}
         <div className="flex space-x-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -296,19 +326,10 @@ export const FriendsManager: React.FC = () => {
                 <Input
                   value={addFriendQuery}
                   onChange={(e) => setAddFriendQuery(e.target.value)}
-                  placeholder="Enter username or user ID"
+                  placeholder="Enter username"
                   className="glass border-white/20"
+                  onKeyPress={(e) => e.key === 'Enter' && sendFriendRequest()}
                 />
-                
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4 text-blue-600" />
-                    <p className="text-sm font-medium text-blue-900">Connect by User ID only</p>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-1">
-                    Find friends using their unique username or user ID for secure connections
-                  </p>
-                </div>
                 
                 <Button 
                   className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
@@ -324,68 +345,71 @@ export const FriendsManager: React.FC = () => {
 
         <Tabs defaultValue="friends" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 glass border-white/20">
-            <TabsTrigger value="friends">Friends</TabsTrigger>
-            <TabsTrigger value="requests">Requests</TabsTrigger>
-            {isLoversMode && <TabsTrigger value="partner">Partner</TabsTrigger>}
+            <TabsTrigger value="friends">
+              Friends ({acceptedFriends.length})
+            </TabsTrigger>
+            <TabsTrigger value="requests">
+              Requests ({requestedFriends.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending ({pendingFriends.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="friends" className="space-y-4">
-            {filteredFriends.filter(f => f.status === 'friend').length === 0 ? (
+            {acceptedFriends.length === 0 ? (
               <Card className="glass border-white/20">
                 <CardContent className="p-8 text-center">
                   <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                   <h3 className="font-semibold mb-2">No friends yet</h3>
                   <p className="text-muted-foreground text-sm mb-4">
-                    Add friends by their username, email, or phone number
+                    Add friends to start connecting!
                   </p>
-                  <Button 
-                    onClick={() => setShowAddFriend(true)}
-                    className={isLoversMode ? 'btn-lovers' : 'btn-general'}
-                  >
+                  <Button onClick={() => setShowAddFriend(true)} className={isLoversMode ? 'btn-lovers' : 'btn-general'}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add Your First Friend
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              filteredFriends.filter(f => f.status === 'friend').map((friend) => (
+              acceptedFriends.map((friend) => (
                 <Card key={friend.id} className="glass border-white/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Avatar className="w-12 h-12">
-                          <AvatarFallback className={`
-                            ${isLoversMode 
-                              ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
-                              : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                            }
-                          `}>
-                            {friend.name[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-semibold">{friend.name}</h4>
-                            <Badge 
-                              variant={friend.isOnline ? "default" : "secondary"}
-                              className={friend.isOnline ? (isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary') : ''}
-                            >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
+                              {friend.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          {friend.isOnline && (
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">{friend.name}</p>
+                            <Badge variant={friend.isOnline ? "default" : "secondary"}>
                               {friend.isOnline ? 'Online' : 'Offline'}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">@{friend.username}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {friend.mutualFriends} mutual friends
-                          </p>
                         </div>
                       </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="glass border-white/20">
-                          Message
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" title="Call">
+                          <Phone className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
+                        <Button size="sm" variant="outline" title="Message">
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          title="Remove Friend"
+                          onClick={() => handleRemoveFriend(friend.id)}
+                        >
                           <UserX className="w-4 h-4" />
                         </Button>
                       </div>
@@ -396,107 +420,104 @@ export const FriendsManager: React.FC = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="requests" className="space-y-4">
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Pending Requests</h3>
-              {friends.filter(f => f.status === 'pending').map((friend) => (
+          <TabsContent value="requests" className="space-y-3">
+            {requestedFriends.length === 0 ? (
+              <Card className="glass border-white/20">
+                <CardContent className="p-8 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="font-semibold mb-2">No pending requests</h3>
+                  <p className="text-muted-foreground text-sm">
+                    You don't have any friend requests at the moment.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              requestedFriends.map((friend) => (
                 <Card key={friend.id} className="glass border-white/20">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className={`
-                            ${isLoversMode 
-                              ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
-                              : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                            }
-                          `}>
-                            {friend.name[0]}
-                          </AvatarFallback>
-                        </Avatar>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
+                              {friend.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-background" />
+                        </div>
                         <div>
-                          <h4 className="font-semibold">{friend.name}</h4>
+                          <p className="font-semibold">{friend.name}</p>
                           <p className="text-sm text-muted-foreground">@{friend.username}</p>
+                          <p className="text-xs text-muted-foreground">Sent you a friend request</p>
                         </div>
                       </div>
-                      
-                      <div className="flex space-x-2">
+                      <div className="flex gap-2">
                         <Button 
                           size="sm" 
-                          onClick={() => handleFriendAction(friend.id, 'accept')}
-                          className={isLoversMode ? 'btn-lovers' : 'btn-general'}
+                          variant="default"
+                          onClick={() => handleAcceptRequest(friend.id)}
                         >
-                          <Check className="w-4 h-4 mr-1" />
-                          Accept
+                          <Check className="w-4 h-4 mr-1" /> Accept
                         </Button>
                         <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleFriendAction(friend.id, 'decline')}
-                          className="glass border-white/20"
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDeclineRequest(friend.id)}
                         >
-                          <X className="w-4 h-4 mr-1" />
-                          Decline
+                          <X className="w-4 h-4 mr-1" /> Decline
                         </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              ))
+            )}
           </TabsContent>
 
-          {isLoversMode && (
-            <TabsContent value="partner" className="space-y-4">
+          <TabsContent value="pending" className="space-y-3">
+            {pendingFriends.length === 0 ? (
               <Card className="glass border-white/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
-                    <span>Partner Connection</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-muted-foreground">
-                    Connect with your special someone to unlock exclusive Lovers Mode features.
+                <CardContent className="p-8 text-center">
+                  <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <h3 className="font-semibold mb-2">No pending requests</h3>
+                  <p className="text-muted-foreground text-sm">
+                    You haven't sent any friend requests.
                   </p>
-                  
-                  {partnerRequests.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="font-semibold">Partner Requests</h4>
-                      {partnerRequests.map((request) => (
-                        <div key={request.id} className="flex items-center justify-between p-3 bg-lovers-primary/10 rounded-lg border border-lovers-primary/20">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white">
-                                {request.name[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h5 className="font-medium">{request.name}</h5>
-                              <p className="text-xs text-muted-foreground">@{request.username}</p>
-                            </div>
-                          </div>
-                          <Button 
-                            size="sm" 
-                            onClick={() => sendPartnerRequest(request.id)}
-                            className="btn-lovers"
-                          >
-                            <Heart className="w-4 h-4 mr-1" />
-                            Connect
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <Button className="btn-lovers w-full">
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Send Partner Request
-                  </Button>
                 </CardContent>
               </Card>
-            </TabsContent>
-          )}
+            ) : (
+              pendingFriends.map((friend) => (
+                <Card key={friend.id} className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Avatar className="w-12 h-12">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
+                              {friend.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full border-2 border-background" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{friend.name}</p>
+                          <p className="text-sm text-muted-foreground">@{friend.username}</p>
+                          <p className="text-xs text-muted-foreground">Waiting for response</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleCancelRequest(friend.id)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
         </Tabs>
       </div>
     </div>
