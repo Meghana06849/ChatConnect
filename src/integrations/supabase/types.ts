@@ -318,6 +318,8 @@ export type Database = {
           is_dream_message: boolean | null
           message_type: string | null
           metadata: Json | null
+          reactions: Json | null
+          read_at: string | null
           sender_id: string
         }
         Insert: {
@@ -329,6 +331,8 @@ export type Database = {
           is_dream_message?: boolean | null
           message_type?: string | null
           metadata?: Json | null
+          reactions?: Json | null
+          read_at?: string | null
           sender_id: string
         }
         Update: {
@@ -340,6 +344,8 @@ export type Database = {
           is_dream_message?: boolean | null
           message_type?: string | null
           metadata?: Json | null
+          reactions?: Json | null
+          read_at?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -408,6 +414,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      typing_indicators: {
+        Row: {
+          conversation_id: string
+          id: string
+          is_typing: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          is_typing?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          is_typing?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "typing_indicators_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
           },
         ]
       }
