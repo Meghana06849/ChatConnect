@@ -59,7 +59,7 @@ const gameCategories = {
       id: 'romance1',
       title: 'Love Quiz',
       description: 'How well do you know each other?',
-      icon: '💕',
+      icon: '❤️',
       category: 'romance' as const,
       players: 'multiplayer' as const,
       difficulty: 'medium' as const
@@ -68,7 +68,7 @@ const gameCategories = {
       id: 'couples1',
       title: 'Truth or Dare',
       description: 'Romantic edition for couples',
-      icon: '💋',
+      icon: '🎭',
       category: 'couples' as const,
       players: 'multiplayer' as const,
       difficulty: 'easy' as const
