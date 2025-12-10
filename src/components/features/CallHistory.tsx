@@ -1,72 +1,242 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Phone, 
   Video, 
   PhoneCall, 
   Search, 
-  MoreVertical,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
-  Clock,
-  User
+  Loader2
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 interface CallRecord {
   id: string;
-  name: string;
-  type: 'incoming' | 'outgoing' | 'missed';
-  callType: 'voice' | 'video';
-  duration: string;
-  timestamp: Date;
-  avatar?: string;
+  caller_id: string;
+  callee_id: string;
+  call_type: 'voice' | 'video';
+  status: string;
+  duration_seconds: number;
+  created_at: string;
+  contact_name?: string;
+  contact_avatar?: string;
+  direction: 'incoming' | 'outgoing';
 }
 
-export const CallHistory: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+interface CallHistoryProps {
+  onStartCall?: (contactId: string, contactName: string, isVideo: boolean) => void;
+}
 
-  // Real call history will be loaded from database
+export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUserId(data?.user?.id || null);
+    };
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadCallHistory = async () => {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('call_history')
+        .select('*')
+        .or(`caller_id.eq.${userId},callee_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('Error loading call history:', error);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch profile info for contacts
+      const contactIds = (data || []).map(call => 
+        call.caller_id === userId ? call.callee_id : call.caller_id
+      );
+      const uniqueContactIds = [...new Set(contactIds)];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, username, avatar_url')
+        .in('user_id', uniqueContactIds);
+
+      const profileMap = new Map(
+        (profiles || []).map(p => [p.user_id, p])
+      );
+
+      const enrichedHistory: CallRecord[] = (data || []).map(call => {
+        const contactId = call.caller_id === userId ? call.callee_id : call.caller_id;
+        const profile = profileMap.get(contactId);
+        
+        return {
+          ...call,
+          call_type: call.call_type as 'voice' | 'video',
+          contact_name: profile?.display_name || profile?.username || 'Unknown',
+          contact_avatar: profile?.avatar_url,
+          direction: call.caller_id === userId ? 'outgoing' : 'incoming'
+        };
+      });
+
+      setCallHistory(enrichedHistory);
+      setLoading(false);
+    };
+
+    loadCallHistory();
+
+    // Subscribe to new calls
+    const channel = supabase
+      .channel('call-history-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'call_history',
+        filter: `caller_id=eq.${userId}`
+      }, () => loadCallHistory())
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'call_history',
+        filter: `callee_id=eq.${userId}`
+      }, () => loadCallHistory())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const filteredCalls = callHistory.filter(call =>
-    call.name.toLowerCase().includes(searchQuery.toLowerCase())
+    call.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // TODO: Load real call history from database
-  // useEffect(() => {
-  //   const loadCallHistory = async () => {
-  //     // Load from Supabase call_history table
-  //   };
-  //   loadCallHistory();
-  // }, []);
-
-  const getCallIcon = (type: string, callType: string) => {
-    if (type === 'incoming') return <PhoneIncoming className="w-4 h-4 text-green-500" />;
-    if (type === 'outgoing') return <PhoneOutgoing className="w-4 h-4 text-blue-500" />;
-    if (type === 'missed') return <PhoneMissed className="w-4 h-4 text-red-500" />;
-    return <Phone className="w-4 h-4" />;
+  const getCallsByType = (type: 'all' | 'missed' | 'outgoing' | 'incoming') => {
+    switch (type) {
+      case 'missed':
+        return filteredCalls.filter(c => c.status === 'missed');
+      case 'outgoing':
+        return filteredCalls.filter(c => c.direction === 'outgoing');
+      case 'incoming':
+        return filteredCalls.filter(c => c.direction === 'incoming');
+      default:
+        return filteredCalls;
+    }
   };
 
-  const getCallTypeIcon = (callType: string) => {
-    return callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />;
+  const formatDuration = (seconds: number) => {
+    if (!seconds) return 'No answer';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatTimestamp = (timestamp: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - timestamp.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
+  const getCallIcon = (call: CallRecord) => {
+    if (call.status === 'missed') {
+      return <PhoneMissed className="w-4 h-4 text-destructive" />;
+    }
+    if (call.direction === 'incoming') {
+      return <PhoneIncoming className="w-4 h-4 text-green-500" />;
+    }
+    return <PhoneOutgoing className="w-4 h-4 text-blue-500" />;
+  };
 
-    if (diffHours < 1) return 'Just now';
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return timestamp.toLocaleDateString();
+  const renderCallList = (calls: CallRecord[]) => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+
+    if (calls.length === 0) {
+      return (
+        <div className="text-center p-8">
+          <Phone className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+          <p className="text-muted-foreground">No calls found</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {calls.map(call => (
+          <div 
+            key={call.id} 
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-white">
+                  {call.contact_name?.[0]?.toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{call.contact_name}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {getCallIcon(call)}
+                  <span>{call.call_type === 'video' ? 'Video' : 'Voice'}</span>
+                  <span>•</span>
+                  <span>{formatDuration(call.duration_seconds)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(call.created_at), { addSuffix: true })}
+              </span>
+              {onStartCall && (
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onStartCall(
+                      call.caller_id === userId ? call.callee_id : call.caller_id,
+                      call.contact_name || 'Unknown',
+                      false
+                    )}
+                    className="rounded-full p-2 h-8 w-8"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onStartCall(
+                      call.caller_id === userId ? call.callee_id : call.caller_id,
+                      call.contact_name || 'Unknown',
+                      true
+                    )}
+                    className="rounded-full p-2 h-8 w-8"
+                  >
+                    <Video className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -74,7 +244,7 @@ export const CallHistory: React.FC = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <Phone className="w-16 h-16 mx-auto mb-4 text-general-primary" />
+          <Phone className="w-16 h-16 mx-auto mb-4 text-primary" />
           <h1 className="text-3xl font-bold mb-2">Call History</h1>
           <p className="text-muted-foreground">Your recent voice and video calls</p>
         </div>
@@ -97,66 +267,66 @@ export const CallHistory: React.FC = () => {
         {/* Call History Tabs */}
         <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 glass border-white/20">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="missed">Missed</TabsTrigger>
-            <TabsTrigger value="outgoing">Outgoing</TabsTrigger>
-            <TabsTrigger value="incoming">Incoming</TabsTrigger>
+            <TabsTrigger value="all">All ({getCallsByType('all').length})</TabsTrigger>
+            <TabsTrigger value="missed">Missed ({getCallsByType('missed').length})</TabsTrigger>
+            <TabsTrigger value="outgoing">Outgoing ({getCallsByType('outgoing').length})</TabsTrigger>
+            <TabsTrigger value="incoming">Incoming ({getCallsByType('incoming').length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
+          <TabsContent value="all">
             <Card className="glass border-white/20">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>Recent Calls</span>
-                  <Badge variant="outline" className="text-general-primary border-general-primary/50">
-                    {filteredCalls.length} calls
+                  <Badge variant="outline" className="text-primary border-primary/50">
+                    {getCallsByType('all').length} calls
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-muted-foreground">No call history available.</p>
-                <div className="text-center p-8">
-                  <Phone className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">
-                    Make your first call to see history here
-                  </p>
-                </div>
+              <CardContent>
+                {renderCallList(getCallsByType('all'))}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="missed" className="space-y-4">
+          <TabsContent value="missed">
             <Card className="glass border-white/20">
-              <CardContent className="p-6 text-center">
-                <PhoneMissed className="w-16 h-16 mx-auto mb-4 text-red-500" />
-                <h3 className="text-lg font-semibold mb-2">Missed Calls</h3>
-                <p className="text-muted-foreground">
-                  {filteredCalls.filter(call => call.type === 'missed').length} missed calls
-                </p>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PhoneMissed className="w-5 h-5 text-destructive" />
+                  Missed Calls
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderCallList(getCallsByType('missed'))}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="outgoing" className="space-y-4">
+          <TabsContent value="outgoing">
             <Card className="glass border-white/20">
-              <CardContent className="p-6 text-center">
-                <PhoneOutgoing className="w-16 h-16 mx-auto mb-4 text-blue-500" />
-                <h3 className="text-lg font-semibold mb-2">Outgoing Calls</h3>
-                <p className="text-muted-foreground">
-                  {filteredCalls.filter(call => call.type === 'outgoing').length} outgoing calls
-                </p>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PhoneOutgoing className="w-5 h-5 text-blue-500" />
+                  Outgoing Calls
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderCallList(getCallsByType('outgoing'))}
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="incoming" className="space-y-4">
+          <TabsContent value="incoming">
             <Card className="glass border-white/20">
-              <CardContent className="p-6 text-center">
-                <PhoneIncoming className="w-16 h-16 mx-auto mb-4 text-green-500" />
-                <h3 className="text-lg font-semibold mb-2">Incoming Calls</h3>
-                <p className="text-muted-foreground">
-                  {filteredCalls.filter(call => call.type === 'incoming').length} incoming calls
-                </p>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PhoneIncoming className="w-5 h-5 text-green-500" />
+                  Incoming Calls
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderCallList(getCallsByType('incoming'))}
               </CardContent>
             </Card>
           </TabsContent>
