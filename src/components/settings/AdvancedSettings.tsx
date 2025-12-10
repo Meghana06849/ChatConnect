@@ -33,7 +33,11 @@ import {
   Music,
   Edit3,
   Mail,
-  Activity
+  Activity,
+  Mic,
+  Star,
+  Timer,
+  Trophy
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
@@ -266,6 +270,78 @@ export const AdvancedSettings: React.FC = () => {
                 subtitle="Cache, downloads, auto-delete settings"
                 onClick={() => setShowStorageSettings(true)}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Features Section */}
+        <Card className="glass border-white/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Star className={`w-5 h-5 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+              Features
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-white/10">
+              <SettingsItem 
+                icon={<Mic className="w-5 h-5" />}
+                title="Voice Changer"
+                subtitle="Transform voice with real-time effects"
+                onClick={() => toast({ title: "Voice Changer", description: "Transform your voice with fun effects during calls!" })}
+              />
+              <SettingsItem 
+                icon={<Star className="w-5 h-5" />}
+                title="AR Filters"
+                subtitle="Magic AR effects for photos & videos"
+                onClick={() => toast({ title: "AR Filters", description: "Apply magical AR effects to your photos and videos!" })}
+              />
+              <SettingsItem 
+                icon={<Shield className="w-5 h-5" />}
+                title="Secret Vault"
+                subtitle="Ultra-secure storage with decoy mode"
+                onClick={() => toast({ title: "Secret Vault", description: "Store your most private content securely!" })}
+              />
+              <SettingsItem 
+                icon={<Timer className="w-5 h-5" />}
+                title="Disappearing Messages"
+                subtitle="Self-destructing secret messages"
+                onClick={() => toast({ title: "Disappearing Messages", description: "Send messages that automatically delete after being read!" })}
+              />
+              <SettingsItem 
+                icon={<Shield className="w-5 h-5" />}
+                title="Screenshot Detection"
+                subtitle="Privacy protection alerts"
+                onClick={() => toast({ title: "Screenshot Detection", description: "Get notified when someone takes a screenshot of your chats!" })}
+              />
+              {isLoversMode && (
+                <>
+                  <SettingsItem 
+                    icon={<Heart className="w-5 h-5" />}
+                    title="Mood Sync"
+                    subtitle="Share your feelings together"
+                    onClick={() => toast({ title: "Mood Sync", description: "Sync and share your moods with your partner!" })}
+                  />
+                  <SettingsItem 
+                    icon={<Trophy className="w-5 h-5" />}
+                    title="Couple Challenges"
+                    subtitle="Fun activities to do together"
+                    onClick={() => toast({ title: "Couple Challenges", description: "Complete fun challenges together to strengthen your bond!" })}
+                  />
+                  <SettingsItem 
+                    icon={<Activity className="w-5 h-5" />}
+                    title="Heartbeat Sync"
+                    subtitle="Share your heartbeat live"
+                    onClick={() => toast({ title: "Heartbeat Sync", description: "Share your heartbeat in real-time with your partner!" })}
+                  />
+                  <SettingsItem 
+                    icon={<Star className="w-5 h-5" />}
+                    title="Virtual Pet"
+                    subtitle="Care for your love pet together"
+                    onClick={() => toast({ title: "Virtual Pet", description: "Raise a virtual pet together with your partner!" })}
+                  />
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

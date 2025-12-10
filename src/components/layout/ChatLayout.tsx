@@ -26,10 +26,10 @@ import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
-import { WallpaperUpload } from '@/components/settings/WallpaperUpload';
+
 import { DynamicBackground } from '@/components/background/DynamicBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, Phone, Users, Heart, Calendar, Trophy, Video, Mic, Star, Timer, Shield, Activity, Upload } from 'lucide-react';
+import { Gamepad2, Phone, Users, Heart, Calendar } from 'lucide-react';
 
 interface Contact {
   id: string;
@@ -92,13 +92,7 @@ export const ChatLayout = () => {
         return <AdvancedSettings />;
       
       case 'wallpapers':
-        return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <WallpaperUpload />
-            </div>
-          </div>
-        );
+        return <AdvancedSettings />;
 
       case 'games':
         return <GamesHub />;
@@ -238,7 +232,7 @@ export const ChatLayout = () => {
       default: // home
         return (
           <div className="flex-1 p-6">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               {/* Welcome Header */}
               <div className="text-center mb-12">
                 <div className={`
@@ -261,7 +255,7 @@ export const ChatLayout = () => {
                     : 'from-general-primary to-general-secondary'
                   }
                 `}>
-                  Welcome to {isLoversMode ? 'Lovers Mode' : 'Chat'}
+                  Welcome to ChatConnect
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                   {isLoversMode 
@@ -272,32 +266,32 @@ export const ChatLayout = () => {
               </div>
 
               {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                 {[
-                   { 
-                     icon: isLoversMode ? Heart : Users, 
-                     title: isLoversMode ? 'Start Love Chat' : 'Message Friends', 
-                     desc: isLoversMode ? 'Send love messages' : 'Connect with friends',
-                     action: 'chats'
-                   },
-                   { 
-                     icon: Gamepad2, 
-                     title: isLoversMode ? 'Love Games' : 'Mini Games', 
-                     desc: isLoversMode ? 'Play together' : 'Fun with friends',
-                     action: 'games'
-                   },
-                   { 
-                     icon: Calendar, 
-                     title: 'Daily Moments', 
-                     desc: isLoversMode ? 'Share moments' : 'Daily updates',
-                     action: 'stories'
-                   },
-                   { 
-                     icon: Phone, 
-                     title: 'Voice & Video', 
-                     desc: 'High quality calls',
-                     action: 'calls'
-                   }
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  { 
+                    icon: isLoversMode ? Heart : Users, 
+                    title: isLoversMode ? 'Start Love Chat' : 'Message Friends', 
+                    desc: isLoversMode ? 'Send love messages' : 'Connect with friends',
+                    action: 'chats'
+                  },
+                  { 
+                    icon: Gamepad2, 
+                    title: isLoversMode ? 'Love Games' : 'Mini Games', 
+                    desc: isLoversMode ? 'Play together' : 'Fun with friends',
+                    action: 'games'
+                  },
+                  { 
+                    icon: Calendar, 
+                    title: 'Daily Moments', 
+                    desc: isLoversMode ? 'Share moments' : 'Daily updates',
+                    action: 'stories'
+                  },
+                  { 
+                    icon: Phone, 
+                    title: 'Voice & Video', 
+                    desc: 'High quality calls',
+                    action: 'calls'
+                  }
                 ].map((item, idx) => {
                   const Icon = item.icon;
                   return (
@@ -320,143 +314,6 @@ export const ChatLayout = () => {
                     </Card>
                   );
                 })}
-              </div>
-
-              {/* Stats/Features for Lovers Mode */}
-              {isLoversMode && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('mood-sync')}>
-                    <CardHeader>
-                      <Heart className="w-8 h-8 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
-                      <CardTitle className="text-lg">Mood Sync</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground text-sm">Share your feelings together</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('couple-challenge')}>
-                    <CardHeader>
-                      <Trophy className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Challenges</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground text-sm">Fun activities to do together</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass border-white/20 text-center">
-                    <CardHeader>
-                      <Calendar className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Love Streak</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-lovers-primary mb-1">{loveStreak} days</p>
-                      <p className="text-muted-foreground text-sm">Keep chatting daily!</p>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('virtual-pet')}>
-                    <CardHeader>
-                      <Star className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Virtual Pet</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-lovers-primary mb-1">😇</p>
-                      <p className="text-muted-foreground text-sm">Care for your love pet</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Enhanced Unique Features Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('voice-change')}>
-                  <CardHeader>
-                    <Mic className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">Voice Changer</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Transform voice with real-time effects</p>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('ar-filters')}>
-                  <CardHeader>
-                    <Star className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">AR Filters</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Magic AR effects for photos & videos</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('secret-vault')}>
-                  <CardHeader>
-                    <Shield className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">Secret Vault</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Ultra-secure storage with decoy mode</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Additional Features */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('wallpapers')}>
-                  <CardHeader>
-                    <Upload className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">Custom Wallpapers</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Set your own day & night backgrounds</p>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('disappearing-messages')}>
-                  <CardHeader>
-                    <Timer className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">Disappearing Messages</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Self-destructing secret messages</p>
-                  </CardContent>
-                </Card>
-                
-                <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('screenshot-detection')}>
-                  <CardHeader>
-                    <Shield className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'} mx-auto mb-2`} />
-                    <CardTitle className="text-lg">Screenshot Detection</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground text-sm">Privacy protection alerts</p>
-                  </CardContent>
-                </Card>
-                
-                {isLoversMode && (
-                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('heartbeat-sync')}>
-                    <CardHeader>
-                      <Activity className="w-8 h-8 text-lovers-primary mx-auto mb-2" />
-                      <CardTitle className="text-lg">Heartbeat Sync</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground text-sm">Share your heartbeat live</p>
-                    </CardContent>
-                  </Card>
-                )}
-                
-                {isLoversMode && (
-                  <Card className="glass border-white/20 text-center cursor-pointer hover:shadow-lg transition-all" onClick={() => setActiveSection('dream-invite')}>
-                    <CardHeader>
-                      <Heart className="w-8 h-8 text-lovers-primary mx-auto mb-2 animate-heart-beat" />
-                      <CardTitle className="text-lg">Dream Room Invite</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-muted-foreground text-sm">Create secure room invites</p>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
             </div>
           </div>
