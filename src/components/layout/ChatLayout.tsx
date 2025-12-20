@@ -5,10 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navigation } from './Navigation';
 import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
-import { ModeSwitch } from '@/components/settings/ModeSwitch';
 import { DreamRoom } from '@/components/dreamroom/DreamRoom';
+import { DreamRoomHome } from '@/components/dreamroom/DreamRoomHome';
 import { LoversUnlock } from '@/components/lovers/LoversUnlock';
-import { CallInterface } from '@/components/features/CallInterface';
 import { CallHistory } from '@/components/features/CallHistory';
 import { GamesHub } from '@/components/features/GamesHub';
 import { MoodSync } from '@/components/unique/MoodSync';
@@ -26,8 +25,6 @@ import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
-
-import { DynamicBackground } from '@/components/background/DynamicBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, Phone, Users, Heart, Calendar } from 'lucide-react';
 
@@ -230,38 +227,25 @@ export const ChatLayout = () => {
         );
 
       default: // home
+        // Show romantic Dream Room home for lovers mode
+        if (isLoversMode) {
+          return <DreamRoomHome onNavigate={setActiveSection} />;
+        }
+        
+        // General mode home
         return (
           <div className="flex-1 p-6">
             <div className="max-w-4xl mx-auto">
               {/* Welcome Header */}
               <div className="text-center mb-12">
-                <div className={`
-                  inline-flex items-center justify-center w-24 h-24 rounded-full mb-6
-                  ${isLoversMode 
-                    ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
-                    : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
-                  }
-                `}>
-                  {isLoversMode ? (
-                    <Heart className="w-12 h-12 text-lovers-primary animate-heart-beat" />
-                  ) : (
-                    <Gamepad2 className="w-12 h-12 text-general-primary" />
-                  )}
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 bg-gradient-to-br from-general-primary/20 to-general-secondary/20">
+                  <Gamepad2 className="w-12 h-12 text-general-primary" />
                 </div>
-                <h1 className={`
-                  text-4xl font-bold mb-4 bg-gradient-to-r bg-clip-text text-transparent
-                  ${isLoversMode 
-                    ? 'from-lovers-primary to-lovers-secondary' 
-                    : 'from-general-primary to-general-secondary'
-                  }
-                `}>
+                <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r bg-clip-text text-transparent from-general-primary to-general-secondary">
                   Welcome to ChatConnect
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  {isLoversMode 
-                    ? 'Your private space for intimate conversations and special moments together'
-                    : 'Connect, chat, and play with friends in a beautiful, modern interface'
-                  }
+                  Connect, chat, and play with friends in a beautiful, modern interface
                 </p>
               </div>
 
@@ -269,21 +253,21 @@ export const ChatLayout = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
                   { 
-                    icon: isLoversMode ? Heart : Users, 
-                    title: isLoversMode ? 'Start Love Chat' : 'Message Friends', 
-                    desc: isLoversMode ? 'Send love messages' : 'Connect with friends',
+                    icon: Users, 
+                    title: 'Message Friends', 
+                    desc: 'Connect with friends',
                     action: 'chats'
                   },
                   { 
                     icon: Gamepad2, 
-                    title: isLoversMode ? 'Love Games' : 'Mini Games', 
-                    desc: isLoversMode ? 'Play together' : 'Fun with friends',
+                    title: 'Mini Games', 
+                    desc: 'Fun with friends',
                     action: 'games'
                   },
                   { 
                     icon: Calendar, 
                     title: 'Daily Moments', 
-                    desc: isLoversMode ? 'Share moments' : 'Daily updates',
+                    desc: 'Daily updates',
                     action: 'stories'
                   },
                   { 
@@ -301,11 +285,7 @@ export const ChatLayout = () => {
                       onClick={() => setActiveSection(item.action)}
                     >
                       <CardHeader className="text-center pb-2">
-                        <Icon className={`
-                          w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform
-                          ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}
-                          ${item.icon === Heart ? 'animate-heart-beat' : ''}
-                        `} />
+                        <Icon className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform text-general-primary" />
                         <CardTitle className="text-lg">{item.title}</CardTitle>
                       </CardHeader>
                       <CardContent className="text-center pt-0">
@@ -323,7 +303,14 @@ export const ChatLayout = () => {
 
   return (
     <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
-      <DynamicBackground />
+      {/* Only show background in general mode */}
+      {!isLoversMode && (
+        <div className="fixed inset-0 bg-gradient-to-br from-general-primary/5 via-background to-general-secondary/5 -z-10" />
+      )}
+      {/* Simple gradient background for lovers mode */}
+      {isLoversMode && (
+        <div className="fixed inset-0 bg-gradient-to-br from-lovers-primary/5 via-background to-lovers-secondary/5 -z-10" />
+      )}
       <Navigation 
         activeSection={activeSection}
         onSectionChange={setActiveSection}
