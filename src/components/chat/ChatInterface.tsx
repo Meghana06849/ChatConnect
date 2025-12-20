@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { TypingIndicator } from './TypingIndicator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -24,18 +26,32 @@ interface ChatInterfaceProps {
     avatar?: string;
     isOnline: boolean;
   };
+  conversationId?: string;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, conversationId }) => {
   const { mode } = useChat();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
   const [disappearTimer, setDisappearTimer] = useState<'none' | '10s' | '1min' | 'custom'>('none');
   const [showReactions, setShowReactions] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoversMode = mode === 'lovers';
+
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
+  }, []);
+
+  // Typing indicator hook
+  const { typingUsers, setTyping, isPartnerTyping } = useTypingIndicator(
+    conversationId || null,
+    currentUserId
+  );
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,6 +94,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
 
     setMessages(prev => [...prev, newMessage]);
     setMessage('');
+    setTyping(false); // Stop typing when message sent
 
     setTimeout(() => {
       setMessages(prev => 
@@ -282,17 +299,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
             </div>
           ))
         )}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Typing Indicator */}
+        {isPartnerTyping && <TypingIndicator typingUsers={typingUsers} />}
         <div ref={messagesEndRef} />
       </div>
 
@@ -302,8 +310,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact })
           <div className="flex-1 relative">
             <Input
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                // Trigger typing indicator
+                if (e.target.value.trim()) {
+                  setTyping(true);
+                }
+              }}
               onKeyPress={handleKeyPress}
+              onBlur={() => setTyping(false)}
               placeholder={isLoversMode ? "Send love..." : "Type a message..."}
               className="pr-12 py-3 rounded-2xl glass border-white/20"
             />
