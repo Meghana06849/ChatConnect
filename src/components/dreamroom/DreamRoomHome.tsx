@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
+import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Heart, 
@@ -14,7 +15,8 @@ import {
   Music,
   Lock,
   Flame,
-  Clock
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 interface DreamRoomHomeProps {
@@ -23,13 +25,26 @@ interface DreamRoomHomeProps {
 
 export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
   const { profile } = useProfile();
+  const { 
+    partnerOnline, 
+    partnerName: presencePartnerName, 
+    partnerMood,
+    isConnected 
+  } = useDreamRoomPresence();
+  
   const [loveStreak, setLoveStreak] = useState(0);
   const [partnerName, setPartnerName] = useState('Your Love');
-  const [currentMood, setCurrentMood] = useState('💕');
   const [greeting, setGreeting] = useState('');
   
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 18 || currentHour <= 6;
+
+  useEffect(() => {
+    // Update partner name from presence if available
+    if (presencePartnerName) {
+      setPartnerName(presencePartnerName);
+    }
+  }, [presencePartnerName]);
 
   useEffect(() => {
     // Set romantic greeting based on time
@@ -58,7 +73,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
       }
 
       // Get partner profile if connected
-      if (profile.lovers_partner_id) {
+      if (profile.lovers_partner_id && !presencePartnerName) {
         const { data: partnerData } = await supabase
           .from('profiles')
           .select('display_name')
@@ -72,7 +87,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
     };
 
     loadData();
-  }, [profile, currentHour]);
+  }, [profile, currentHour, presencePartnerName]);
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
@@ -96,25 +111,69 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             ))}
           </div>
 
-          {/* Connection Hearts */}
+          {/* Connection Hearts with Partner Status */}
           <div className="relative mb-6">
             <div className="inline-flex items-center justify-center">
               <div className="relative">
-                <div className="absolute inset-0 animate-pulse blur-xl bg-gradient-to-r from-lovers-primary/40 to-lovers-secondary/40 rounded-full scale-150" />
+                <div className={`absolute inset-0 blur-xl rounded-full scale-150 transition-all duration-500 ${
+                  partnerOnline 
+                    ? 'animate-pulse bg-gradient-to-r from-lovers-primary/50 to-lovers-secondary/50' 
+                    : 'bg-gradient-to-r from-lovers-primary/20 to-lovers-secondary/20'
+                }`} />
                 <div className="relative flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lovers-primary to-lovers-secondary flex items-center justify-center shadow-lg shadow-lovers-primary/30">
-                    <Heart className="w-10 h-10 text-white animate-heart-beat" />
+                  {/* Your Heart */}
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lovers-primary to-lovers-secondary flex items-center justify-center shadow-lg shadow-lovers-primary/30">
+                      <Heart className="w-10 h-10 text-white animate-heart-beat" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
+                      <Wifi className="w-3 h-3 text-white" />
+                    </div>
                   </div>
+                  
+                  {/* Connection Indicator */}
                   <div className="flex flex-col items-center">
-                    <Sparkles className="w-6 h-6 text-lovers-secondary animate-pulse" />
-                    <div className="text-2xl my-1">💞</div>
-                    <Sparkles className="w-6 h-6 text-lovers-primary animate-pulse" style={{ animationDelay: '0.5s' }} />
+                    <Sparkles className={`w-6 h-6 animate-pulse ${partnerOnline ? 'text-lovers-secondary' : 'text-muted-foreground/50'}`} />
+                    <div className="text-2xl my-1">{partnerOnline ? '💞' : '💭'}</div>
+                    <Sparkles className={`w-6 h-6 animate-pulse ${partnerOnline ? 'text-lovers-primary' : 'text-muted-foreground/50'}`} style={{ animationDelay: '0.5s' }} />
                   </div>
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lovers-secondary to-lovers-primary flex items-center justify-center shadow-lg shadow-lovers-secondary/30">
-                    <Heart className="w-10 h-10 text-white animate-heart-beat" style={{ animationDelay: '0.3s' }} />
+                  
+                  {/* Partner Heart */}
+                  <div className="relative">
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${
+                      partnerOnline 
+                        ? 'bg-gradient-to-br from-lovers-secondary to-lovers-primary shadow-lovers-secondary/30' 
+                        : 'bg-gradient-to-br from-muted to-muted-foreground/20 shadow-muted/30'
+                    }`}>
+                      <Heart className={`w-10 h-10 ${partnerOnline ? 'text-white animate-heart-beat' : 'text-muted-foreground/50'}`} style={{ animationDelay: '0.3s' }} />
+                    </div>
+                    <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center ${
+                      partnerOnline ? 'bg-green-500' : 'bg-muted-foreground/50'
+                    }`}>
+                      {partnerOnline ? (
+                        <Wifi className="w-3 h-3 text-white" />
+                      ) : (
+                        <WifiOff className="w-3 h-3 text-white" />
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+            
+            {/* Partner Status Text */}
+            <div className="mt-4">
+              {partnerOnline ? (
+                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-ping" />
+                  {partnerName} is here with you {partnerMood || '💕'}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground mr-2" />
+                  {partnerName} is away
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -123,7 +182,10 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             {greeting} ✨
           </h1>
           <p className="text-lg text-muted-foreground">
-            Welcome to your Dream Room
+            {partnerOnline 
+              ? `You and ${partnerName} are connected` 
+              : 'Welcome to your Dream Room'
+            }
           </p>
 
           {/* Love Streak Badge */}
