@@ -2,7 +2,7 @@ import React from 'react';
 import { useChat } from '@/contexts/ChatContext';
 
 interface TypingIndicatorProps {
-  typingUsers: { userId: string; displayName: string }[];
+  typingUsers: { user_id: string; display_name: string }[];
 }
 
 export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ typingUsers }) => {
@@ -12,9 +12,9 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ typingUsers })
   if (typingUsers.length === 0) return null;
 
   const displayText = typingUsers.length === 1
-    ? `${typingUsers[0].displayName} is typing`
+    ? `${typingUsers[0].display_name} is typing`
     : typingUsers.length === 2
-    ? `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing`
+    ? `${typingUsers[0].display_name} and ${typingUsers[1].display_name} are typing`
     : `${typingUsers.length} people are typing`;
 
   return (
