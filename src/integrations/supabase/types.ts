@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          block_type: string | null
+          blocked_user_id: string
+          created_at: string | null
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          block_type?: string | null
+          blocked_user_id: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          block_type?: string | null
+          blocked_user_id?: string
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       call_history: {
         Row: {
           call_type: string | null
@@ -417,6 +444,33 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       typing_indicators: {
         Row: {
           conversation_id: string
@@ -568,6 +622,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_friend_suggestions: {
+        Args: { requesting_user_id: string; suggestion_limit?: number }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_online: boolean
+          mutual_friend_count: number
+          user_id: string
+          username: string
+        }[]
+      }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
@@ -578,6 +643,10 @@ export type Database = {
       }
       is_group_member: {
         Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_user_blocked: {
+        Args: { checker_id: string; target_id: string }
         Returns: boolean
       }
     }

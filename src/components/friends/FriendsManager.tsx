@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { useFriendRequests } from '@/hooks/useFriendRequests';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { OnlineStatusIndicator } from './OnlineStatusIndicator';
+import { FriendSuggestions } from './FriendSuggestions';
+import { BlockedUsersManager } from './BlockedUsersManager';
+import { NotificationSettings } from './NotificationSettings';
 import { 
   Search, 
   UserPlus, 
@@ -19,7 +24,12 @@ import {
   X,
   UserX,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  MoreVertical,
+  ShieldOff,
+  VolumeX,
+  Sparkles,
+  Bell
 } from 'lucide-react';
 
 export const FriendsManager: React.FC = () => {
@@ -43,6 +53,8 @@ export const FriendsManager: React.FC = () => {
     removeFriend,
     refreshRequests
   } = useFriendRequests();
+
+  const { blockUser, muteUser } = useBlockedUsers();
 
   // Filter friends based on search
   const filteredFriends = friends.filter(f => {
@@ -168,12 +180,19 @@ export const FriendsManager: React.FC = () => {
           </Dialog>
         </div>
 
+        {/* Notification Settings */}
+        <NotificationSettings />
+
         <Tabs defaultValue="friends" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 glass border-white/20">
-            <TabsTrigger value="friends" className="relative">
+          <TabsList className="grid w-full grid-cols-5 glass border-white/20">
+            <TabsTrigger value="friends" className="relative text-xs sm:text-sm">
               Friends ({filteredFriends.length})
             </TabsTrigger>
-            <TabsTrigger value="requests" className="relative">
+            <TabsTrigger value="suggestions" className="relative text-xs sm:text-sm">
+              <Sparkles className="w-3 h-3 mr-1 hidden sm:inline" />
+              Discover
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="relative text-xs sm:text-sm">
               Requests
               {incomingRequests.length > 0 && (
                 <Badge 
@@ -185,8 +204,12 @@ export const FriendsManager: React.FC = () => {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="pending">
+            <TabsTrigger value="pending" className="text-xs sm:text-sm">
               Pending ({outgoingRequests.length})
+            </TabsTrigger>
+            <TabsTrigger value="blocked" className="text-xs sm:text-sm">
+              <ShieldOff className="w-3 h-3 mr-1 hidden sm:inline" />
+              Blocked
             </TabsTrigger>
           </TabsList>
 
@@ -248,14 +271,27 @@ export const FriendsManager: React.FC = () => {
                           <Button size="sm" variant="outline" title="Message">
                             <Mail className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            title="Remove Friend"
-                            onClick={() => handleRemove(friend.id)}
-                          >
-                            <UserX className="w-4 h-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="outline">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleRemove(friend.id)} className="text-destructive">
+                                <UserX className="w-4 h-4 mr-2" />
+                                Remove Friend
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => blockUser(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}>
+                                <ShieldOff className="w-4 h-4 mr-2" />
+                                Block User
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => muteUser(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}>
+                                <VolumeX className="w-4 h-4 mr-2" />
+                                Mute User
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </CardContent>
@@ -395,6 +431,11 @@ export const FriendsManager: React.FC = () => {
                 );
               })
             )}
+          </TabsContent>
+
+          {/* Blocked Users Tab */}
+          <TabsContent value="blocked">
+            <BlockedUsersManager />
           </TabsContent>
         </Tabs>
       </div>
