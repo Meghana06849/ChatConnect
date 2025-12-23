@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,14 +12,12 @@ import {
   Video, 
   Heart, 
   CheckCheck,
-  ThumbsUp,
-  Laugh,
-  PartyPopper,
-  Flame
+  Loader2
 } from 'lucide-react';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
 import { formatDistanceToNow } from 'date-fns';
 import { Reaction } from '@/types/chat';
+import { HeartReadReceipt } from './HeartReadReceipt';
 
 interface Contact {
   id: string;
@@ -47,10 +45,13 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({ se
   const { 
     messages, 
     typingUsers, 
-    loading, 
+    loading,
+    loadingMore,
+    hasMore,
     sendMessage, 
     addReaction, 
-    setTyping 
+    setTyping,
+    loadOlderMessages
   } = useEnhancedRealTimeChat(selectedContact?.conversationId || null);
 
   useEffect(() => {
@@ -61,13 +62,46 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({ se
     loadUser();
   }, []);
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef<number>(0);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Scroll to bottom on new messages (only if user is near bottom)
   useEffect(() => {
-    scrollToBottom();
+    const container = messagesContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (isNearBottom) {
+        scrollToBottom();
+      }
+    }
   }, [messages]);
+
+  // Handle scroll for loading older messages
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || loadingMore || !hasMore) return;
+    
+    // If scrolled near top, load older messages
+    if (container.scrollTop < 100) {
+      prevScrollHeightRef.current = container.scrollHeight;
+      loadOlderMessages();
+    }
+  }, [loadOlderMessages, loadingMore, hasMore]);
+
+  // Maintain scroll position after loading older messages
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container && prevScrollHeightRef.current > 0 && !loadingMore) {
+      const newScrollHeight = container.scrollHeight;
+      const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
+      container.scrollTop = scrollDiff;
+      prevScrollHeightRef.current = 0;
+    }
+  }, [messages, loadingMore]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim()) return;
@@ -165,7 +199,26 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({ se
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+      >
+        {/* Loading older messages indicator */}
+        {loadingMore && (
+          <div className="flex items-center justify-center py-2">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading older messages...</span>
+          </div>
+        )}
+        
+        {/* No more messages indicator */}
+        {!hasMore && messages.length > 0 && (
+          <div className="text-center py-2 text-sm text-muted-foreground">
+            Beginning of conversation
+          </div>
+        )}
+        
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -261,8 +314,10 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({ se
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
                       {isOwn && (
-                        <CheckCheck 
-                          className={`w-4 h-4 ${msg.read_at ? 'text-primary' : 'text-muted-foreground'}`} 
+                        <HeartReadReceipt 
+                          status={msg.read_at ? 'seen' : 'delivered'}
+                          isLoversMode={isLoversMode}
+                          seenAt={msg.read_at || undefined}
                         />
                       )}
                     </div>
