@@ -25,10 +25,14 @@ interface TypingUser {
   display_name: string;
 }
 
+const MESSAGES_PER_PAGE = 50;
+
 export const useEnhancedRealTimeChat = (conversationId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const { toast } = useToast();
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const channelRef = useRef<RealtimeChannel>();
@@ -43,20 +47,26 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
     loadUser();
   }, []);
 
-  // Load messages for conversation
+  // Load initial messages for conversation (most recent)
   const loadMessages = useCallback(async () => {
     if (!conversationId) return;
 
     setLoading(true);
+    setHasMore(true);
     try {
       const { data, error } = await supabase
         .from('messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
 
       if (error) throw error;
-      setMessages((data || []) as Message[]);
+      
+      const messagesData = (data || []) as Message[];
+      // Reverse to show oldest first in the list
+      setMessages(messagesData.reverse());
+      setHasMore(messagesData.length === MESSAGES_PER_PAGE);
     } catch (error: any) {
       toast({
         title: "Error loading messages",
@@ -67,6 +77,41 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
       setLoading(false);
     }
   }, [conversationId, toast]);
+
+  // Load older messages (for infinite scroll)
+  const loadOlderMessages = useCallback(async () => {
+    if (!conversationId || loadingMore || !hasMore || messages.length === 0) return;
+
+    setLoadingMore(true);
+    try {
+      const oldestMessage = messages[0];
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .lt('created_at', oldestMessage.created_at)
+        .order('created_at', { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
+
+      if (error) throw error;
+      
+      const olderMessages = (data || []) as Message[];
+      if (olderMessages.length < MESSAGES_PER_PAGE) {
+        setHasMore(false);
+      }
+      
+      // Prepend older messages (reversed to maintain chronological order)
+      setMessages(prev => [...olderMessages.reverse(), ...prev]);
+    } catch (error: any) {
+      toast({
+        title: "Error loading older messages",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [conversationId, loadingMore, hasMore, messages, toast]);
 
   // Send message
   const sendMessage = useCallback(async (content: string, messageType: string = 'text') => {
@@ -313,9 +358,12 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
     messages,
     typingUsers,
     loading,
+    loadingMore,
+    hasMore,
     sendMessage,
     addReaction,
     markAsRead,
     setTyping,
+    loadOlderMessages,
   };
 };

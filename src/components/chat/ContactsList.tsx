@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useRealTimeChat } from '@/hooks/useRealTimeChat';
+import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Heart, MessageCircle } from 'lucide-react';
@@ -13,6 +15,7 @@ interface Contact {
   isOnline: boolean;
   unreadCount: number;
   avatar?: string;
+  conversationId?: string;
 }
 
 interface ContactsListProps {
@@ -20,21 +23,43 @@ interface ContactsListProps {
   onContactSelect: (contact: Contact) => void;
 }
 
-// Real contacts will be loaded from database
-const generateContacts = (isLoversMode: boolean): Contact[] => {
-  // TODO: Load real contacts from Supabase conversations table
-  return [];
-};
-
 export const ContactsList: React.FC<ContactsListProps> = ({ 
   selectedContact, 
   onContactSelect 
 }) => {
   const { mode } = useChat();
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   const isLoversMode = mode === 'lovers';
-  const contacts = generateContacts(isLoversMode);
+  const { conversations, loading } = useRealTimeChat(isLoversMode);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    loadUser();
+  }, []);
+
+  // Transform conversations to contacts format
+  const contacts: Contact[] = conversations.map(conv => {
+    // Find the other participant (not current user)
+    const otherParticipant = conv.conversation_participants.find(
+      p => p.user_id !== currentUserId
+    );
+    
+    return {
+      id: conv.id,
+      conversationId: conv.id,
+      name: otherParticipant?.profiles?.display_name || conv.name || 'Unknown',
+      lastMessage: '', // Would need to fetch last message
+      timestamp: new Date(),
+      isOnline: otherParticipant?.profiles?.is_online || false,
+      unreadCount: 0, // Would need to calculate
+      avatar: otherParticipant?.profiles?.avatar_url,
+    };
+  });
   
   const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -87,7 +112,11 @@ export const ContactsList: React.FC<ContactsListProps> = ({
 
       {/* Contacts List */}
       <div className="flex-1 overflow-y-auto">
-        {filteredContacts.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredContacts.length === 0 ? (
           <div className="p-8 text-center">
             <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
             <h3 className="font-semibold mb-2">No conversations yet</h3>
@@ -119,6 +148,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
               <div className="flex items-start space-x-3 w-full">
                 <div className="relative">
                   <Avatar className="w-12 h-12">
+                    {contact.avatar && <AvatarImage src={contact.avatar} />}
                     <AvatarFallback className={`
                       ${isLoversMode 
                         ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
@@ -148,7 +178,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
                   
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground truncate flex-1 pr-2">
-                      {contact.lastMessage}
+                      {contact.lastMessage || (contact.isOnline ? 'Online' : 'Tap to chat')}
                     </p>
                     {contact.unreadCount > 0 && (
                       <div className={`

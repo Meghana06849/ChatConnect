@@ -28,16 +28,16 @@ interface Conversation {
   }>;
 }
 
-export const useRealTimeChat = () => {
+export const useRealTimeChat = (isLoversMode: boolean = false) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load conversations
+  // Load conversations filtered by mode
   const loadConversations = async () => {
     try {
-      const { data: conversationsData, error } = await supabase
+      let query = supabase
         .from('conversations')
         .select(`
           *,
@@ -49,7 +49,10 @@ export const useRealTimeChat = () => {
               is_online
             )
           )
-        `);
+        `)
+        .eq('is_lovers_conversation', isLoversMode);
+
+      const { data: conversationsData, error } = await query;
 
       if (error) throw error;
       
@@ -213,7 +216,7 @@ export const useRealTimeChat = () => {
       supabase.removeChannel(messageSubscription);
       supabase.removeChannel(conversationSubscription);
     };
-  }, []);
+  }, [isLoversMode]);
 
   return {
     messages,
