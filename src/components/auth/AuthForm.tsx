@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Users, Sparkles } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
+import { useAuthRateLimit } from '@/hooks/useAuthRateLimit';
 
 export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -15,9 +16,19 @@ export const AuthForm = () => {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { isBlocked, remainingAttempts, checkRateLimit, recordFailedAttempt, resetRateLimit } = useAuthRateLimit();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const attemptType = isSignUp ? 'signup' : 'login';
+    
+    // Check rate limit before attempting auth
+    const allowed = await checkRateLimit(email, attemptType);
+    if (!allowed) {
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -36,6 +47,9 @@ export const AuthForm = () => {
 
         if (error) throw error;
 
+        // Reset rate limit on success
+        await resetRateLimit(email, attemptType);
+
         toast({
           title: "Account created!",
           description: "Welcome to ChatConnect! You can start using the app immediately.",
@@ -48,12 +62,18 @@ export const AuthForm = () => {
 
         if (error) throw error;
 
+        // Reset rate limit on success
+        await resetRateLimit(email, attemptType);
+
         toast({
           title: "Welcome back!",
           description: "You've been signed in successfully.",
         });
       }
     } catch (error: any) {
+      // Record failed attempt
+      await recordFailedAttempt(email, attemptType);
+      
       toast({
         title: "Authentication failed",
         description: error.message,
@@ -150,10 +170,16 @@ export const AuthForm = () => {
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                disabled={loading}
+                disabled={loading || isBlocked}
               >
-                {loading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+                {loading ? 'Please wait...' : isBlocked ? 'Temporarily Blocked' : (isSignUp ? 'Create Account' : 'Sign In')}
               </Button>
+              
+              {remainingAttempts !== null && remainingAttempts <= 3 && !isBlocked && (
+                <p className="text-xs text-destructive text-center mt-2">
+                  {remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining
+                </p>
+              )}
             </form>
 
             <div className="mt-6 text-center">
