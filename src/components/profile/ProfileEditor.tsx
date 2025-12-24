@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Camera, Upload, Save, Edit3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { UserIdCard } from './UserIdCard';
 
 export const ProfileEditor: React.FC = () => {
   const { profile, updateProfile, loading } = useProfile();
@@ -233,6 +234,9 @@ export const ProfileEditor: React.FC = () => {
             <span className="text-sm">{profile?.username}</span>
           </div>
         </div>
+
+        {/* User ID Card */}
+        <UserIdCard />
       </CardContent>
     </Card>
   );
