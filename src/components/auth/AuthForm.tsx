@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuthRateLimit } from '@/hooks/useAuthRateLimit';
 
 export const AuthForm = () => {
@@ -15,12 +15,32 @@ export const AuthForm = () => {
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const { isBlocked, remainingAttempts, checkRateLimit, recordFailedAttempt, resetRateLimit } = useAuthRateLimit();
+
+  const validateForm = (): string | null => {
+    if (!email.trim()) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+    if (!password) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
+    if (isSignUp && !username.trim()) return 'Username is required';
+    return null;
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    const validationError = validateForm();
+    if (validationError) {
+      toast({
+        title: "Validation Error",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const attemptType = isSignUp ? 'signup' : 'login';
     
     // Check rate limit before attempting auth
@@ -33,14 +53,14 @@ export const AuthForm = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              display_name: displayName || email.split('@')[0],
-              username: username || email.split('@')[0]
+              display_name: displayName.trim() || email.split('@')[0],
+              username: username.trim().toLowerCase()
             }
           }
         });
@@ -52,11 +72,11 @@ export const AuthForm = () => {
 
         toast({
           title: "Account created!",
-          description: "Welcome to ChatConnect! You can start using the app immediately.",
+          description: `Welcome! Your User ID: ${data.user?.id?.substring(0, 8)}...`,
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
           password,
         });
 
@@ -74,9 +94,22 @@ export const AuthForm = () => {
       // Record failed attempt
       await recordFailedAttempt(email, attemptType);
       
+      // Handle specific error messages
+      let errorMessage = error.message || 'Authentication failed';
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (error.message?.includes('User already registered')) {
+        errorMessage = 'This email is already registered. Please sign in instead.';
+      } else if (error.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and confirm your account.';
+      } else if (error.message?.includes('Password should be')) {
+        errorMessage = 'Password must be at least 6 characters long.';
+      }
+      
       toast({
         title: "Authentication failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -84,10 +117,40 @@ export const AuthForm = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/`,
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Check your email for a password reset link",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send reset email",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500/20 via-pink-500/20 to-blue-500/20">
       <div className="w-full max-w-md">
-        {/* Simple Logo */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4 group cursor-pointer">
             <MessageCircle className="w-10 h-10 text-[#00d4b5] drop-shadow-[0_0_8px_rgba(0,212,181,0.6)] transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_16px_rgba(0,212,181,0.9)] group-hover:animate-pulse" />
@@ -105,8 +168,8 @@ export const AuthForm = () => {
             </CardTitle>
             <CardDescription>
               {isSignUp 
-                ? 'Create your account to start connecting' 
-                : 'Sign in to continue your conversations'
+                ? 'Create your account with a unique User ID' 
+                : 'Sign in with your email and password'
               }
             </CardDescription>
           </CardHeader>
@@ -115,7 +178,10 @@ export const AuthForm = () => {
               {isSignUp && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="username" className="flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Username
+                    </Label>
                     <Input
                       id="username"
                       type="text"
@@ -123,17 +189,19 @@ export const AuthForm = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
+                      disabled={loading}
                       className="glass border-white/20"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="displayName">Display Name</Label>
+                    <Label htmlFor="displayName">Display Name (optional)</Label>
                     <Input
                       id="displayName"
                       type="text"
                       placeholder="How should we call you?"
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
+                      disabled={loading}
                       className="glass border-white/20"
                     />
                   </div>
@@ -141,7 +209,10 @@ export const AuthForm = () => {
               )}
               
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -149,22 +220,36 @@ export const AuthForm = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                   className="glass border-white/20"
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="glass border-white/20"
-                />
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    disabled={loading}
+                    className="glass border-white/20 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -172,7 +257,16 @@ export const AuthForm = () => {
                 className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
                 disabled={loading || isBlocked}
               >
-                {loading ? 'Please wait...' : isBlocked ? 'Temporarily Blocked' : (isSignUp ? 'Create Account' : 'Sign In')}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isSignUp ? 'Creating account...' : 'Signing in...'}
+                  </>
+                ) : isBlocked ? (
+                  'Temporarily Blocked'
+                ) : (
+                  isSignUp ? 'Create Account' : 'Sign In'
+                )}
               </Button>
               
               {remainingAttempts !== null && remainingAttempts <= 3 && !isBlocked && (
@@ -182,11 +276,12 @@ export const AuthForm = () => {
               )}
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                disabled={loading}
               >
                 {isSignUp 
                   ? 'Already have an account? Sign in' 
@@ -195,19 +290,25 @@ export const AuthForm = () => {
               </button>
               
               {!isSignUp && (
-                <div className="mt-2">
+                <div>
                   <button
                     type="button"
-                    onClick={() => toast({ 
-                      title: "Password Reset", 
-                      description: "Check your email for reset instructions" 
-                    })}
+                    onClick={handleForgotPassword}
                     className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                    disabled={loading}
                   >
                     Forgot your password?
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="mt-4 p-3 bg-muted/20 rounded-lg">
+              <p className="text-xs text-muted-foreground text-center">
+                {isSignUp 
+                  ? 'A unique User ID will be generated for your account. Share it with friends to connect!'
+                  : 'Use your email and password to access General Chat, Lovers Mode, and Dream Room.'}
+              </p>
             </div>
           </CardContent>
         </Card>

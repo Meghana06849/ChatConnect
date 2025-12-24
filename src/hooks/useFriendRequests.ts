@@ -109,22 +109,46 @@ export const useFriendRequests = () => {
     }
   }, [currentUserId]);
 
-  // Send friend request
-  const sendRequest = useCallback(async (username: string): Promise<boolean> => {
+  // Send friend request by username or User ID
+  const sendRequest = useCallback(async (identifier: string): Promise<boolean> => {
     if (!currentUserId) return false;
 
     try {
-      // Find user by username
-      const { data: targetUser, error: findError } = await supabase
-        .from('profiles')
-        .select('user_id, display_name')
-        .eq('username', username.trim())
-        .maybeSingle();
+      const trimmedIdentifier = identifier.trim();
+      
+      // Check if identifier looks like a UUID (User ID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedIdentifier);
+      
+      let targetUser: { user_id: string; display_name: string | null } | null = null;
 
-      if (findError || !targetUser) {
+      if (isUUID) {
+        // Search by User ID
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .eq('user_id', trimmedIdentifier)
+          .maybeSingle();
+        
+        if (error) throw error;
+        targetUser = data;
+      } else {
+        // Search by username
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, display_name')
+          .eq('username', trimmedIdentifier.toLowerCase())
+          .maybeSingle();
+        
+        if (error) throw error;
+        targetUser = data;
+      }
+
+      if (!targetUser) {
         toast({
           title: "User not found",
-          description: "No user exists with that username",
+          description: isUUID 
+            ? "No user exists with that User ID" 
+            : "No user exists with that username",
           variant: "destructive"
         });
         return false;
@@ -172,7 +196,7 @@ export const useFriendRequests = () => {
 
       toast({
         title: "Friend request sent!",
-        description: `Request sent to @${username}`
+        description: `Request sent to ${targetUser.display_name || 'user'}`
       });
 
       return true;

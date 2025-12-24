@@ -152,14 +152,26 @@ export const FriendsManager: React.FC = () => {
                 <DialogTitle>Add New Friend</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <Input
-                  value={addFriendQuery}
-                  onChange={(e) => setAddFriendQuery(e.target.value)}
-                  placeholder="Enter username"
-                  className="glass border-white/20"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendRequest()}
-                  disabled={sending}
-                />
+                <div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Enter a username or User ID to connect
+                  </p>
+                  <Input
+                    value={addFriendQuery}
+                    onChange={(e) => setAddFriendQuery(e.target.value)}
+                    placeholder="Username or User ID (e.g. abc123-...)"
+                    className="glass border-white/20"
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendRequest()}
+                    disabled={sending}
+                  />
+                </div>
+
+                {currentUserId && (
+                  <div className="p-3 bg-muted/20 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-1">Your User ID (share with friends):</p>
+                    <code className="text-xs font-mono break-all">{currentUserId}</code>
+                  </div>
+                )}
                 
                 <Button 
                   className={`w-full ${isLoversMode ? 'btn-lovers' : 'btn-general'}`}
