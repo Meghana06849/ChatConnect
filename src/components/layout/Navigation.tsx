@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { UserIdCard } from '@/components/profile/UserIdCard';
 import { 
   MessageCircle, 
   Gamepad2, 
@@ -195,6 +196,12 @@ export const Navigation: React.FC<NavigationProps> = ({
             <p className="text-sm font-medium truncate">{profile?.display_name}</p>
             <p className="text-xs text-muted-foreground truncate">@{profile?.username}</p>
           </div>
+          
+          {/* User ID Quick Actions */}
+          <div className="hidden lg:flex">
+            <UserIdCard compact />
+          </div>
+          
           <Button
             variant="ghost"
             size="icon"
