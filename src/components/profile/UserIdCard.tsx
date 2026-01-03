@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '@/hooks/useAuth';
+import { useFriendRequests } from '@/hooks/useFriendRequests';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Copy, Check, QrCode, Share2, Download } from 'lucide-react';
+import { Copy, Check, QrCode, Share2, Download, ScanLine, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { QRScanner } from './QRScanner';
 
 interface UserIdCardProps {
   className?: string;
@@ -14,9 +16,12 @@ interface UserIdCardProps {
 
 export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact = false }) => {
   const { user, getUserId } = useAuth();
+  const { sendRequest } = useFriendRequests();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const userId = getUserId();
 
@@ -83,6 +88,29 @@ export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact 
     img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
   };
 
+  const handleQRScan = async (scannedUserId: string) => {
+    setShowScanner(false);
+    setSending(true);
+    
+    try {
+      const success = await sendRequest(scannedUserId);
+      if (success) {
+        toast({
+          title: "Friend Request Sent!",
+          description: "They'll be notified of your request.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Failed to send request",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (!userId) {
     return null;
   }
@@ -130,9 +158,25 @@ export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact 
           </DialogContent>
         </Dialog>
         
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => setShowScanner(true)} 
+          className="glass border-white/20"
+          disabled={sending}
+        >
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
+        </Button>
+        
         <Button variant="outline" size="icon" onClick={copyUserId} className="glass border-white/20">
           {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
         </Button>
+        
+        <QRScanner 
+          isOpen={showScanner} 
+          onClose={() => setShowScanner(false)} 
+          onScan={handleQRScan}
+        />
       </div>
     );
   }
@@ -159,12 +203,12 @@ export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact 
           </Button>
         </div>
 
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Dialog open={showQR} onOpenChange={setShowQR}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="flex-1 glass border-white/20">
+              <Button variant="outline" className="glass border-white/20">
                 <QrCode className="w-4 h-4 mr-2" />
-                Show QR Code
+                Show QR
               </Button>
             </DialogTrigger>
             <DialogContent className="glass border-white/20 max-w-sm">
@@ -198,11 +242,27 @@ export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact 
             </DialogContent>
           </Dialog>
 
-          <Button onClick={shareUserId} className="flex-1">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share ID
+          <Button 
+            onClick={() => setShowScanner(true)} 
+            variant="outline" 
+            className="glass border-white/20"
+            disabled={sending}
+          >
+            {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ScanLine className="w-4 h-4 mr-2" />}
+            Scan QR
           </Button>
         </div>
+
+        <Button onClick={shareUserId} className="w-full">
+          <Share2 className="w-4 h-4 mr-2" />
+          Share ID
+        </Button>
+        
+        <QRScanner 
+          isOpen={showScanner} 
+          onClose={() => setShowScanner(false)} 
+          onScan={handleQRScan}
+        />
       </CardContent>
     </Card>
   );

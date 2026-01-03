@@ -5,13 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
+import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Hash } from 'lucide-react';
 import { useAuthRateLimit } from '@/hooks/useAuthRateLimit';
 
 export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'email' | 'userid'>('email');
   const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
@@ -43,11 +46,24 @@ export const AuthForm = () => {
   };
 
   const validateForm = (): string | null => {
-    if (!email.trim()) return 'Email is required';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+    if (isSignUp) {
+      if (!email.trim()) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+      if (!username.trim()) return 'Username is required';
+    } else {
+      if (loginMethod === 'email') {
+        if (!email.trim()) return 'Email is required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+      } else {
+        if (!userId.trim()) return 'User ID is required';
+        // Basic UUID validation
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim())) {
+          return 'Please enter a valid User ID (UUID format)';
+        }
+      }
+    }
     if (!password) return 'Password is required';
     if (password.length < 6) return 'Password must be at least 6 characters';
-    if (isSignUp && !username.trim()) return 'Username is required';
     return null;
   };
 
@@ -64,10 +80,11 @@ export const AuthForm = () => {
       return;
     }
 
+    const identifier = isSignUp || loginMethod === 'email' ? email : userId;
     const attemptType = isSignUp ? 'signup' : 'login';
     
     // Check rate limit before attempting auth
-    const allowed = await checkRateLimit(email, attemptType);
+    const allowed = await checkRateLimit(identifier, attemptType);
     if (!allowed) {
       return;
     }
@@ -91,22 +108,48 @@ export const AuthForm = () => {
         if (error) throw error;
 
         // Reset rate limit on success
-        await resetRateLimit(email, attemptType);
+        await resetRateLimit(identifier, attemptType);
 
         toast({
           title: "Account created!",
-          description: `Welcome! Your User ID: ${data.user?.id?.substring(0, 8)}...`,
+          description: `Welcome! Your User ID: ${data.user?.id?.substring(0, 8)}... Save this for future logins!`,
         });
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
+        if (loginMethod === 'email') {
+          // Standard email login
+          const { error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+          });
 
-        if (error) throw error;
+          if (error) throw error;
+        } else {
+          // User ID login via edge function
+          const response = await supabase.functions.invoke('login-with-id', {
+            body: { userId: userId.trim(), password }
+          });
+
+          if (response.error) {
+            throw new Error(response.error.message || 'Login failed');
+          }
+
+          if (response.data?.error) {
+            throw new Error(response.data.error);
+          }
+
+          // Set the session from the response
+          if (response.data?.session) {
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token: response.data.session.access_token,
+              refresh_token: response.data.session.refresh_token,
+            });
+            
+            if (sessionError) throw sessionError;
+          }
+        }
 
         // Reset rate limit on success
-        await resetRateLimit(email, attemptType);
+        await resetRateLimit(identifier, attemptType);
 
         toast({
           title: "Welcome back!",
@@ -115,7 +158,7 @@ export const AuthForm = () => {
       }
     } catch (error: any) {
       // Record failed attempt
-      await recordFailedAttempt(email, attemptType);
+      await recordFailedAttempt(identifier, attemptType);
       
       // Handle specific error messages
       let errorMessage = error.message || 'Authentication failed';
@@ -192,13 +235,13 @@ export const AuthForm = () => {
             <CardDescription>
               {isSignUp 
                 ? 'Create your account with a unique User ID' 
-                : 'Sign in with your email and password'
+                : 'Sign in with your User ID or email'
               }
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
-              {isSignUp && (
+              {isSignUp ? (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="username" className="flex items-center gap-2">
@@ -228,25 +271,75 @@ export const AuthForm = () => {
                       className="glass border-white/20"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={loading}
+                      className="glass border-white/20"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Login Method Tabs */}
+                  <Tabs value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'userid')} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 glass border-white/20">
+                      <TabsTrigger value="email" className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </TabsTrigger>
+                      <TabsTrigger value="userid" className="flex items-center gap-2">
+                        <Hash className="w-4 h-4" />
+                        User ID
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="email" className="space-y-2 mt-4">
+                      <Label htmlFor="email-login" className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </Label>
+                      <Input
+                        id="email-login"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
+                        className="glass border-white/20"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="userid" className="space-y-2 mt-4">
+                      <Label htmlFor="userid-login" className="flex items-center gap-2">
+                        <Hash className="w-4 h-4" />
+                        User ID
+                      </Label>
+                      <Input
+                        id="userid-login"
+                        type="text"
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                        value={userId}
+                        onChange={(e) => setUserId(e.target.value)}
+                        disabled={loading}
+                        className="glass border-white/20 font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter the unique User ID you received when you signed up
+                      </p>
+                    </TabsContent>
+                  </Tabs>
                 </>
               )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="glass border-white/20"
-                />
-              </div>
               
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
@@ -353,7 +446,7 @@ export const AuthForm = () => {
                 }
               </button>
               
-              {!isSignUp && (
+              {!isSignUp && loginMethod === 'email' && (
                 <div>
                   <button
                     type="button"
@@ -370,8 +463,8 @@ export const AuthForm = () => {
             <div className="mt-4 p-3 bg-muted/20 rounded-lg">
               <p className="text-xs text-muted-foreground text-center">
                 {isSignUp 
-                  ? 'A unique User ID will be generated for your account. Share it with friends to connect!'
-                  : 'Use your email and password to access General Chat, Lovers Mode, and Dream Room.'}
+                  ? 'A unique User ID will be generated for your account. Save it for quick logins!'
+                  : 'Sign in with your email or User ID to access General Chat, Lovers Mode, and Dream Room.'}
               </p>
             </div>
           </CardContent>
