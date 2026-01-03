@@ -45,6 +45,16 @@ import { ProfileEditor } from '@/components/profile/ProfileEditor';
 import { ActivityDashboard } from '@/components/profile/ActivityDashboard';
 import { SongManager } from '@/components/media/SongManager';
 import { ImageEditor } from '@/components/media/ImageEditor';
+import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
+import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
+import { ARFilters } from '@/components/unique/ARFilters';
+import { SecretVault } from '@/components/unique/SecretVault';
+import { ScreenshotDetection } from '@/components/unique/ScreenshotDetection';
+import { MoodSync } from '@/components/unique/MoodSync';
+import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
+import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
+import { VirtualPet } from '@/components/unique/VirtualPet';
+import { SecurityCenter } from '@/components/profile/SecurityCenter';
 
 const SettingsItem: React.FC<{
   icon: React.ReactNode;
@@ -83,6 +93,18 @@ export const AdvancedSettings: React.FC = () => {
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showStorageSettings, setShowStorageSettings] = useState(false);
   const [showHelpSettings, setShowHelpSettings] = useState(false);
+  
+  // Feature dialogs
+  const [showVoiceChanger, setShowVoiceChanger] = useState(false);
+  const [showARFilters, setShowARFilters] = useState(false);
+  const [showSecretVault, setShowSecretVault] = useState(false);
+  const [showDisappearingMessages, setShowDisappearingMessages] = useState(false);
+  const [showScreenshotDetection, setShowScreenshotDetection] = useState(false);
+  const [showMoodSync, setShowMoodSync] = useState(false);
+  const [showCoupleChallenge, setShowCoupleChallenge] = useState(false);
+  const [showHeartbeatSync, setShowHeartbeatSync] = useState(false);
+  const [showVirtualPet, setShowVirtualPet] = useState(false);
+  const [showSecurityCenter, setShowSecurityCenter] = useState(false);
   
   // Privacy settings
   const [lastSeenVisible, setLastSeenVisible] = useState(true);
@@ -288,31 +310,37 @@ export const AdvancedSettings: React.FC = () => {
                 icon={<Mic className="w-5 h-5" />}
                 title="Voice Changer"
                 subtitle="Transform voice with real-time effects"
-                onClick={() => toast({ title: "Voice Changer", description: "Transform your voice with fun effects during calls!" })}
+                onClick={() => setShowVoiceChanger(true)}
               />
               <SettingsItem 
                 icon={<Star className="w-5 h-5" />}
                 title="AR Filters"
                 subtitle="Magic AR effects for photos & videos"
-                onClick={() => toast({ title: "AR Filters", description: "Apply magical AR effects to your photos and videos!" })}
+                onClick={() => setShowARFilters(true)}
               />
               <SettingsItem 
                 icon={<Shield className="w-5 h-5" />}
                 title="Secret Vault"
                 subtitle="Ultra-secure storage with decoy mode"
-                onClick={() => toast({ title: "Secret Vault", description: "Store your most private content securely!" })}
+                onClick={() => setShowSecretVault(true)}
               />
               <SettingsItem 
                 icon={<Timer className="w-5 h-5" />}
                 title="Disappearing Messages"
                 subtitle="Self-destructing secret messages"
-                onClick={() => toast({ title: "Disappearing Messages", description: "Send messages that automatically delete after being read!" })}
+                onClick={() => setShowDisappearingMessages(true)}
               />
               <SettingsItem 
                 icon={<Shield className="w-5 h-5" />}
                 title="Screenshot Detection"
                 subtitle="Privacy protection alerts"
-                onClick={() => toast({ title: "Screenshot Detection", description: "Get notified when someone takes a screenshot of your chats!" })}
+                onClick={() => setShowScreenshotDetection(true)}
+              />
+              <SettingsItem 
+                icon={<Lock className="w-5 h-5" />}
+                title="Security Center"
+                subtitle="Manage security settings and logs"
+                onClick={() => setShowSecurityCenter(true)}
               />
               {isLoversMode && (
                 <>
@@ -320,25 +348,25 @@ export const AdvancedSettings: React.FC = () => {
                     icon={<Heart className="w-5 h-5" />}
                     title="Mood Sync"
                     subtitle="Share your feelings together"
-                    onClick={() => toast({ title: "Mood Sync", description: "Sync and share your moods with your partner!" })}
+                    onClick={() => setShowMoodSync(true)}
                   />
                   <SettingsItem 
                     icon={<Trophy className="w-5 h-5" />}
                     title="Couple Challenges"
                     subtitle="Fun activities to do together"
-                    onClick={() => toast({ title: "Couple Challenges", description: "Complete fun challenges together to strengthen your bond!" })}
+                    onClick={() => setShowCoupleChallenge(true)}
                   />
                   <SettingsItem 
                     icon={<Activity className="w-5 h-5" />}
                     title="Heartbeat Sync"
                     subtitle="Share your heartbeat live"
-                    onClick={() => toast({ title: "Heartbeat Sync", description: "Share your heartbeat in real-time with your partner!" })}
+                    onClick={() => setShowHeartbeatSync(true)}
                   />
                   <SettingsItem 
                     icon={<Star className="w-5 h-5" />}
                     title="Virtual Pet"
                     subtitle="Care for your love pet together"
-                    onClick={() => toast({ title: "Virtual Pet", description: "Raise a virtual pet together with your partner!" })}
+                    onClick={() => setShowVirtualPet(true)}
                   />
                 </>
               )}
@@ -720,6 +748,161 @@ export const AdvancedSettings: React.FC = () => {
           isOpen={showImageEditor} 
           onClose={() => setShowImageEditor(false)} 
         />
+
+        {/* Feature Dialogs */}
+        <Dialog open={showVoiceChanger} onOpenChange={setShowVoiceChanger}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Mic className="w-5 h-5" />
+                <span>Voice Changer</span>
+              </DialogTitle>
+              <DialogDescription>
+                Transform your voice with fun effects
+              </DialogDescription>
+            </DialogHeader>
+            <VoiceChangeChat />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showARFilters} onOpenChange={setShowARFilters}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Star className="w-5 h-5" />
+                <span>AR Filters</span>
+              </DialogTitle>
+              <DialogDescription>
+                Apply magical effects to your photos and videos
+              </DialogDescription>
+            </DialogHeader>
+            <ARFilters />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showSecretVault} onOpenChange={setShowSecretVault}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>Secret Vault</span>
+              </DialogTitle>
+              <DialogDescription>
+                Store your private content securely
+              </DialogDescription>
+            </DialogHeader>
+            <SecretVault />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showDisappearingMessages} onOpenChange={setShowDisappearingMessages}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Timer className="w-5 h-5" />
+                <span>Disappearing Messages</span>
+              </DialogTitle>
+              <DialogDescription>
+                Send self-destructing messages
+              </DialogDescription>
+            </DialogHeader>
+            <DisappearingMessages />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showScreenshotDetection} onOpenChange={setShowScreenshotDetection}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>Screenshot Detection</span>
+              </DialogTitle>
+              <DialogDescription>
+                Privacy protection alerts
+              </DialogDescription>
+            </DialogHeader>
+            <ScreenshotDetection />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showSecurityCenter} onOpenChange={setShowSecurityCenter}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Lock className="w-5 h-5" />
+                <span>Security Center</span>
+              </DialogTitle>
+              <DialogDescription>
+                Manage your security settings
+              </DialogDescription>
+            </DialogHeader>
+            <SecurityCenter />
+          </DialogContent>
+        </Dialog>
+
+        {isLoversMode && (
+          <>
+            <Dialog open={showMoodSync} onOpenChange={setShowMoodSync}>
+              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <Heart className="w-5 h-5" />
+                    <span>Mood Sync</span>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Share your feelings with your partner
+                  </DialogDescription>
+                </DialogHeader>
+                <MoodSync />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showCoupleChallenge} onOpenChange={setShowCoupleChallenge}>
+              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <Trophy className="w-5 h-5" />
+                    <span>Couple Challenges</span>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Fun activities to do together
+                  </DialogDescription>
+                </DialogHeader>
+                <CoupleChallenge />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showHeartbeatSync} onOpenChange={setShowHeartbeatSync}>
+              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <Activity className="w-5 h-5" />
+                    <span>Heartbeat Sync</span>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Share your heartbeat in real-time
+                  </DialogDescription>
+                </DialogHeader>
+                <HeartbeatSync />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showVirtualPet} onOpenChange={setShowVirtualPet}>
+              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center space-x-2">
+                    <Star className="w-5 h-5" />
+                    <span>Virtual Pet</span>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Raise a pet together with your partner
+                  </DialogDescription>
+                </DialogHeader>
+                <VirtualPet />
+              </DialogContent>
+            </Dialog>
+          </>
+        )}
       </div>
     </div>
   );
