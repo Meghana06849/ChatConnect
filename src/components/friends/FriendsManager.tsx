@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useFriendRequests } from '@/hooks/useFriendRequests';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
+import { useRealTimeChat } from '@/hooks/useRealTimeChat';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,12 +17,13 @@ import { OnlineStatusIndicator } from './OnlineStatusIndicator';
 import { FriendSuggestions } from './FriendSuggestions';
 import { BlockedUsersManager } from './BlockedUsersManager';
 import { NotificationSettings } from './NotificationSettings';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
   UserPlus, 
   Users, 
   Phone, 
-  Mail,
+  MessageSquare,
   Check,
   X,
   UserX,
@@ -28,16 +32,18 @@ import {
   MoreVertical,
   ShieldOff,
   VolumeX,
-  Sparkles,
-  Bell
+  Sparkles
 } from 'lucide-react';
 
 export const FriendsManager: React.FC = () => {
   const { mode } = useChat();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const [sending, setSending] = useState(false);
+  const [startingChat, setStartingChat] = useState<string | null>(null);
   const isLoversMode = mode === 'lovers';
 
   const {
@@ -54,6 +60,7 @@ export const FriendsManager: React.FC = () => {
     refreshRequests
   } = useFriendRequests();
 
+  const { createConversation } = useRealTimeChat(isLoversMode);
   const { blockUser, muteUser } = useBlockedUsers();
 
   // Filter friends based on search
@@ -64,6 +71,58 @@ export const FriendsManager: React.FC = () => {
     return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            username.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  // Start or continue conversation with friend
+  const handleStartConversation = async (friendUserId: string) => {
+    if (!currentUserId) return;
+    
+    setStartingChat(friendUserId);
+    try {
+      // Check if conversation already exists
+      const { data: existingParticipants } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', currentUserId);
+
+      if (existingParticipants && existingParticipants.length > 0) {
+        const conversationIds = existingParticipants.map(p => p.conversation_id);
+        
+        // Check if friend is in any of these conversations
+        const { data: friendParticipants } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', friendUserId)
+          .in('conversation_id', conversationIds);
+
+        if (friendParticipants && friendParticipants.length > 0) {
+          // Conversation exists, navigate to chats
+          toast({
+            title: "Opening chat",
+            description: "Redirecting to your conversation...",
+          });
+          // Navigate to dashboard with chat section
+          window.location.href = '/dashboard?section=chats&contact=' + friendUserId;
+          return;
+        }
+      }
+
+      // Create new conversation
+      await createConversation([friendUserId], isLoversMode);
+      toast({
+        title: "Chat started!",
+        description: "New conversation created. Redirecting...",
+      });
+      window.location.href = '/dashboard?section=chats&contact=' + friendUserId;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start conversation",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingChat(null);
+    }
+  };
 
   const handleSendRequest = async () => {
     if (!addFriendQuery.trim()) return;
@@ -280,8 +339,18 @@ export const FriendsManager: React.FC = () => {
                           <Button size="sm" variant="outline" title="Call">
                             <Phone className="w-4 h-4" />
                           </Button>
-                          <Button size="sm" variant="outline" title="Message">
-                            <Mail className="w-4 h-4" />
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            title="Message"
+                            onClick={() => handleStartConversation(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
+                            disabled={startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
+                          >
+                            {startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId) ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <MessageSquare className="w-4 h-4" />
+                            )}
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

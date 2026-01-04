@@ -15,9 +15,9 @@ export const AuthForm = () => {
   const [loginMethod, setLoginMethod] = useState<'email' | 'userid'>('email');
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
+  const [customUserId, setCustomUserId] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -49,17 +49,15 @@ export const AuthForm = () => {
     if (isSignUp) {
       if (!email.trim()) return 'Email is required';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
-      if (!username.trim()) return 'Username is required';
+      if (!customUserId.trim()) return 'User ID is required';
+      if (customUserId.length < 4 || customUserId.length > 32) return 'User ID must be 4-32 characters';
+      if (!/^[a-zA-Z0-9_-]+$/.test(customUserId)) return 'User ID can only contain letters, numbers, _ and -';
     } else {
       if (loginMethod === 'email') {
         if (!email.trim()) return 'Email is required';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
       } else {
         if (!userId.trim()) return 'User ID is required';
-        // Basic UUID validation
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim())) {
-          return 'Please enter a valid User ID (UUID format)';
-        }
       }
     }
     if (!password) return 'Password is required';
@@ -99,20 +97,36 @@ export const AuthForm = () => {
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              display_name: displayName.trim() || email.split('@')[0],
-              username: username.trim().toLowerCase()
+              display_name: displayName.trim() || customUserId.trim(),
+              custom_user_id: customUserId.trim()
             }
           }
         });
 
         if (error) throw error;
 
+        // Update profile with custom_user_id
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ 
+              custom_user_id: customUserId.trim(),
+              username: customUserId.trim().toLowerCase(),
+              display_name: displayName.trim() || customUserId.trim()
+            })
+            .eq('user_id', data.user.id);
+          
+          if (profileError) {
+            console.error('Profile update error:', profileError);
+          }
+        }
+
         // Reset rate limit on success
         await resetRateLimit(identifier, attemptType);
 
         toast({
           title: "Account created!",
-          description: `Welcome! Your User ID: ${data.user?.id?.substring(0, 8)}... Save this for future logins!`,
+          description: `Welcome! Your User ID is: ${customUserId}. Use this to login and connect with friends!`,
         });
       } else {
         if (loginMethod === 'email') {
@@ -244,20 +258,24 @@ export const AuthForm = () => {
               {isSignUp ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="username" className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      Username
+                    <Label htmlFor="customUserId" className="flex items-center gap-2">
+                      <Hash className="w-4 h-4" />
+                      Your Unique User ID
                     </Label>
                     <Input
-                      id="username"
+                      id="customUserId"
                       type="text"
-                      placeholder="Choose a unique username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="e.g., john_doe123"
+                      value={customUserId}
+                      onChange={(e) => setCustomUserId(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
                       required
+                      maxLength={32}
                       disabled={loading}
-                      className="glass border-white/20"
+                      className="glass border-white/20 font-mono"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      4-32 characters. Letters, numbers, _ and - only. This will be your login ID.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Display Name (optional)</Label>
@@ -327,14 +345,14 @@ export const AuthForm = () => {
                       <Input
                         id="userid-login"
                         type="text"
-                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                        placeholder="your_user_id"
                         value={userId}
                         onChange={(e) => setUserId(e.target.value)}
                         disabled={loading}
                         className="glass border-white/20 font-mono text-sm"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Enter the unique User ID you received when you signed up
+                        Enter the User ID you created when signing up
                       </p>
                     </TabsContent>
                   </Tabs>

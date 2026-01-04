@@ -6,6 +6,23 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [customUserId, setCustomUserId] = useState<string | null>(null);
+
+  const fetchCustomUserId = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('custom_user_id, username')
+        .eq('user_id', userId)
+        .single();
+      
+      if (data) {
+        setCustomUserId(data.custom_user_id || data.username || null);
+      }
+    } catch (error) {
+      console.error('Error fetching custom user ID:', error);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -14,6 +31,12 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        if (session?.user) {
+          fetchCustomUserId(session.user.id);
+        } else {
+          setCustomUserId(null);
+        }
       }
     );
 
@@ -22,6 +45,10 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      if (session?.user) {
+        fetchCustomUserId(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -32,7 +59,11 @@ export const useAuth = () => {
     if (error) throw error;
   }, []);
 
-  const getUserId = useCallback(() => user?.id ?? null, [user]);
+  // Returns custom_user_id if available, otherwise falls back to UUID
+  const getUserId = useCallback(() => customUserId || user?.id || null, [customUserId, user]);
+  
+  // Returns the actual UUID (useful for database operations)
+  const getAuthUserId = useCallback(() => user?.id ?? null, [user]);
 
   const getEmail = useCallback(() => user?.email ?? null, [user]);
 
@@ -42,7 +73,9 @@ export const useAuth = () => {
     loading,
     signOut,
     getUserId,
+    getAuthUserId,
     getEmail,
+    customUserId,
     isAuthenticated: !!session,
   };
 };

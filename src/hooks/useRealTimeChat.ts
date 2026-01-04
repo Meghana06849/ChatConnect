@@ -43,7 +43,7 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
           *,
           conversation_participants!inner (
             user_id,
-            profiles!conversation_participants_user_id_fkey (
+            profiles (
               display_name,
               avatar_url,
               is_online

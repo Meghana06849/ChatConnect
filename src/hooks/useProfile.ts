@@ -6,6 +6,7 @@ interface Profile {
   id: string;
   user_id: string;
   username?: string;
+  custom_user_id?: string;
   display_name?: string;
   avatar_url?: string;
   bio?: string;
@@ -42,10 +43,12 @@ export const useProfile = () => {
       
       // If no profile exists, create one
       if (!profileData) {
+        const customId = user.user_metadata?.custom_user_id || `user_${user.id.substring(0, 8)}`;
         const newProfile = {
           user_id: user.id,
-          username: user.user_metadata?.username || user.email || `user_${user.id.substring(0, 8)}`,
-          display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+          username: customId.toLowerCase(),
+          custom_user_id: customId,
+          display_name: user.user_metadata?.display_name || customId,
           is_online: true,
           lovers_mode_enabled: false,
           love_coins: 100
