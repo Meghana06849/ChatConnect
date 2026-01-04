@@ -420,6 +420,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          custom_user_id: string | null
           display_name: string | null
           dream_room_pin: string | null
           id: string
@@ -436,6 +437,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          custom_user_id?: string | null
           display_name?: string | null
           dream_room_pin?: string | null
           id?: string
@@ -452,6 +454,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          custom_user_id?: string | null
           display_name?: string | null
           dream_room_pin?: string | null
           id?: string
@@ -532,6 +535,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_game_stats: {
+        Row: {
+          created_at: string | null
+          game_type: string
+          games_played: number | null
+          high_score: number | null
+          id: string
+          last_played_at: string | null
+          total_xp_earned: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          game_type: string
+          games_played?: number | null
+          high_score?: number | null
+          id?: string
+          last_played_at?: string | null
+          total_xp_earned?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          game_type?: string
+          games_played?: number | null
+          high_score?: number | null
+          id?: string
+          last_played_at?: string | null
+          total_xp_earned?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_songs: {
         Row: {
