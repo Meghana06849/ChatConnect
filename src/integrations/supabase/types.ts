@@ -152,6 +152,13 @@ export type Database = {
             referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conversation_participants_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       conversations: {
@@ -425,6 +432,7 @@ export type Database = {
           dream_room_pin: string | null
           id: string
           is_online: boolean | null
+          is_verified: boolean | null
           last_seen: string | null
           love_coins: number | null
           lovers_mode_enabled: boolean | null
@@ -432,6 +440,7 @@ export type Database = {
           updated_at: string
           user_id: string
           username: string | null
+          verification_type: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -442,6 +451,7 @@ export type Database = {
           dream_room_pin?: string | null
           id?: string
           is_online?: boolean | null
+          is_verified?: boolean | null
           last_seen?: string | null
           love_coins?: number | null
           lovers_mode_enabled?: boolean | null
@@ -449,6 +459,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           username?: string | null
+          verification_type?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -459,6 +470,7 @@ export type Database = {
           dream_room_pin?: string | null
           id?: string
           is_online?: boolean | null
+          is_verified?: boolean | null
           last_seen?: string | null
           love_coins?: number | null
           lovers_mode_enabled?: boolean | null
@@ -466,6 +478,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           username?: string | null
+          verification_type?: string | null
         }
         Relationships: [
           {

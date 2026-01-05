@@ -24,6 +24,8 @@ interface Conversation {
       display_name: string;
       avatar_url?: string;
       is_online: boolean;
+      is_verified?: boolean;
+      verification_type?: string;
     };
   }>;
 }
@@ -43,10 +45,12 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
           *,
           conversation_participants!inner (
             user_id,
-            profiles (
+            profiles!conversation_participants_user_id_profiles_fkey (
               display_name,
               avatar_url,
-              is_online
+              is_online,
+              is_verified,
+              verification_type
             )
           )
         `)
@@ -64,7 +68,9 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
           profiles: {
             display_name: p.profiles?.display_name || 'Unknown',
             avatar_url: p.profiles?.avatar_url,
-            is_online: p.profiles?.is_online || false
+            is_online: p.profiles?.is_online || false,
+            is_verified: p.profiles?.is_verified || false,
+            verification_type: p.profiles?.verification_type
           }
         })) || []
       })) as Conversation[];
