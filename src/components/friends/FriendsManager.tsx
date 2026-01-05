@@ -4,6 +4,7 @@ import { useChat } from '@/contexts/ChatContext';
 import { useFriendRequests } from '@/hooks/useFriendRequests';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
+import { useCall } from '@/components/features/CallProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,14 @@ import { OnlineStatusIndicator } from './OnlineStatusIndicator';
 import { FriendSuggestions } from './FriendSuggestions';
 import { BlockedUsersManager } from './BlockedUsersManager';
 import { NotificationSettings } from './NotificationSettings';
+import { VerificationBadge } from '@/components/profile/VerificationBadge';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
   UserPlus, 
   Users, 
   Phone, 
+  Video,
   MessageSquare,
   Check,
   X,
@@ -62,6 +65,33 @@ export const FriendsManager: React.FC = () => {
 
   const { createConversation } = useRealTimeChat(isLoversMode);
   const { blockUser, muteUser } = useBlockedUsers();
+  const { startCall, isCallActive } = useCall();
+
+  // Handle voice call
+  const handleVoiceCall = async (friendUserId: string, friendName: string) => {
+    if (isCallActive) {
+      toast({
+        title: "Call in progress",
+        description: "Please end the current call first",
+        variant: "destructive"
+      });
+      return;
+    }
+    await startCall(friendUserId, friendName, false);
+  };
+
+  // Handle video call
+  const handleVideoCall = async (friendUserId: string, friendName: string) => {
+    if (isCallActive) {
+      toast({
+        title: "Call in progress",
+        description: "Please end the current call first",
+        variant: "destructive"
+      });
+      return;
+    }
+    await startCall(friendUserId, friendName, true);
+  };
 
   // Filter friends based on search
   const filteredFriends = friends.filter(f => {
@@ -309,55 +339,83 @@ export const FriendsManager: React.FC = () => {
                   <Card key={friend.id} className="glass border-white/20 animate-slide-in-right">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="relative">
-                            <Avatar className="w-12 h-12">
-                              <AvatarImage src={profile.avatarUrl || undefined} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
-                                {profile.displayName[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <OnlineStatusIndicator 
-                              isOnline={profile.isOnline} 
-                              className="absolute -bottom-1 -right-1"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold">{profile.displayName}</p>
-                              <Badge 
-                                variant={profile.isOnline ? "default" : "secondary"}
-                                className={profile.isOnline ? 'bg-green-500' : ''}
-                              >
-                                {profile.isOnline ? 'Online' : 'Offline'}
-                              </Badge>
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <Avatar className="w-12 h-12">
+                                <AvatarImage src={profile.avatarUrl || undefined} />
+                                <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
+                                  {profile.displayName[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <OnlineStatusIndicator 
+                                isOnline={profile.isOnline} 
+                                className="absolute -bottom-1 -right-1"
+                              />
                             </div>
-                            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">{profile.displayName}</p>
+                                {profile.isVerified && (
+                                  <VerificationBadge 
+                                    isVerified={profile.isVerified} 
+                                    verificationType={profile.verificationType}
+                                    size="sm"
+                                  />
+                                )}
+                                <Badge 
+                                  variant={profile.isOnline ? "default" : "secondary"}
+                                  className={profile.isOnline ? 'bg-green-500' : ''}
+                                >
+                                  {profile.isOnline ? 'Online' : 'Offline'}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" title="Call">
-                            <Phone className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            title="Message"
-                            onClick={() => handleStartConversation(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
-                            disabled={startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
-                          >
-                            {startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId) ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <MessageSquare className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              title="Voice Call"
+                              onClick={() => handleVoiceCall(
+                                friend.userId === currentUserId ? friend.contactUserId : friend.userId,
+                                profile.displayName
+                              )}
+                              disabled={isCallActive}
+                            >
+                              <Phone className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              title="Video Call"
+                              onClick={() => handleVideoCall(
+                                friend.userId === currentUserId ? friend.contactUserId : friend.userId,
+                                profile.displayName
+                              )}
+                              disabled={isCallActive}
+                            >
+                              <Video className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              title="Message"
+                              onClick={() => handleStartConversation(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
+                              disabled={startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
+                            >
+                              {startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId) ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <MessageSquare className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleRemove(friend.id)} className="text-destructive">
                                 <UserX className="w-4 h-4 mr-2" />

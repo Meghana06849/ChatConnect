@@ -2,24 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+export interface FriendProfile {
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  isOnline: boolean;
+  isVerified?: boolean;
+  verificationType?: string | null;
+}
+
 export interface FriendRequest {
   id: string;
   userId: string;
   contactUserId: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
-  senderProfile?: {
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-    isOnline: boolean;
-  };
-  receiverProfile?: {
-    username: string;
-    displayName: string;
-    avatarUrl: string | null;
-    isOnline: boolean;
-  };
+  senderProfile?: FriendProfile;
+  receiverProfile?: FriendProfile;
 }
 
 interface OnlineUser {
@@ -65,7 +64,7 @@ export const useFriendRequests = () => {
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, avatar_url, is_online')
+        .select('user_id, username, display_name, avatar_url, is_online, is_verified, verification_type')
         .in('user_id', Array.from(userIds));
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
@@ -84,13 +83,17 @@ export const useFriendRequests = () => {
             username: senderProfile.username || 'unknown',
             displayName: senderProfile.display_name || 'Unknown',
             avatarUrl: senderProfile.avatar_url,
-            isOnline: senderProfile.is_online || false
+            isOnline: senderProfile.is_online || false,
+            isVerified: senderProfile.is_verified || false,
+            verificationType: senderProfile.verification_type
           } : undefined,
           receiverProfile: receiverProfile ? {
             username: receiverProfile.username || 'unknown',
             displayName: receiverProfile.display_name || 'Unknown',
             avatarUrl: receiverProfile.avatar_url,
-            isOnline: receiverProfile.is_online || false
+            isOnline: receiverProfile.is_online || false,
+            isVerified: receiverProfile.is_verified || false,
+            verificationType: receiverProfile.verification_type
           } : undefined
         };
       });
@@ -319,7 +322,7 @@ export const useFriendRequests = () => {
           // New incoming friend request
           const { data: senderProfile } = await supabase
             .from('profiles')
-            .select('username, display_name, avatar_url, is_online')
+            .select('username, display_name, avatar_url, is_online, is_verified, verification_type')
             .eq('user_id', payload.new.user_id)
             .maybeSingle();
 
@@ -333,7 +336,9 @@ export const useFriendRequests = () => {
               username: senderProfile.username || 'unknown',
               displayName: senderProfile.display_name || 'Unknown',
               avatarUrl: senderProfile.avatar_url,
-              isOnline: senderProfile.is_online || false
+              isOnline: senderProfile.is_online || false,
+              isVerified: senderProfile.is_verified || false,
+              verificationType: senderProfile.verification_type
             } : undefined
           };
 
@@ -358,7 +363,7 @@ export const useFriendRequests = () => {
           // Request we sent - update local state
           const { data: receiverProfile } = await supabase
             .from('profiles')
-            .select('username, display_name, avatar_url, is_online')
+            .select('username, display_name, avatar_url, is_online, is_verified, verification_type')
             .eq('user_id', payload.new.contact_user_id)
             .maybeSingle();
 
@@ -372,7 +377,9 @@ export const useFriendRequests = () => {
               username: receiverProfile.username || 'unknown',
               displayName: receiverProfile.display_name || 'Unknown',
               avatarUrl: receiverProfile.avatar_url,
-              isOnline: receiverProfile.is_online || false
+              isOnline: receiverProfile.is_online || false,
+              isVerified: receiverProfile.is_verified || false,
+              verificationType: receiverProfile.verification_type
             } : undefined
           };
 

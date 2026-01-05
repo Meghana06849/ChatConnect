@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Profile {
+export interface Profile {
   id: string;
   user_id: string;
   username?: string;
@@ -11,6 +11,8 @@ interface Profile {
   avatar_url?: string;
   bio?: string;
   is_online: boolean;
+  is_verified?: boolean;
+  verification_type?: string;
   lovers_mode_enabled: boolean;
   lovers_partner_id?: string;
   dream_room_pin?: string;
