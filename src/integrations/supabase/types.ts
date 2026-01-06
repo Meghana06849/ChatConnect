@@ -699,6 +699,51 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_requests: {
+        Row: {
+          admin_notes: string | null
+          document_url: string | null
+          full_name: string
+          id: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          social_media_url: string | null
+          status: string
+          submitted_at: string
+          user_id: string
+          verification_type: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          document_url?: string | null
+          full_name: string
+          id?: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_media_url?: string | null
+          status?: string
+          submitted_at?: string
+          user_id: string
+          verification_type?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          document_url?: string | null
+          full_name?: string
+          id?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_media_url?: string | null
+          status?: string
+          submitted_at?: string
+          user_id?: string
+          verification_type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

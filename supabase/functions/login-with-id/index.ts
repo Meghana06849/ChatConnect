@@ -56,32 +56,33 @@ serve(async (req) => {
         );
       }
     } else {
-      // Custom user ID lookup
-      const { data: profile, error: profileError } = await supabaseAdmin
+      // Custom user ID or username lookup
+      // Try custom_user_id first
+      const { data: customIdProfile } = await supabaseAdmin
         .from("profiles")
         .select("user_id")
         .eq("custom_user_id", userId)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profile) {
-        // Also try username as fallback
-        const { data: usernameProfile, error: usernameError } = await supabaseAdmin
+      if (customIdProfile) {
+        authUserId = customIdProfile.user_id;
+      } else {
+        // Try username (case-insensitive)
+        const { data: usernameProfile } = await supabaseAdmin
           .from("profiles")
           .select("user_id")
-          .eq("username", userId.toLowerCase())
-          .single();
+          .ilike("username", userId)
+          .maybeSingle();
         
-        if (usernameError || !usernameProfile) {
-          console.error("Profile lookup failed for custom ID:", profileError?.message);
+        if (usernameProfile) {
+          authUserId = usernameProfile.user_id;
+        } else {
+          console.error("No user found with custom_user_id or username:", userId);
           return new Response(
-            JSON.stringify({ error: "Invalid User ID. Please check and try again." }),
+            JSON.stringify({ error: "User not found. No user exists with that username." }),
             { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        
-        authUserId = usernameProfile.user_id;
-      } else {
-        authUserId = profile.user_id;
       }
     }
 

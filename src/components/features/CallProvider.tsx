@@ -46,18 +46,21 @@ export const CallProvider: React.FC<CallProviderProps> = ({ children }) => {
   const {
     localStream,
     remoteStream,
+    screenStream,
     isCallActive,
     isIncomingCall,
     incomingCallData,
     isMuted,
     isVideoEnabled,
+    isScreenSharing,
     callDuration,
     startCall: initiateCall,
     acceptCall,
     rejectCall,
     endCall,
     toggleMute,
-    toggleVideo
+    toggleVideo,
+    toggleScreenShare
   } = useWebRTCCall(userId);
 
   const startCall = async (contactId: string, name: string, isVideo: boolean) => {
@@ -86,11 +89,14 @@ export const CallProvider: React.FC<CallProviderProps> = ({ children }) => {
           isVideoCall={isVideoEnabled}
           localStream={localStream}
           remoteStream={remoteStream}
+          screenStream={screenStream}
           isMuted={isMuted}
           isVideoEnabled={isVideoEnabled}
+          isScreenSharing={isScreenSharing}
           callDuration={callDuration}
           onToggleMute={toggleMute}
           onToggleVideo={toggleVideo}
+          onToggleScreenShare={toggleScreenShare}
           onEndCall={endCall}
         />
       )}

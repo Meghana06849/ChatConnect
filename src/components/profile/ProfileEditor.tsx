@@ -7,12 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Camera, Upload, Save, Edit3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserIdCard } from './UserIdCard';
 import { AccountSettings } from './AccountSettings';
 import { VerificationBadge } from './VerificationBadge';
+import { VerificationRequest } from './VerificationRequest';
 
 export const ProfileEditor: React.FC = () => {
   const { profile, updateProfile, loading } = useProfile();
@@ -253,6 +253,9 @@ export const ProfileEditor: React.FC = () => {
       
       {/* Account Settings */}
       <AccountSettings />
+      
+      {/* Verification Request */}
+      {!profile?.is_verified && <VerificationRequest />}
     </div>
   );
 };
