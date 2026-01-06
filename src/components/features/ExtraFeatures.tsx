@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Sparkles, 
@@ -8,11 +8,30 @@ import {
   Image,
   Music,
   Calendar,
-  Gift
+  Gift,
+  Users
 } from 'lucide-react';
+import { GroupCall } from './GroupCall';
+import { supabase } from '@/integrations/supabase/client';
 
 export const ExtraFeatures: React.FC = () => {
+  const [showGroupCall, setShowGroupCall] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data?.user?.id || null);
+    });
+  }, []);
+
   const features = [
+    {
+      icon: Users,
+      title: "Group Video Call",
+      description: "Video call with multiple friends",
+      color: "from-blue-500 to-purple-500",
+      onClick: () => setShowGroupCall(true)
+    },
     {
       icon: Sparkles,
       title: "AI Smart Replies",
@@ -63,10 +82,18 @@ export const ExtraFeatures: React.FC = () => {
     }
   ];
 
+  if (showGroupCall) {
+    return <GroupCall userId={userId} onClose={() => setShowGroupCall(false)} />;
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {features.map((feature, index) => (
-        <Card key={index} className="glass border-white/20 hover:scale-105 transition-transform cursor-pointer">
+        <Card 
+          key={index} 
+          className="glass border-white/20 hover:scale-105 transition-transform cursor-pointer"
+          onClick={feature.onClick}
+        >
           <CardHeader>
             <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${feature.color} flex items-center justify-center mb-2`}>
               <feature.icon className="w-6 h-6 text-white" />
