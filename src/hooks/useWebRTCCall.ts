@@ -14,11 +14,13 @@ interface CallSignal {
 interface UseWebRTCCallReturn {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  screenStream: MediaStream | null;
   isCallActive: boolean;
   isIncomingCall: boolean;
   incomingCallData: CallSignal | null;
   isMuted: boolean;
   isVideoEnabled: boolean;
+  isScreenSharing: boolean;
   callDuration: number;
   startCall: (contactId: string, contactName: string, isVideo: boolean) => Promise<void>;
   acceptCall: () => Promise<void>;
@@ -26,16 +28,19 @@ interface UseWebRTCCallReturn {
   endCall: () => void;
   toggleMute: () => void;
   toggleVideo: () => void;
+  toggleScreenShare: () => Promise<void>;
 }
 
 export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [isCallActive, setIsCallActive] = useState(false);
   const [isIncomingCall, setIsIncomingCall] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<CallSignal | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   
   const peerConnection = useRef<RTCPeerConnection | null>(null);
@@ -43,6 +48,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   const callStartTime = useRef<number>(0);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const currentCallData = useRef<{ contactId: string; contactName: string; isVideo: boolean } | null>(null);
+  const screenSender = useRef<RTCRtpSender | null>(null);
   
   const { toast } = useToast();
 
@@ -144,17 +150,21 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
 
   const cleanup = useCallback(() => {
     localStream?.getTracks().forEach(track => track.stop());
+    screenStream?.getTracks().forEach(track => track.stop());
     peerConnection.current?.close();
     peerConnection.current = null;
+    screenSender.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    setScreenStream(null);
     setIsCallActive(false);
     setIsIncomingCall(false);
     setIncomingCallData(null);
+    setIsScreenSharing(false);
     setCallDuration(0);
     stopDurationTimer();
     currentCallData.current = null;
-  }, [localStream, stopDurationTimer]);
+  }, [localStream, screenStream, stopDurationTimer]);
 
   const startCall = useCallback(async (contactId: string, contactName: string, isVideo: boolean) => {
     if (!userId) return;
@@ -314,6 +324,69 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     }
   }, [localStream, isVideoEnabled]);
 
+  const toggleScreenShare = useCallback(async () => {
+    if (!peerConnection.current || !currentCallData.current) return;
+
+    try {
+      if (isScreenSharing) {
+        // Stop screen sharing
+        screenStream?.getTracks().forEach(track => track.stop());
+        setScreenStream(null);
+        setIsScreenSharing(false);
+
+        // Replace screen track with camera track
+        if (localStream && screenSender.current) {
+          const videoTrack = localStream.getVideoTracks()[0];
+          if (videoTrack) {
+            await screenSender.current.replaceTrack(videoTrack);
+          }
+        }
+        screenSender.current = null;
+
+        toast({
+          title: "Screen sharing stopped",
+        });
+      } else {
+        // Start screen sharing
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: 'always' } as MediaTrackConstraints,
+          audio: false
+        });
+
+        setScreenStream(stream);
+        setIsScreenSharing(true);
+
+        // Replace video track with screen track
+        const screenTrack = stream.getVideoTracks()[0];
+        const senders = peerConnection.current.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+        
+        if (videoSender) {
+          await videoSender.replaceTrack(screenTrack);
+          screenSender.current = videoSender;
+        }
+
+        // Handle user stopping share via browser UI
+        screenTrack.onended = () => {
+          toggleScreenShare();
+        };
+
+        toast({
+          title: "Screen sharing started",
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling screen share:', error);
+      if ((error as Error).name !== 'NotAllowedError') {
+        toast({
+          title: "Screen sharing failed",
+          description: "Could not start screen sharing",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [isScreenSharing, screenStream, localStream, toast]);
+
   // Set up signaling channel
   useEffect(() => {
     if (!userId) return;
@@ -409,17 +482,20 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   return {
     localStream,
     remoteStream,
+    screenStream,
     isCallActive,
     isIncomingCall,
     incomingCallData,
     isMuted,
     isVideoEnabled,
+    isScreenSharing,
     callDuration,
     startCall,
     acceptCall,
     rejectCall,
     endCall,
     toggleMute,
-    toggleVideo
+    toggleVideo,
+    toggleScreenShare
   };
 };
