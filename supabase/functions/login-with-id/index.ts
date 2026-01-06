@@ -57,7 +57,7 @@ serve(async (req) => {
       }
     } else {
       // Custom user ID or username lookup
-      // Try custom_user_id first
+      // Try custom_user_id first (exact match)
       const { data: customIdProfile } = await supabaseAdmin
         .from("profiles")
         .select("user_id")
@@ -67,21 +67,45 @@ serve(async (req) => {
       if (customIdProfile) {
         authUserId = customIdProfile.user_id;
       } else {
-        // Try username (case-insensitive)
-        const { data: usernameProfile } = await supabaseAdmin
+        // Try username - check for exact match first, then partial match
+        const { data: exactUsernameProfile } = await supabaseAdmin
           .from("profiles")
           .select("user_id")
           .ilike("username", userId)
           .maybeSingle();
         
-        if (usernameProfile) {
-          authUserId = usernameProfile.user_id;
+        if (exactUsernameProfile) {
+          authUserId = exactUsernameProfile.user_id;
         } else {
-          console.error("No user found with custom_user_id or username:", userId);
-          return new Response(
-            JSON.stringify({ error: "User not found. No user exists with that username." }),
-            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          // Try display_name match (case-insensitive)
+          const { data: displayNameProfile } = await supabaseAdmin
+            .from("profiles")
+            .select("user_id")
+            .ilike("display_name", userId)
+            .maybeSingle();
+          
+          if (displayNameProfile) {
+            authUserId = displayNameProfile.user_id;
+          } else {
+            // Try partial username match (e.g., "john" matches "john@example.com")
+            const { data: partialMatch } = await supabaseAdmin
+              .from("profiles")
+              .select("user_id, username")
+              .ilike("username", `${userId}%`)
+              .limit(1)
+              .maybeSingle();
+            
+            if (partialMatch) {
+              authUserId = partialMatch.user_id;
+              console.log("Found user via partial match:", partialMatch.username);
+            } else {
+              console.error("No user found with identifier:", userId);
+              return new Response(
+                JSON.stringify({ error: "User not found. Try using your full email, display name, or custom User ID." }),
+                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
         }
       }
     }
