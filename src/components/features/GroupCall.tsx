@@ -21,6 +21,8 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
     localStream,
     screenStream,
     participants,
+    messages,
+    sendChatMessage,
     isInCall,
     isScreenSharing,
     isMuted,
@@ -32,15 +34,17 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
     leaveRoom,
     toggleMute,
     toggleVideo,
-    toggleScreenShare
+    toggleScreenShare,
   } = useGroupCall(userId);
 
   const [joinRoomId, setJoinRoomId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [chatText, setChatText] = useState('');
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +58,10 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
       screenVideoRef.current.srcObject = screenStream;
     }
   }, [screenStream]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, isInCall]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -75,13 +83,13 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   const handleJoinRoom = async (isVideo: boolean) => {
     if (!joinRoomId.trim()) {
       toast({
-        title: "Room ID required",
-        description: "Please enter a room ID to join",
-        variant: "destructive"
+        title: 'Room ID required',
+        description: 'Please enter a room ID to join',
+        variant: 'destructive',
       });
       return;
     }
-    
+
     setIsJoining(true);
     try {
       await joinRoom(joinRoomId.trim(), isVideo);
@@ -96,7 +104,7 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
     if (roomId) {
       navigator.clipboard.writeText(roomId);
       setCopied(true);
-      toast({ title: "Room ID copied!" });
+      toast({ title: 'Room ID copied!' });
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -104,6 +112,14 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   const handleLeave = () => {
     leaveRoom();
     onClose?.();
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = chatText.trim();
+    if (!text) return;
+    sendChatMessage(text);
+    setChatText('');
   };
 
   // Not in a call - show join/create UI
@@ -121,11 +137,7 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
           <div className="space-y-3">
             <h3 className="font-medium">Create New Room</h3>
             <div className="flex gap-2">
-              <Button 
-                onClick={() => handleCreateRoom(true)} 
-                disabled={isCreating}
-                className="flex-1"
-              >
+              <Button onClick={() => handleCreateRoom(true)} disabled={isCreating} className="flex-1">
                 {isCreating ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
@@ -133,9 +145,9 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
                 )}
                 Video Call
               </Button>
-              <Button 
+              <Button
                 variant="outline"
-                onClick={() => handleCreateRoom(false)} 
+                onClick={() => handleCreateRoom(false)}
                 disabled={isCreating}
                 className="flex-1"
               >
@@ -164,8 +176,8 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
               className="glass border-white/20"
             />
             <div className="flex gap-2">
-              <Button 
-                onClick={() => handleJoinRoom(true)} 
+              <Button
+                onClick={() => handleJoinRoom(true)}
                 disabled={isJoining || !joinRoomId.trim()}
                 className="flex-1"
               >
@@ -176,9 +188,9 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
                 )}
                 Join with Video
               </Button>
-              <Button 
+              <Button
                 variant="outline"
-                onClick={() => handleJoinRoom(false)} 
+                onClick={() => handleJoinRoom(false)}
                 disabled={isJoining || !joinRoomId.trim()}
                 className="flex-1"
               >
@@ -204,13 +216,13 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
             <p className="text-sm text-muted-foreground">{formatDuration(callDuration)}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="gap-1">
             <Users className="w-3 h-3" />
             {participants.size + 1} participants
           </Badge>
-          
+
           {roomId && (
             <Button variant="outline" size="sm" onClick={copyRoomId} className="gap-1">
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -220,58 +232,102 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
         </div>
       </div>
 
-      {/* Video grid */}
-      <div className="flex-1 p-4 overflow-auto">
-        {/* Screen share preview */}
-        {isScreenSharing && screenStream && (
-          <div className="mb-4 relative bg-muted/20 rounded-xl overflow-hidden aspect-video max-h-[40vh] border-2 border-primary">
-            <video
-              ref={screenVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-contain"
-            />
-            <div className="absolute bottom-2 left-2 bg-primary px-2 py-1 rounded text-xs text-primary-foreground flex items-center gap-1">
-              <Monitor className="w-3 h-3" />
-              Your Screen
-            </div>
-          </div>
-        )}
-
-        <div className={`grid gap-4 ${
-          participants.size === 0 ? 'grid-cols-1 max-w-md mx-auto' :
-          participants.size === 1 ? 'grid-cols-2' :
-          participants.size <= 3 ? 'grid-cols-2' :
-          'grid-cols-3'
-        }`}>
-          {/* Local video */}
-          <div className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
-            />
-            {!isVideoEnabled && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Avatar className="w-20 h-20">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                    You
-                  </AvatarFallback>
-                </Avatar>
+      {/* Content */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
+          {/* Video area */}
+          <div className="h-full overflow-auto">
+            {/* Screen share preview */}
+            {isScreenSharing && screenStream && (
+              <div className="mb-4 relative bg-muted/20 rounded-xl overflow-hidden aspect-video max-h-[40vh] border-2 border-primary">
+                <video
+                  ref={screenVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
+                <div className="absolute bottom-2 left-2 bg-primary px-2 py-1 rounded text-xs text-primary-foreground flex items-center gap-1">
+                  <Monitor className="w-3 h-3" />
+                  Your Screen
+                </div>
               </div>
             )}
-            <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs text-white flex items-center gap-1">
-              You {isMuted && <MicOff className="w-3 h-3 text-destructive" />}
+
+            <div
+              className={`grid gap-4 ${
+                participants.size === 0
+                  ? 'grid-cols-1 max-w-md mx-auto'
+                  : participants.size === 1
+                    ? 'grid-cols-2'
+                    : participants.size <= 3
+                      ? 'grid-cols-2'
+                      : 'grid-cols-3'
+              }`}
+            >
+              {/* Local video */}
+              <div className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
+                />
+                {!isVideoEnabled && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Avatar className="w-20 h-20">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        You
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 bg-muted/70 px-2 py-1 rounded text-xs text-foreground flex items-center gap-1">
+                  You {isMuted && <MicOff className="w-3 h-3 text-destructive" />}
+                </div>
+              </div>
+
+              {/* Remote participants */}
+              {Array.from(participants.values()).map((participant) => (
+                <ParticipantVideo key={participant.userId} participant={participant} />
+              ))}
             </div>
           </div>
 
-          {/* Remote participants */}
-          {Array.from(participants.values()).map((participant) => (
-            <ParticipantVideo key={participant.userId} participant={participant} />
-          ))}
+          {/* In-call chat */}
+          <Card className="glass border-white/20 h-full flex flex-col overflow-hidden">
+            <CardHeader className="py-3">
+              <CardTitle className="text-base">Call Chat</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col gap-3 overflow-hidden">
+              <div className="flex-1 overflow-auto rounded-lg bg-muted/10 p-3 space-y-2">
+                {messages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No messages yet.</p>
+                ) : (
+                  messages.map((m) => (
+                    <div key={m.id} className="text-sm">
+                      <span className="font-medium">{m.fromName}: </span>
+                      <span className="text-foreground/90">{m.text}</span>
+                    </div>
+                  ))
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              <form onSubmit={handleSendChat} className="flex gap-2">
+                <Input
+                  value={chatText}
+                  onChange={(e) => setChatText(e.target.value)}
+                  placeholder="Message the call..."
+                  className="glass border-white/20"
+                />
+                <Button type="submit" disabled={!chatText.trim()}>
+                  Send
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

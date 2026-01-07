@@ -112,16 +112,16 @@ export const useFriendRequests = () => {
     }
   }, [currentUserId]);
 
-  // Send friend request by username or User ID
+  // Send friend request by username, custom ID, display name, or User ID
   const sendRequest = useCallback(async (identifier: string): Promise<boolean> => {
     if (!currentUserId) return false;
 
     try {
-      const trimmedIdentifier = identifier.trim();
-      
+      const trimmedIdentifier = identifier.trim().replace(/^@/, '');
+
       // Check if identifier looks like a UUID (User ID)
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedIdentifier);
-      
+
       let targetUser: { user_id: string; display_name: string | null } | null = null;
 
       if (isUUID) {
@@ -131,28 +131,70 @@ export const useFriendRequests = () => {
           .select('user_id, display_name')
           .eq('user_id', trimmedIdentifier)
           .maybeSingle();
-        
+
         if (error) throw error;
         targetUser = data;
       } else {
-        // Search by username
-        const { data, error } = await supabase
+        // 1) custom_user_id exact
+        const { data: customIdProfile, error: customIdError } = await supabase
           .from('profiles')
           .select('user_id, display_name')
-          .eq('username', trimmedIdentifier.toLowerCase())
+          .eq('custom_user_id', trimmedIdentifier)
           .maybeSingle();
-        
-        if (error) throw error;
-        targetUser = data;
+
+        if (customIdError) throw customIdError;
+
+        if (customIdProfile) {
+          targetUser = customIdProfile;
+        } else {
+          // 2) username case-insensitive exact
+          const { data: usernameProfile, error: usernameError } = await supabase
+            .from('profiles')
+            .select('user_id, display_name')
+            .ilike('username', trimmedIdentifier)
+            .maybeSingle();
+
+          if (usernameError) throw usernameError;
+
+          if (usernameProfile) {
+            targetUser = usernameProfile;
+          } else {
+            // 3) display_name case-insensitive exact
+            const { data: displayNameProfile, error: displayNameError } = await supabase
+              .from('profiles')
+              .select('user_id, display_name')
+              .ilike('display_name', trimmedIdentifier)
+              .maybeSingle();
+
+            if (displayNameError) throw displayNameError;
+
+            if (displayNameProfile) {
+              targetUser = displayNameProfile;
+            } else {
+              // 4) partial username match (prefix)
+              const { data: partialMatch, error: partialError } = await supabase
+                .from('profiles')
+                .select('user_id, display_name, username')
+                .ilike('username', `${trimmedIdentifier}%`)
+                .limit(1)
+                .maybeSingle();
+
+              if (partialError) throw partialError;
+              if (partialMatch) {
+                targetUser = { user_id: partialMatch.user_id, display_name: partialMatch.display_name };
+              }
+            }
+          }
+        }
       }
 
       if (!targetUser) {
         toast({
-          title: "User not found",
-          description: isUUID 
-            ? "No user exists with that User ID" 
-            : "No user exists with that username",
-          variant: "destructive"
+          title: 'User not found',
+          description: isUUID
+            ? 'No user exists with that User ID.'
+            : 'No user exists with that identifier (username, display name, or custom User ID).',
+          variant: 'destructive',
         });
         return false;
       }
@@ -160,9 +202,9 @@ export const useFriendRequests = () => {
       // Prevent self-request
       if (targetUser.user_id === currentUserId) {
         toast({
-          title: "Invalid action",
-          description: "You cannot send a friend request to yourself",
-          variant: "destructive"
+          title: 'Invalid action',
+          description: 'You cannot send a friend request to yourself',
+          variant: 'destructive',
         });
         return false;
       }
@@ -171,43 +213,44 @@ export const useFriendRequests = () => {
       const { data: existing } = await supabase
         .from('contacts')
         .select('id, status')
-        .or(`and(user_id.eq.${currentUserId},contact_user_id.eq.${targetUser.user_id}),and(user_id.eq.${targetUser.user_id},contact_user_id.eq.${currentUserId})`)
+        .or(
+          `and(user_id.eq.${currentUserId},contact_user_id.eq.${targetUser.user_id}),and(user_id.eq.${targetUser.user_id},contact_user_id.eq.${currentUserId})`
+        )
         .maybeSingle();
 
       if (existing) {
-        const statusMessage = existing.status === 'pending' 
-          ? 'A friend request is already pending' 
-          : 'You are already connected with this user';
+        const statusMessage =
+          existing.status === 'pending'
+            ? 'A friend request is already pending'
+            : 'You are already connected with this user';
         toast({
-          title: "Request exists",
+          title: 'Request exists',
           description: statusMessage,
-          variant: "destructive"
+          variant: 'destructive',
         });
         return false;
       }
 
       // Insert new request
-      const { error: insertError } = await supabase
-        .from('contacts')
-        .insert({
-          user_id: currentUserId,
-          contact_user_id: targetUser.user_id,
-          status: 'pending'
-        });
+      const { error: insertError } = await supabase.from('contacts').insert({
+        user_id: currentUserId,
+        contact_user_id: targetUser.user_id,
+        status: 'pending',
+      });
 
       if (insertError) throw insertError;
 
       toast({
-        title: "Friend request sent!",
-        description: `Request sent to ${targetUser.display_name || 'user'}`
+        title: 'Friend request sent!',
+        description: `Request sent to ${targetUser.display_name || 'user'}`,
       });
 
       return true;
     } catch (error: any) {
       toast({
-        title: "Failed to send request",
+        title: 'Failed to send request',
         description: error.message,
-        variant: "destructive"
+        variant: 'destructive',
       });
       return false;
     }

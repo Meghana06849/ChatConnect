@@ -9,8 +9,23 @@ interface Participant {
   peerConnection: RTCPeerConnection;
 }
 
+export interface GroupCallChatMessage {
+  id: string;
+  from: string;
+  fromName: string;
+  text: string;
+  sentAt: string;
+}
+
 interface GroupCallSignal {
-  type: 'join-room' | 'leave-room' | 'offer' | 'answer' | 'ice-candidate' | 'participant-joined' | 'participant-left';
+  type:
+    | 'join-room'
+    | 'leave-room'
+    | 'offer'
+    | 'answer'
+    | 'ice-candidate'
+    | 'participant-joined'
+    | 'participant-left';
   from: string;
   fromName?: string;
   to?: string;
@@ -22,6 +37,8 @@ interface UseGroupCallReturn {
   localStream: MediaStream | null;
   screenStream: MediaStream | null;
   participants: Map<string, Participant>;
+  messages: GroupCallChatMessage[];
+  sendChatMessage: (text: string) => void;
   isInCall: boolean;
   isScreenSharing: boolean;
   isMuted: boolean;
@@ -47,6 +64,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<Map<string, Participant>>(new Map());
+  const [messages, setMessages] = useState<GroupCallChatMessage[]>([]);
   const [isInCall, setIsInCall] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -78,7 +96,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
   const startDurationTimer = useCallback(() => {
     durationInterval.current = setInterval(() => {
-      setCallDuration(prev => prev + 1);
+      setCallDuration((prev) => prev + 1);
     }, 1000);
   }, []);
 
@@ -94,229 +112,293 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
       channelRef.current.send({
         type: 'broadcast',
         event: 'group-call-signal',
-        payload: signal
+        payload: signal,
       });
     }
   }, []);
 
-  const createPeerConnection = useCallback(async (participantId: string, participantName: string) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+  const sendChatMessage = useCallback(
+    (text: string) => {
+      if (!channelRef.current || !roomId || !userId) return;
+      const clean = text.trim();
+      if (!clean) return;
 
-    // Add local tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
+      const msg: GroupCallChatMessage = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        from: userId,
+        fromName: userNameRef.current || 'Unknown',
+        text: clean,
+        sentAt: new Date().toISOString(),
+      };
+
+      // optimistic
+      setMessages((prev) => [...prev, msg]);
+
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'group-call-chat',
+        payload: { roomId, message: msg },
       });
-    }
+    },
+    [roomId, userId]
+  );
 
-    // Handle incoming tracks
-    pc.ontrack = (event) => {
-      setParticipants(prev => {
-        const updated = new Map(prev);
-        const existing = updated.get(participantId);
-        if (existing) {
-          existing.stream = event.streams[0];
-          updated.set(participantId, existing);
-        }
-        return updated;
-      });
-    };
+  const createPeerConnection = useCallback(
+    async (participantId: string, participantName: string) => {
+      const pc = new RTCPeerConnection(ICE_SERVERS);
 
-    // Handle ICE candidates
-    pc.onicecandidate = (event) => {
-      if (event.candidate && roomId) {
-        sendSignal({
-          type: 'ice-candidate',
-          from: userId!,
-          to: participantId,
-          roomId,
-          data: event.candidate
+      // Add local tracks
+      if (localStream) {
+        localStream.getTracks().forEach((track) => {
+          pc.addTrack(track, localStream);
         });
       }
-    };
 
-    peerConnections.current.set(participantId, pc);
+      // Handle incoming tracks
+      pc.ontrack = (event) => {
+        setParticipants((prev) => {
+          const updated = new Map(prev);
+          const existing = updated.get(participantId);
+          if (existing) {
+            existing.stream = event.streams[0];
+            updated.set(participantId, existing);
+          }
+          return updated;
+        });
+      };
 
-    // Add to participants
-    setParticipants(prev => {
-      const updated = new Map(prev);
-      updated.set(participantId, {
-        userId: participantId,
-        userName: participantName,
-        stream: null,
-        peerConnection: pc
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate && roomId) {
+          sendSignal({
+            type: 'ice-candidate',
+            from: userId!,
+            to: participantId,
+            roomId,
+            data: event.candidate,
+          });
+        }
+      };
+
+      peerConnections.current.set(participantId, pc);
+
+      // Add to participants
+      setParticipants((prev) => {
+        const updated = new Map(prev);
+        updated.set(participantId, {
+          userId: participantId,
+          userName: participantName,
+          stream: null,
+          peerConnection: pc,
+        });
+        return updated;
       });
-      return updated;
-    });
 
-    return pc;
-  }, [localStream, roomId, userId, sendSignal]);
+      return pc;
+    },
+    [localStream, roomId, userId, sendSignal]
+  );
 
-  const setupLocalStream = useCallback(async (isVideo: boolean) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: isVideo
-      });
-      setLocalStream(stream);
-      setIsVideoEnabled(isVideo);
-      isVideoCall.current = isVideo;
-      return stream;
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
+  const setupLocalStream = useCallback(
+    async (isVideo: boolean) => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: isVideo,
+        });
+        setLocalStream(stream);
+        setIsVideoEnabled(isVideo);
+        isVideoCall.current = isVideo;
+        return stream;
+      } catch (error) {
+        console.error('Error accessing media devices:', error);
+        toast({
+          title: 'Media access failed',
+          description: 'Could not access camera/microphone',
+          variant: 'destructive',
+        });
+        throw error;
+      }
+    },
+    [toast]
+  );
+
+  const attachChannelHandlers = useCallback(
+    (channel: ReturnType<typeof supabase.channel>, targetRoomId: string) => {
+      channel
+        .on('broadcast', { event: 'group-call-signal' }, async ({ payload }) => {
+          await handleSignal(payload as GroupCallSignal);
+        })
+        .on('broadcast', { event: 'group-call-chat' }, ({ payload }) => {
+          const incoming = payload as { roomId: string; message: GroupCallChatMessage };
+          if (!incoming?.message) return;
+          if (incoming.roomId !== targetRoomId) return;
+          if (incoming.message.from === userId) return;
+
+          setMessages((prev) => [...prev, incoming.message]);
+        });
+    },
+    [userId]
+  );
+
+  const createRoom = useCallback(
+    async (roomName: string, isVideo: boolean): Promise<string> => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const newRoomId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      await setupLocalStream(isVideo);
+
+      setMessages([]);
+
+      // Set up channel
+      channelRef.current = supabase.channel(`group-call:${newRoomId}`);
+
+      attachChannelHandlers(channelRef.current, newRoomId);
+
+      channelRef.current.subscribe();
+
+      setRoomId(newRoomId);
+      setIsInCall(true);
+      startDurationTimer();
+
       toast({
-        title: "Media access failed",
-        description: "Could not access camera/microphone",
-        variant: "destructive"
+        title: 'Room created',
+        description: `Room ID: ${newRoomId.slice(0, 15)}...`,
       });
-      throw error;
-    }
-  }, [toast]);
 
-  const createRoom = useCallback(async (roomName: string, isVideo: boolean): Promise<string> => {
-    if (!userId) throw new Error('Not authenticated');
+      return newRoomId;
+    },
+    [userId, setupLocalStream, startDurationTimer, toast, attachChannelHandlers]
+  );
 
-    const newRoomId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    await setupLocalStream(isVideo);
-    
-    // Set up channel
-    channelRef.current = supabase.channel(`group-call:${newRoomId}`);
-    
-    channelRef.current
-      .on('broadcast', { event: 'group-call-signal' }, async ({ payload }) => {
-        await handleSignal(payload as GroupCallSignal);
-      })
-      .subscribe();
+  const joinRoom = useCallback(
+    async (targetRoomId: string, isVideo: boolean) => {
+      if (!userId) throw new Error('Not authenticated');
 
-    setRoomId(newRoomId);
-    setIsInCall(true);
-    startDurationTimer();
+      await setupLocalStream(isVideo);
 
-    toast({
-      title: "Room created",
-      description: `Room ID: ${newRoomId.slice(0, 15)}...`,
-    });
+      setMessages([]);
 
-    return newRoomId;
-  }, [userId, setupLocalStream, startDurationTimer, toast]);
+      // Set up channel
+      channelRef.current = supabase.channel(`group-call:${targetRoomId}`);
 
-  const joinRoom = useCallback(async (targetRoomId: string, isVideo: boolean) => {
-    if (!userId) throw new Error('Not authenticated');
+      attachChannelHandlers(channelRef.current, targetRoomId);
 
-    const stream = await setupLocalStream(isVideo);
-    
-    // Set up channel
-    channelRef.current = supabase.channel(`group-call:${targetRoomId}`);
-    
-    channelRef.current
-      .on('broadcast', { event: 'group-call-signal' }, async ({ payload }) => {
-        await handleSignal(payload as GroupCallSignal);
-      })
-      .subscribe(async (status) => {
+      channelRef.current.subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           // Announce joining
           sendSignal({
             type: 'join-room',
             from: userId,
             fromName: userNameRef.current,
-            roomId: targetRoomId
+            roomId: targetRoomId,
           });
         }
       });
 
-    setRoomId(targetRoomId);
-    setIsInCall(true);
-    startDurationTimer();
+      setRoomId(targetRoomId);
+      setIsInCall(true);
+      startDurationTimer();
 
-    toast({
-      title: "Joined room",
-      description: "Connected to group call",
-    });
-  }, [userId, setupLocalStream, sendSignal, startDurationTimer, toast]);
+      toast({
+        title: 'Joined room',
+        description: 'Connected to group call',
+      });
+    },
+    [userId, setupLocalStream, sendSignal, startDurationTimer, toast, attachChannelHandlers]
+  );
 
-  const handleSignal = useCallback(async (signal: GroupCallSignal) => {
-    if (!userId || signal.from === userId) return;
+  const handleSignal = useCallback(
+    async (signal: GroupCallSignal) => {
+      if (!userId || signal.from === userId) return;
 
-    switch (signal.type) {
-      case 'join-room':
-        // Someone joined, create offer
-        const pc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        
-        sendSignal({
-          type: 'offer',
-          from: userId,
-          fromName: userNameRef.current,
-          to: signal.from,
-          roomId: signal.roomId,
-          data: offer
-        });
+      switch (signal.type) {
+        case 'join-room': {
+          // Someone joined, create offer
+          const pc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
 
-        toast({
-          title: "Participant joined",
-          description: `${signal.fromName || 'Someone'} joined the call`,
-        });
-        break;
+          sendSignal({
+            type: 'offer',
+            from: userId,
+            fromName: userNameRef.current,
+            to: signal.from,
+            roomId: signal.roomId,
+            data: offer,
+          });
 
-      case 'offer':
-        if (signal.to !== userId) return;
-        
-        const answerPc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
-        await answerPc.setRemoteDescription(new RTCSessionDescription(signal.data));
-        const answer = await answerPc.createAnswer();
-        await answerPc.setLocalDescription(answer);
-        
-        sendSignal({
-          type: 'answer',
-          from: userId,
-          to: signal.from,
-          roomId: signal.roomId,
-          data: answer
-        });
-        break;
-
-      case 'answer':
-        if (signal.to !== userId) return;
-        const existingPc = peerConnections.current.get(signal.from);
-        if (existingPc) {
-          await existingPc.setRemoteDescription(new RTCSessionDescription(signal.data));
+          toast({
+            title: 'Participant joined',
+            description: `${signal.fromName || 'Someone'} joined the call`,
+          });
+          break;
         }
-        break;
 
-      case 'ice-candidate':
-        if (signal.to !== userId) return;
-        const icePc = peerConnections.current.get(signal.from);
-        if (icePc && signal.data) {
-          try {
-            await icePc.addIceCandidate(new RTCIceCandidate(signal.data));
-          } catch (error) {
-            console.error('Error adding ICE candidate:', error);
+        case 'offer': {
+          if (signal.to !== userId) return;
+
+          const answerPc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
+          await answerPc.setRemoteDescription(new RTCSessionDescription(signal.data));
+          const answer = await answerPc.createAnswer();
+          await answerPc.setLocalDescription(answer);
+
+          sendSignal({
+            type: 'answer',
+            from: userId,
+            to: signal.from,
+            roomId: signal.roomId,
+            data: answer,
+          });
+          break;
+        }
+
+        case 'answer': {
+          if (signal.to !== userId) return;
+          const existingPc = peerConnections.current.get(signal.from);
+          if (existingPc) {
+            await existingPc.setRemoteDescription(new RTCSessionDescription(signal.data));
           }
+          break;
         }
-        break;
 
-      case 'leave-room':
-        // Remove participant
-        const leavingPc = peerConnections.current.get(signal.from);
-        if (leavingPc) {
-          leavingPc.close();
-          peerConnections.current.delete(signal.from);
+        case 'ice-candidate': {
+          if (signal.to !== userId) return;
+          const icePc = peerConnections.current.get(signal.from);
+          if (icePc && signal.data) {
+            try {
+              await icePc.addIceCandidate(new RTCIceCandidate(signal.data));
+            } catch (error) {
+              console.error('Error adding ICE candidate:', error);
+            }
+          }
+          break;
         }
-        setParticipants(prev => {
-          const updated = new Map(prev);
-          updated.delete(signal.from);
-          return updated;
-        });
-        
-        toast({
-          title: "Participant left",
-          description: `${signal.fromName || 'Someone'} left the call`,
-        });
-        break;
-    }
-  }, [userId, createPeerConnection, sendSignal, toast]);
+
+        case 'leave-room': {
+          // Remove participant
+          const leavingPc = peerConnections.current.get(signal.from);
+          if (leavingPc) {
+            leavingPc.close();
+            peerConnections.current.delete(signal.from);
+          }
+          setParticipants((prev) => {
+            const updated = new Map(prev);
+            updated.delete(signal.from);
+            return updated;
+          });
+
+          toast({
+            title: 'Participant left',
+            description: `${signal.fromName || 'Someone'} left the call`,
+          });
+          break;
+        }
+      }
+    },
+    [userId, createPeerConnection, sendSignal, toast]
+  );
 
   const leaveRoom = useCallback(() => {
     if (roomId && userId) {
@@ -324,23 +406,24 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
         type: 'leave-room',
         from: userId,
         fromName: userNameRef.current,
-        roomId
+        roomId,
       });
     }
 
     // Clean up
-    localStream?.getTracks().forEach(track => track.stop());
-    screenStream?.getTracks().forEach(track => track.stop());
-    
-    peerConnections.current.forEach(pc => pc.close());
+    localStream?.getTracks().forEach((track) => track.stop());
+    screenStream?.getTracks().forEach((track) => track.stop());
+
+    peerConnections.current.forEach((pc) => pc.close());
     peerConnections.current.clear();
-    
+
     channelRef.current?.unsubscribe();
     channelRef.current = null;
 
     setLocalStream(null);
     setScreenStream(null);
     setParticipants(new Map());
+    setMessages([]);
     setIsInCall(false);
     setIsScreenSharing(false);
     setRoomId(null);
@@ -348,14 +431,16 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
     stopDurationTimer();
 
     toast({
-      title: "Left call",
-      description: `Duration: ${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, '0')}`,
+      title: 'Left call',
+      description: `Duration: ${Math.floor(callDuration / 60)}:${(callDuration % 60)
+        .toString()
+        .padStart(2, '0')}`,
     });
   }, [roomId, userId, localStream, screenStream, callDuration, sendSignal, stopDurationTimer, toast]);
 
   const toggleMute = useCallback(() => {
     if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
+      localStream.getAudioTracks().forEach((track) => {
         track.enabled = isMuted;
       });
       setIsMuted(!isMuted);
@@ -364,7 +449,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
   const toggleVideo = useCallback(() => {
     if (localStream) {
-      localStream.getVideoTracks().forEach(track => {
+      localStream.getVideoTracks().forEach((track) => {
         track.enabled = !isVideoEnabled;
       });
       setIsVideoEnabled(!isVideoEnabled);
@@ -374,36 +459,36 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   const toggleScreenShare = useCallback(async () => {
     try {
       if (isScreenSharing) {
-        screenStream?.getTracks().forEach(track => track.stop());
+        screenStream?.getTracks().forEach((track) => track.stop());
         setScreenStream(null);
         setIsScreenSharing(false);
 
         // Replace screen track with camera track for all peers
         if (localStream) {
           const videoTrack = localStream.getVideoTracks()[0];
-          peerConnections.current.forEach(pc => {
-            const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+          peerConnections.current.forEach((pc) => {
+            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
             if (sender && videoTrack) {
               sender.replaceTrack(videoTrack);
             }
           });
         }
 
-        toast({ title: "Screen sharing stopped" });
+        toast({ title: 'Screen sharing stopped' });
       } else {
         const stream = await navigator.mediaDevices.getDisplayMedia({
           video: { cursor: 'always' } as MediaTrackConstraints,
-          audio: false
+          audio: false,
         });
 
         setScreenStream(stream);
         setIsScreenSharing(true);
 
         const screenTrack = stream.getVideoTracks()[0];
-        
+
         // Replace video track with screen track for all peers
-        peerConnections.current.forEach(pc => {
-          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        peerConnections.current.forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
           if (sender) {
             sender.replaceTrack(screenTrack);
           }
@@ -413,13 +498,13 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
           toggleScreenShare();
         };
 
-        toast({ title: "Screen sharing started" });
+        toast({ title: 'Screen sharing started' });
       }
     } catch (error) {
       if ((error as Error).name !== 'NotAllowedError') {
         toast({
-          title: "Screen sharing failed",
-          variant: "destructive"
+          title: 'Screen sharing failed',
+          variant: 'destructive',
         });
       }
     }
@@ -436,6 +521,8 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
     localStream,
     screenStream,
     participants,
+    messages,
+    sendChatMessage,
     isInCall,
     isScreenSharing,
     isMuted,
@@ -447,6 +534,6 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
     leaveRoom,
     toggleMute,
     toggleVideo,
-    toggleScreenShare
+    toggleScreenShare,
   };
 };
