@@ -1,13 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, 
-  Users, Plus, Copy, Check, Loader2 
-} from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Monitor, MonitorOff, Users, Copy, Check, Loader2 } from 'lucide-react';
 import { useGroupCall } from '@/hooks/useGroupCall';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,6 +12,29 @@ interface GroupCallProps {
   userId: string | null;
   onClose?: () => void;
 }
+
+const StreamVideo: React.FC<{ stream: MediaStream | null; muted?: boolean; className?: string; objectFit?: 'cover' | 'contain' }> = ({
+  stream,
+  muted,
+  className,
+  objectFit = 'cover',
+}) => {
+  const ref = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream;
+  }, [stream]);
+
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      muted={muted}
+      playsInline
+      className={`${className || ''} ${objectFit === 'contain' ? 'object-contain' : 'object-cover'}`}
+    />
+  );
+};
 
 export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   const {
@@ -42,22 +62,11 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   const [isJoining, setIsJoining] = useState(false);
   const [copied, setCopied] = useState(false);
   const [chatText, setChatText] = useState('');
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const [focusMode, setFocusMode] = useState<'shared' | 'grid'>('shared');
+
+  const localTileRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (screenVideoRef.current && screenStream) {
-      screenVideoRef.current.srcObject = screenStream;
-    }
-  }, [screenStream]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,11 +91,7 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
 
   const handleJoinRoom = async (isVideo: boolean) => {
     if (!joinRoomId.trim()) {
-      toast({
-        title: 'Room ID required',
-        description: 'Please enter a room ID to join',
-        variant: 'destructive',
-      });
+      toast({ title: 'Room ID required', description: 'Please enter a room ID to join', variant: 'destructive' });
       return;
     }
 
@@ -101,12 +106,11 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   };
 
   const copyRoomId = () => {
-    if (roomId) {
-      navigator.clipboard.writeText(roomId);
-      setCopied(true);
-      toast({ title: 'Room ID copied!' });
-      setTimeout(() => setCopied(false), 2000);
-    }
+    if (!roomId) return;
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    toast({ title: 'Room ID copied!' });
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleLeave = () => {
@@ -114,13 +118,34 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
     onClose?.();
   };
 
-  const handleSendChat = (e: React.FormEvent) => {
+  const handleSendChat = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = chatText.trim();
     if (!text) return;
-    sendChatMessage(text);
+    await sendChatMessage(text);
     setChatText('');
   };
+
+  const participantsArray = useMemo(() => Array.from(participants.values()), [participants]);
+
+  const activeSharer = useMemo(() => {
+    if (isScreenSharing && screenStream) {
+      return { type: 'local' as const, label: 'You', stream: screenStream };
+    }
+    const remote = participantsArray.find((p) => p.isScreenSharing);
+    if (remote?.stream) {
+      return { type: 'remote' as const, label: remote.userName || 'Unknown', stream: remote.stream };
+    }
+    return null;
+  }, [isScreenSharing, screenStream, participantsArray]);
+
+  useEffect(() => {
+    if (!activeSharer) {
+      setFocusMode('grid');
+    } else {
+      setFocusMode('shared');
+    }
+  }, [activeSharer]);
 
   // Not in a call - show join/create UI
   if (!isInCall) {
@@ -133,24 +158,14 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Create new room */}
           <div className="space-y-3">
             <h3 className="font-medium">Create New Room</h3>
             <div className="flex gap-2">
               <Button onClick={() => handleCreateRoom(true)} disabled={isCreating} className="flex-1">
-                {isCreating ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Video className="w-4 h-4 mr-2" />
-                )}
+                {isCreating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Video className="w-4 h-4 mr-2" />}
                 Video Call
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleCreateRoom(false)}
-                disabled={isCreating}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => handleCreateRoom(false)} disabled={isCreating} className="flex-1">
                 <Mic className="w-4 h-4 mr-2" />
                 Voice Call
               </Button>
@@ -166,7 +181,6 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
             </div>
           </div>
 
-          {/* Join existing room */}
           <div className="space-y-3">
             <h3 className="font-medium">Join Existing Room</h3>
             <Input
@@ -176,24 +190,11 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
               className="glass border-white/20"
             />
             <div className="flex gap-2">
-              <Button
-                onClick={() => handleJoinRoom(true)}
-                disabled={isJoining || !joinRoomId.trim()}
-                className="flex-1"
-              >
-                {isJoining ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Video className="w-4 h-4 mr-2" />
-                )}
+              <Button onClick={() => handleJoinRoom(true)} disabled={isJoining || !joinRoomId.trim()} className="flex-1">
+                {isJoining ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Video className="w-4 h-4 mr-2" />}
                 Join with Video
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleJoinRoom(false)}
-                disabled={isJoining || !joinRoomId.trim()}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => handleJoinRoom(false)} disabled={isJoining || !joinRoomId.trim()} className="flex-1">
                 <Mic className="w-4 h-4 mr-2" />
                 Voice Only
               </Button>
@@ -204,10 +205,8 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
     );
   }
 
-  // In a call - show call UI
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10">
         <div className="flex items-center gap-3">
           <Users className="w-5 h-5 text-primary" />
@@ -223,6 +222,19 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
             {participants.size + 1} participants
           </Badge>
 
+          {activeSharer && (
+            <Badge variant="secondary" className="gap-1">
+              <Monitor className="w-3 h-3" />
+              {activeSharer.label} is sharing
+            </Badge>
+          )}
+
+          {activeSharer && (
+            <Button variant="outline" size="sm" onClick={() => setFocusMode((p) => (p === 'shared' ? 'grid' : 'shared'))}>
+              {focusMode === 'shared' ? 'Show Grid' : 'Focus Share'}
+            </Button>
+          )}
+
           {roomId && (
             <Button variant="outline" size="sm" onClick={copyRoomId} className="gap-1">
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -232,24 +244,16 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 p-4 overflow-hidden">
         <div className="h-full grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-          {/* Video area */}
           <div className="h-full overflow-auto">
-            {/* Screen share preview */}
-            {isScreenSharing && screenStream && (
-              <div className="mb-4 relative bg-muted/20 rounded-xl overflow-hidden aspect-video max-h-[40vh] border-2 border-primary">
-                <video
-                  ref={screenVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="w-full h-full object-contain"
-                />
+            {/* Focused shared view */}
+            {activeSharer && focusMode === 'shared' && (
+              <div className="mb-4 relative bg-muted/20 rounded-xl overflow-hidden aspect-video max-h-[45vh] border-2 border-primary">
+                <StreamVideo stream={activeSharer.stream} muted={activeSharer.type === 'local'} className="w-full h-full" objectFit="contain" />
                 <div className="absolute bottom-2 left-2 bg-primary px-2 py-1 rounded text-xs text-primary-foreground flex items-center gap-1">
                   <Monitor className="w-3 h-3" />
-                  Your Screen
+                  {activeSharer.label}
                 </div>
               </div>
             )}
@@ -265,37 +269,37 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
                       : 'grid-cols-3'
               }`}
             >
-              {/* Local video */}
-              <div className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className={`w-full h-full object-cover ${!isVideoEnabled ? 'hidden' : ''}`}
-                />
-                {!isVideoEnabled && (
+              {/* Local tile */}
+              <div ref={localTileRef} className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
+                {isVideoEnabled ? (
+                  <StreamVideo stream={localStream} muted className="w-full h-full" objectFit="cover" />
+                ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Avatar className="w-20 h-20">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                        You
-                      </AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">You</AvatarFallback>
                     </Avatar>
                   </div>
                 )}
+
                 <div className="absolute bottom-2 left-2 bg-muted/70 px-2 py-1 rounded text-xs text-foreground flex items-center gap-1">
                   You {isMuted && <MicOff className="w-3 h-3 text-destructive" />}
                 </div>
+
+                {isScreenSharing && (
+                  <div className="absolute top-2 right-2 bg-primary px-2 py-1 rounded text-xs text-primary-foreground flex items-center gap-1">
+                    <Monitor className="w-3 h-3" />
+                    Sharing
+                  </div>
+                )}
               </div>
 
-              {/* Remote participants */}
-              {Array.from(participants.values()).map((participant) => (
+              {/* Remote tiles */}
+              {participantsArray.map((participant) => (
                 <ParticipantVideo key={participant.userId} participant={participant} />
               ))}
             </div>
           </div>
 
-          {/* In-call chat */}
           <Card className="glass border-white/20 h-full flex flex-col overflow-hidden">
             <CardHeader className="py-3">
               <CardTitle className="text-base">Call Chat</CardTitle>
@@ -331,7 +335,6 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="p-4 border-t border-white/10">
         <div className="flex justify-center gap-3">
           <Button
@@ -361,12 +364,7 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
             {isScreenSharing ? <MonitorOff className="w-6 h-6" /> : <Monitor className="w-6 h-6" />}
           </Button>
 
-          <Button
-            variant="destructive"
-            size="lg"
-            onClick={handleLeave}
-            className="rounded-full w-14 h-14 p-0"
-          >
+          <Button variant="destructive" size="lg" onClick={handleLeave} className="rounded-full w-14 h-14 p-0">
             <PhoneOff className="w-6 h-6" />
           </Button>
         </div>
@@ -375,25 +373,12 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   );
 };
 
-// Separate component for participant video
 const ParticipantVideo: React.FC<{ participant: any }> = ({ participant }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current && participant.stream) {
-      videoRef.current.srcObject = participant.stream;
-    }
-  }, [participant.stream]);
-
   return (
     <div className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className={`w-full h-full object-cover ${!participant.stream ? 'hidden' : ''}`}
-      />
-      {!participant.stream && (
+      {participant.stream ? (
+        <StreamVideo stream={participant.stream} className="w-full h-full" objectFit={participant.isScreenSharing ? 'contain' : 'cover'} />
+      ) : (
         <div className="absolute inset-0 flex items-center justify-center">
           <Avatar className="w-20 h-20">
             <AvatarFallback className="bg-secondary text-secondary-foreground text-2xl">
@@ -402,9 +387,17 @@ const ParticipantVideo: React.FC<{ participant: any }> = ({ participant }) => {
           </Avatar>
         </div>
       )}
-      <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs text-white">
+
+      <div className="absolute bottom-2 left-2 bg-muted/70 px-2 py-1 rounded text-xs text-foreground flex items-center gap-1">
         {participant.userName || 'Unknown'}
       </div>
+
+      {participant.isScreenSharing && (
+        <div className="absolute top-2 right-2 bg-primary px-2 py-1 rounded text-xs text-primary-foreground flex items-center gap-1">
+          <Monitor className="w-3 h-3" />
+          Sharing
+        </div>
+      )}
     </div>
   );
 };
