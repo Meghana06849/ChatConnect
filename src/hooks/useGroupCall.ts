@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -7,6 +7,7 @@ interface Participant {
   userName: string;
   stream: MediaStream | null;
   peerConnection: RTCPeerConnection;
+  isScreenSharing: boolean;
 }
 
 export interface GroupCallChatMessage {
@@ -24,8 +25,7 @@ interface GroupCallSignal {
     | 'offer'
     | 'answer'
     | 'ice-candidate'
-    | 'participant-joined'
-    | 'participant-left';
+    | 'screen-status';
   from: string;
   fromName?: string;
   to?: string;
@@ -38,7 +38,7 @@ interface UseGroupCallReturn {
   screenStream: MediaStream | null;
   participants: Map<string, Participant>;
   messages: GroupCallChatMessage[];
-  sendChatMessage: (text: string) => void;
+  sendChatMessage: (text: string) => Promise<void>;
   isInCall: boolean;
   isScreenSharing: boolean;
   isMuted: boolean;
@@ -53,12 +53,17 @@ interface UseGroupCallReturn {
   toggleScreenShare: () => Promise<void>;
 }
 
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ]
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
 };
+
+const toChatMessage = (row: any): GroupCallChatMessage => ({
+  id: row.id,
+  from: row.user_id,
+  fromName: row.from_name || 'Unknown',
+  text: row.text,
+  sentAt: row.created_at,
+});
 
 export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -74,9 +79,8 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const durationInterval = useRef<NodeJS.Timeout | null>(null);
+  const durationInterval = useRef<number | null>(null);
   const userNameRef = useRef<string>('');
-  const isVideoCall = useRef<boolean>(true);
 
   const { toast } = useToast();
 
@@ -95,94 +99,154 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   }, [userId]);
 
   const startDurationTimer = useCallback(() => {
-    durationInterval.current = setInterval(() => {
+    if (durationInterval.current) return;
+    durationInterval.current = window.setInterval(() => {
       setCallDuration((prev) => prev + 1);
     }, 1000);
   }, []);
 
   const stopDurationTimer = useCallback(() => {
     if (durationInterval.current) {
-      clearInterval(durationInterval.current);
+      window.clearInterval(durationInterval.current);
       durationInterval.current = null;
     }
   }, []);
 
   const sendSignal = useCallback((signal: GroupCallSignal) => {
-    if (channelRef.current) {
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'group-call-signal',
-        payload: signal,
-      });
-    }
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'group-call-signal',
+      payload: signal,
+    });
   }, []);
 
+  const setParticipantScreenStatus = useCallback((participantId: string, sharing: boolean) => {
+    setParticipants((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(participantId);
+      if (!existing) return prev;
+      next.set(participantId, { ...existing, isScreenSharing: sharing });
+      return next;
+    });
+  }, []);
+
+  const loadChatHistory = useCallback(
+    async (targetRoomId: string) => {
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from('group_call_messages')
+        .select('id, room_id, user_id, from_name, text, created_at')
+        .eq('room_id', targetRoomId)
+        .order('created_at', { ascending: true })
+        .limit(200);
+
+      if (error) {
+        // If RLS blocks, don't spam UI; just show empty
+        console.warn('Failed to load call chat history:', error);
+        return;
+      }
+
+      setMessages((data || []).map(toChatMessage));
+    },
+    [userId]
+  );
+
+  const upsertMyParticipation = useCallback(
+    async (targetRoomId: string) => {
+      if (!userId) return;
+      const { error } = await supabase.from('group_call_participants').upsert(
+        {
+          room_id: targetRoomId,
+          user_id: userId,
+        },
+        { onConflict: 'room_id,user_id' }
+      );
+      if (error) console.warn('Failed to upsert group call participation:', error);
+    },
+    [userId]
+  );
+
+  const removeMyParticipation = useCallback(
+    async (targetRoomId: string) => {
+      if (!userId) return;
+      const { error } = await supabase
+        .from('group_call_participants')
+        .delete()
+        .eq('room_id', targetRoomId)
+        .eq('user_id', userId);
+      if (error) console.warn('Failed to remove group call participation:', error);
+    },
+    [userId]
+  );
+
   const sendChatMessage = useCallback(
-    (text: string) => {
-      if (!channelRef.current || !roomId || !userId) return;
+    async (text: string) => {
+      if (!roomId || !userId) return;
       const clean = text.trim();
       if (!clean) return;
 
-      const msg: GroupCallChatMessage = {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      const id = crypto.randomUUID();
+      const optimistic: GroupCallChatMessage = {
+        id,
         from: userId,
         fromName: userNameRef.current || 'Unknown',
         text: clean,
         sentAt: new Date().toISOString(),
       };
 
-      // optimistic
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => [...prev, optimistic]);
 
-      channelRef.current.send({
-        type: 'broadcast',
-        event: 'group-call-chat',
-        payload: { roomId, message: msg },
+      const { error } = await supabase.from('group_call_messages').insert({
+        id,
+        room_id: roomId,
+        user_id: userId,
+        from_name: optimistic.fromName,
+        text: clean,
       });
+
+      if (error) {
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+        toast({ title: 'Message failed', description: error.message, variant: 'destructive' });
+        return;
+      }
+
+      // realtime will also deliver; we dedupe by id
     },
-    [roomId, userId]
+    [roomId, userId, toast]
   );
 
   const createPeerConnection = useCallback(
     async (participantId: string, participantName: string) => {
       const pc = new RTCPeerConnection(ICE_SERVERS);
 
-      // Add local tracks
       if (localStream) {
-        localStream.getTracks().forEach((track) => {
-          pc.addTrack(track, localStream);
-        });
+        localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
       }
 
-      // Handle incoming tracks
       pc.ontrack = (event) => {
         setParticipants((prev) => {
           const updated = new Map(prev);
           const existing = updated.get(participantId);
           if (existing) {
-            existing.stream = event.streams[0];
-            updated.set(participantId, existing);
+            updated.set(participantId, { ...existing, stream: event.streams[0] });
           }
           return updated;
         });
       };
 
-      // Handle ICE candidates
       pc.onicecandidate = (event) => {
-        if (event.candidate && roomId) {
-          sendSignal({
-            type: 'ice-candidate',
-            from: userId!,
-            to: participantId,
-            roomId,
-            data: event.candidate,
-          });
-        }
+        if (!event.candidate || !roomId || !userId) return;
+        sendSignal({
+          type: 'ice-candidate',
+          from: userId,
+          to: participantId,
+          roomId,
+          data: event.candidate,
+        });
       };
 
       peerConnections.current.set(participantId, pc);
 
-      // Add to participants
       setParticipants((prev) => {
         const updated = new Map(prev);
         updated.set(participantId, {
@@ -190,6 +254,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
           userName: participantName,
           stream: null,
           peerConnection: pc,
+          isScreenSharing: false,
         });
         return updated;
       });
@@ -202,13 +267,9 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   const setupLocalStream = useCallback(
     async (isVideo: boolean) => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: isVideo,
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
         setLocalStream(stream);
         setIsVideoEnabled(isVideo);
-        isVideoCall.current = isVideo;
         return stream;
       } catch (error) {
         console.error('Error accessing media devices:', error);
@@ -229,47 +290,47 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
         .on('broadcast', { event: 'group-call-signal' }, async ({ payload }) => {
           await handleSignal(payload as GroupCallSignal);
         })
-        .on('broadcast', { event: 'group-call-chat' }, ({ payload }) => {
-          const incoming = payload as { roomId: string; message: GroupCallChatMessage };
-          if (!incoming?.message) return;
-          if (incoming.roomId !== targetRoomId) return;
-          if (incoming.message.from === userId) return;
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_call_messages',
+          filter: `room_id=eq.${targetRoomId}`,
+        }, (payload) => {
+          const row: any = (payload as any).new;
+          if (!row?.id) return;
 
-          setMessages((prev) => [...prev, incoming.message]);
+          const msg = toChatMessage(row);
+          setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
         });
     },
-    [userId]
+    []
   );
 
   const createRoom = useCallback(
     async (roomName: string, isVideo: boolean): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
 
-      const newRoomId = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newRoomId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
       await setupLocalStream(isVideo);
-
       setMessages([]);
 
-      // Set up channel
       channelRef.current = supabase.channel(`group-call:${newRoomId}`);
-
       attachChannelHandlers(channelRef.current, newRoomId);
-
       channelRef.current.subscribe();
+
+      await upsertMyParticipation(newRoomId);
+      await loadChatHistory(newRoomId);
 
       setRoomId(newRoomId);
       setIsInCall(true);
       startDurationTimer();
 
-      toast({
-        title: 'Room created',
-        description: `Room ID: ${newRoomId.slice(0, 15)}...`,
-      });
+      toast({ title: 'Room created', description: `Room ID: ${newRoomId.slice(0, 15)}...` });
 
       return newRoomId;
     },
-    [userId, setupLocalStream, startDurationTimer, toast, attachChannelHandlers]
+    [userId, setupLocalStream, startDurationTimer, toast, attachChannelHandlers, upsertMyParticipation, loadChatHistory]
   );
 
   const joinRoom = useCallback(
@@ -277,36 +338,32 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
       if (!userId) throw new Error('Not authenticated');
 
       await setupLocalStream(isVideo);
-
       setMessages([]);
 
-      // Set up channel
       channelRef.current = supabase.channel(`group-call:${targetRoomId}`);
-
       attachChannelHandlers(channelRef.current, targetRoomId);
 
       channelRef.current.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // Announce joining
-          sendSignal({
-            type: 'join-room',
-            from: userId,
-            fromName: userNameRef.current,
-            roomId: targetRoomId,
-          });
-        }
+        if (status !== 'SUBSCRIBED') return;
+
+        await upsertMyParticipation(targetRoomId);
+        await loadChatHistory(targetRoomId);
+
+        sendSignal({
+          type: 'join-room',
+          from: userId,
+          fromName: userNameRef.current,
+          roomId: targetRoomId,
+        });
       });
 
       setRoomId(targetRoomId);
       setIsInCall(true);
       startDurationTimer();
 
-      toast({
-        title: 'Joined room',
-        description: 'Connected to group call',
-      });
+      toast({ title: 'Joined room', description: 'Connected to group call' });
     },
-    [userId, setupLocalStream, sendSignal, startDurationTimer, toast, attachChannelHandlers]
+    [userId, setupLocalStream, sendSignal, startDurationTimer, toast, attachChannelHandlers, upsertMyParticipation, loadChatHistory]
   );
 
   const handleSignal = useCallback(
@@ -315,7 +372,6 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
       switch (signal.type) {
         case 'join-room': {
-          // Someone joined, create offer
           const pc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
@@ -328,6 +384,18 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
             roomId: signal.roomId,
             data: offer,
           });
+
+          // Let the newcomer know whether we're currently sharing.
+          if (roomId && isScreenSharing) {
+            sendSignal({
+              type: 'screen-status',
+              from: userId,
+              fromName: userNameRef.current,
+              to: signal.from,
+              roomId: signal.roomId,
+              data: { isSharing: true },
+            });
+          }
 
           toast({
             title: 'Participant joined',
@@ -376,8 +444,14 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
           break;
         }
 
+        case 'screen-status': {
+          if (signal.to !== userId) return;
+          const sharing = Boolean(signal.data?.isSharing);
+          setParticipantScreenStatus(signal.from, sharing);
+          break;
+        }
+
         case 'leave-room': {
-          // Remove participant
           const leavingPc = peerConnections.current.get(signal.from);
           if (leavingPc) {
             leavingPc.close();
@@ -397,20 +471,25 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
         }
       }
     },
-    [userId, createPeerConnection, sendSignal, toast]
+    [
+      userId,
+      createPeerConnection,
+      sendSignal,
+      toast,
+      roomId,
+      isScreenSharing,
+      setParticipantScreenStatus,
+    ]
   );
 
   const leaveRoom = useCallback(() => {
-    if (roomId && userId) {
-      sendSignal({
-        type: 'leave-room',
-        from: userId,
-        fromName: userNameRef.current,
-        roomId,
-      });
+    const currentRoomId = roomId;
+
+    if (currentRoomId && userId) {
+      sendSignal({ type: 'leave-room', from: userId, fromName: userNameRef.current, roomId: currentRoomId });
+      removeMyParticipation(currentRoomId);
     }
 
-    // Clean up
     localStream?.getTracks().forEach((track) => track.stop());
     screenStream?.getTracks().forEach((track) => track.stop());
 
@@ -432,31 +511,29 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
     toast({
       title: 'Left call',
-      description: `Duration: ${Math.floor(callDuration / 60)}:${(callDuration % 60)
-        .toString()
-        .padStart(2, '0')}`,
+      description: `Duration: ${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, '0')}`,
     });
-  }, [roomId, userId, localStream, screenStream, callDuration, sendSignal, stopDurationTimer, toast]);
+  }, [roomId, userId, localStream, screenStream, callDuration, sendSignal, stopDurationTimer, toast, removeMyParticipation]);
 
   const toggleMute = useCallback(() => {
-    if (localStream) {
-      localStream.getAudioTracks().forEach((track) => {
-        track.enabled = isMuted;
-      });
-      setIsMuted(!isMuted);
-    }
+    if (!localStream) return;
+    localStream.getAudioTracks().forEach((track) => {
+      track.enabled = isMuted;
+    });
+    setIsMuted(!isMuted);
   }, [localStream, isMuted]);
 
   const toggleVideo = useCallback(() => {
-    if (localStream) {
-      localStream.getVideoTracks().forEach((track) => {
-        track.enabled = !isVideoEnabled;
-      });
-      setIsVideoEnabled(!isVideoEnabled);
-    }
+    if (!localStream) return;
+    localStream.getVideoTracks().forEach((track) => {
+      track.enabled = !isVideoEnabled;
+    });
+    setIsVideoEnabled(!isVideoEnabled);
   }, [localStream, isVideoEnabled]);
 
   const toggleScreenShare = useCallback(async () => {
+    if (!userId || !roomId) return;
+
     try {
       if (isScreenSharing) {
         screenStream?.getTracks().forEach((track) => track.stop());
@@ -468,11 +545,18 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
           const videoTrack = localStream.getVideoTracks()[0];
           peerConnections.current.forEach((pc) => {
             const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-            if (sender && videoTrack) {
-              sender.replaceTrack(videoTrack);
-            }
+            if (sender && videoTrack) sender.replaceTrack(videoTrack);
           });
         }
+
+        // Notify others
+        sendSignal({
+          type: 'screen-status',
+          from: userId,
+          fromName: userNameRef.current,
+          roomId,
+          data: { isSharing: false },
+        });
 
         toast({ title: 'Screen sharing stopped' });
       } else {
@@ -489,9 +573,16 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
         // Replace video track with screen track for all peers
         peerConnections.current.forEach((pc) => {
           const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-          if (sender) {
-            sender.replaceTrack(screenTrack);
-          }
+          if (sender) sender.replaceTrack(screenTrack);
+        });
+
+        // Notify others
+        sendSignal({
+          type: 'screen-status',
+          from: userId,
+          fromName: userNameRef.current,
+          roomId,
+          data: { isSharing: true },
         });
 
         screenTrack.onended = () => {
@@ -502,20 +593,30 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
       }
     } catch (error) {
       if ((error as Error).name !== 'NotAllowedError') {
-        toast({
-          title: 'Screen sharing failed',
-          variant: 'destructive',
-        });
+        toast({ title: 'Screen sharing failed', variant: 'destructive' });
       }
     }
-  }, [isScreenSharing, screenStream, localStream, toast]);
+  }, [isScreenSharing, screenStream, localStream, toast, userId, roomId, sendSignal]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       leaveRoom();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep our own participant screen status mirrored in local state map (so UI can show indicator consistently)
+  useEffect(() => {
+    if (!userId) return;
+    setParticipants((prev) => {
+      if (!prev.has(userId)) return prev;
+      const next = new Map(prev);
+      const me = next.get(userId)!;
+      next.set(userId, { ...me, isScreenSharing });
+      return next;
+    });
+  }, [isScreenSharing, userId]);
 
   return {
     localStream,

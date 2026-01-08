@@ -122,71 +122,28 @@ export const useFriendRequests = () => {
       // Check if identifier looks like a UUID (User ID)
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedIdentifier);
 
-      let targetUser: { user_id: string; display_name: string | null } | null = null;
+      // IMPORTANT: profiles SELECT is restricted by RLS (connected users only).
+      // Use RPC that returns limited public fields and bypasses that restriction for discovery.
+      const { data: matches, error: matchError } = await supabase.rpc('search_profiles', {
+        _query: trimmedIdentifier,
+      });
 
-      if (isUUID) {
-        // Search by User ID
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('user_id, display_name')
-          .eq('user_id', trimmedIdentifier)
-          .maybeSingle();
+      if (matchError) throw matchError;
 
-        if (error) throw error;
-        targetUser = data;
-      } else {
-        // 1) custom_user_id exact
-        const { data: customIdProfile, error: customIdError } = await supabase
-          .from('profiles')
-          .select('user_id, display_name')
-          .eq('custom_user_id', trimmedIdentifier)
-          .maybeSingle();
+      const best = (matches || [])[0] as
+        | { user_id: string; display_name: string | null; username: string | null }
+        | undefined;
 
-        if (customIdError) throw customIdError;
+      const exact = (matches || []).find((m: any) => {
+        if (isUUID) return m.user_id === trimmedIdentifier;
+        const q = trimmedIdentifier.toLowerCase();
+        return (
+          (m.username && String(m.username).toLowerCase() === q) ||
+          (m.display_name && String(m.display_name).toLowerCase() === q)
+        );
+      }) as any;
 
-        if (customIdProfile) {
-          targetUser = customIdProfile;
-        } else {
-          // 2) username case-insensitive exact
-          const { data: usernameProfile, error: usernameError } = await supabase
-            .from('profiles')
-            .select('user_id, display_name')
-            .ilike('username', trimmedIdentifier)
-            .maybeSingle();
-
-          if (usernameError) throw usernameError;
-
-          if (usernameProfile) {
-            targetUser = usernameProfile;
-          } else {
-            // 3) display_name case-insensitive exact
-            const { data: displayNameProfile, error: displayNameError } = await supabase
-              .from('profiles')
-              .select('user_id, display_name')
-              .ilike('display_name', trimmedIdentifier)
-              .maybeSingle();
-
-            if (displayNameError) throw displayNameError;
-
-            if (displayNameProfile) {
-              targetUser = displayNameProfile;
-            } else {
-              // 4) partial username match (prefix)
-              const { data: partialMatch, error: partialError } = await supabase
-                .from('profiles')
-                .select('user_id, display_name, username')
-                .ilike('username', `${trimmedIdentifier}%`)
-                .limit(1)
-                .maybeSingle();
-
-              if (partialError) throw partialError;
-              if (partialMatch) {
-                targetUser = { user_id: partialMatch.user_id, display_name: partialMatch.display_name };
-              }
-            }
-          }
-        }
-      }
+      const targetUser = (exact || best) ? { user_id: (exact || best).user_id, display_name: (exact || best).display_name } : null;
 
       if (!targetUser) {
         toast({
@@ -255,31 +212,6 @@ export const useFriendRequests = () => {
       return false;
     }
   }, [currentUserId]);
-
-  // Accept friend request
-  const acceptRequest = useCallback(async (requestId: string): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('contacts')
-        .update({ status: 'accepted' })
-        .eq('id', requestId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Friend request accepted!",
-        description: "You are now connected"
-      });
-
-      return true;
-    } catch (error: any) {
-      toast({
-        title: "Failed to accept request",
-        variant: "destructive"
-      });
-      return false;
-    }
-  }, []);
 
   // Decline/reject friend request
   const declineRequest = useCallback(async (requestId: string): Promise<boolean> => {

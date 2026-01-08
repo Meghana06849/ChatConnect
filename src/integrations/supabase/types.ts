@@ -274,6 +274,54 @@ export type Database = {
         }
         Relationships: []
       }
+      group_call_messages: {
+        Row: {
+          created_at: string
+          from_name: string | null
+          id: string
+          room_id: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_name?: string | null
+          id?: string
+          room_id: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_name?: string | null
+          id?: string
+          room_id?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      group_call_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       group_members: {
         Row: {
           group_id: string
@@ -776,6 +824,17 @@ export type Database = {
       is_user_blocked: {
         Args: { checker_id: string; target_id: string }
         Returns: boolean
+      }
+      search_profiles: {
+        Args: { _query: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          is_verified: boolean
+          user_id: string
+          username: string
+          verification_type: string
+        }[]
       }
     }
     Enums: {
