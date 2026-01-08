@@ -213,6 +213,31 @@ export const useFriendRequests = () => {
     }
   }, [currentUserId]);
 
+  // Accept friend request
+  const acceptRequest = useCallback(async (requestId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('contacts')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Friend request accepted!",
+        description: "You are now connected"
+      });
+
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Failed to accept request",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, []);
+
   // Decline/reject friend request
   const declineRequest = useCallback(async (requestId: string): Promise<boolean> => {
     try {
