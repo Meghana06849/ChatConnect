@@ -425,6 +425,7 @@ export type Database = {
           content: string
           conversation_id: string
           created_at: string
+          delivered_at: string | null
           dream_reveal_at: string | null
           id: string
           is_dream_message: boolean | null
@@ -433,11 +434,13 @@ export type Database = {
           reactions: Json | null
           read_at: string | null
           sender_id: string
+          status: string | null
         }
         Insert: {
           content: string
           conversation_id: string
           created_at?: string
+          delivered_at?: string | null
           dream_reveal_at?: string | null
           id?: string
           is_dream_message?: boolean | null
@@ -446,11 +449,13 @@ export type Database = {
           reactions?: Json | null
           read_at?: string | null
           sender_id: string
+          status?: string | null
         }
         Update: {
           content?: string
           conversation_id?: string
           created_at?: string
+          delivered_at?: string | null
           dream_reveal_at?: string | null
           id?: string
           is_dream_message?: boolean | null
@@ -459,6 +464,7 @@ export type Database = {
           reactions?: Json | null
           read_at?: string | null
           sender_id?: string
+          status?: string | null
         }
         Relationships: [
           {
@@ -835,6 +841,10 @@ export type Database = {
           username: string
           verification_type: string
         }[]
+      }
+      update_user_presence: {
+        Args: { is_online_status: boolean }
+        Returns: undefined
       }
     }
     Enums: {

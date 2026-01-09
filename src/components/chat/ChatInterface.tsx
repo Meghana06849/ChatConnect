@@ -6,10 +6,13 @@ import { TypingIndicator } from './TypingIndicator';
 import { HeartReadReceipt } from './HeartReadReceipt';
 import { EmojiReactionPicker } from './EmojiReactionPicker';
 import { MessageReactions } from './MessageReactions';
+import { VoiceMessageRecorder } from './VoiceMessageRecorder';
+import { VoiceMessagePlayer } from './VoiceMessagePlayer';
+import { LastSeenStatus } from './LastSeenStatus';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Smile, Mic, Phone, Video, Heart } from 'lucide-react';
+import { Send, Smile, Mic, Phone, Video, Heart, X } from 'lucide-react';
 
 interface ChatInterfaceProps {
   selectedContact?: {
@@ -17,6 +20,7 @@ interface ChatInterfaceProps {
     name: string;
     avatar?: string;
     isOnline: boolean;
+    lastSeen?: string | null;
   };
   conversationId?: string;
 }
@@ -26,6 +30,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
   const [messageInput, setMessageInput] = useState('');
   const [disappearTimer, setDisappearTimer] = useState<'none' | '10s' | '1min' | 'custom'>('none');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isLoversMode = mode === 'lovers';
@@ -134,20 +139,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
             </Avatar>
             <div>
               <h3 className="font-semibold">{selectedContact.name}</h3>
-              <p className={`
-                text-sm
-                ${selectedContact.isOnline 
-                  ? isLoversMode ? 'text-lovers-primary' : 'text-general-primary'
-                  : 'text-muted-foreground'
-                }
-              `}>
-                {isPartnerTyping 
-                  ? (isLoversMode ? 'typing with love...' : 'typing...') 
-                  : selectedContact.isOnline 
-                    ? 'Online' 
-                    : 'Last seen recently'
-                }
-              </p>
+              <LastSeenStatus 
+                isOnline={selectedContact.isOnline}
+                lastSeen={selectedContact.lastSeen}
+                isTyping={isPartnerTyping}
+                isLoversMode={isLoversMode}
+              />
             </div>
           </div>
           
@@ -236,7 +233,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
                       }
                     `}
                   >
-                    <p className="break-words">{msg.content}</p>
+                    {/* Voice message or text */}
+                    {msg.message_type === 'voice' && msg.metadata?.audioUrl ? (
+                      <VoiceMessagePlayer 
+                        audioUrl={msg.metadata.audioUrl}
+                        duration={msg.metadata.duration}
+                        isOwnMessage={isOwnMessage}
+                        isLoversMode={isLoversMode}
+                      />
+                    ) : (
+                      <p className="break-words">{msg.content}</p>
+                    )}
                     
                     {/* Reactions Display */}
                     <MessageReactions 
@@ -282,45 +289,63 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
 
       {/* Message Input */}
       <div className="p-4 border-t border-white/20 glass">
-        <div className="flex items-center space-x-2">
-          <div className="flex-1 relative">
-            <Input
-              value={messageInput}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              onBlur={() => setTyping(false)}
-              placeholder={isLoversMode ? "Send love..." : "Type a message..."}
-              className="pr-12 py-3 rounded-2xl glass border-white/20"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full hover:bg-white/10"
-            >
-              <Smile className="w-5 h-5" />
-            </Button>
+        {isRecordingVoice ? (
+          <VoiceMessageRecorder
+            isLoversMode={isLoversMode}
+            onSend={async (audioBlob, duration) => {
+              // For now, create a local URL for the audio
+              // In production, you'd upload to storage and save the URL
+              const audioUrl = URL.createObjectURL(audioBlob);
+              await sendMessage('🎤 Voice message', 'voice');
+              setIsRecordingVoice(false);
+            }}
+            onCancel={() => setIsRecordingVoice(false)}
+          />
+        ) : (
+          <div className="flex items-center space-x-2">
+            <div className="flex-1 relative">
+              <Input
+                value={messageInput}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                onBlur={() => setTyping(false)}
+                placeholder={isLoversMode ? "Send love..." : "Type a message..."}
+                className="pr-12 py-3 rounded-2xl glass border-white/20"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full hover:bg-white/10"
+              >
+                <Smile className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            {messageInput.trim() ? (
+              <Button
+                onClick={handleSendMessage}
+                className={`
+                  rounded-full w-12 h-12 p-0
+                  ${isLoversMode ? 'btn-lovers' : 'btn-general'}
+                `}
+              >
+                <Send className="w-5 h-5" />
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsRecordingVoice(true)}
+                className={`
+                  rounded-full w-12 h-12 p-0 hover:bg-white/10
+                  ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}
+                `}
+              >
+                <Mic className="w-5 h-5" />
+              </Button>
+            )}
           </div>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full hover:bg-white/10"
-          >
-            <Mic className="w-5 h-5" />
-          </Button>
-          
-          <Button
-            onClick={handleSendMessage}
-            disabled={!messageInput.trim()}
-            className={`
-              rounded-full w-12 h-12 p-0
-              ${isLoversMode ? 'btn-lovers' : 'btn-general'}
-              disabled:opacity-50 disabled:cursor-not-allowed
-            `}
-          >
-            <Send className="w-5 h-5" />
-          </Button>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatLayout } from "@/components/layout/ChatLayout";
+import { useUserPresence } from '@/hooks/useUserPresence';
 import { User } from '@supabase/supabase-js';
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  
+  // Track user presence (online/offline status)
+  useUserPresence();
 
   useEffect(() => {
     // Check current session
