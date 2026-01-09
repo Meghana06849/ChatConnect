@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useFriendRequests } from '@/hooks/useFriendRequests';
@@ -19,6 +19,7 @@ import { FriendSuggestions } from './FriendSuggestions';
 import { BlockedUsersManager } from './BlockedUsersManager';
 import { NotificationSettings } from './NotificationSettings';
 import { VerificationBadge } from '@/components/profile/VerificationBadge';
+import { UserSearchAutocomplete } from '@/components/features/UserSearchAutocomplete';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
@@ -242,9 +243,38 @@ export const FriendsManager: React.FC = () => {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Enter a username or User ID to connect
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Search for users by name or username
                   </p>
+                  <UserSearchAutocomplete
+                    placeholder="Type to search users..."
+                    isLoversMode={isLoversMode}
+                    onSelect={(user) => {
+                      setAddFriendQuery(user.user_id);
+                    }}
+                    onSendRequest={async (userId, displayName) => {
+                      setSending(true);
+                      const success = await sendRequest(userId);
+                      setSending(false);
+                      if (success) {
+                        setShowAddFriend(false);
+                        setAddFriendQuery('');
+                      }
+                    }}
+                    showSendButton={true}
+                  />
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-white/10" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or enter manually</span>
+                  </div>
+                </div>
+
+                <div>
                   <Input
                     value={addFriendQuery}
                     onChange={(e) => setAddFriendQuery(e.target.value)}
@@ -258,7 +288,7 @@ export const FriendsManager: React.FC = () => {
                 {currentUserId && (
                   <div className="p-3 bg-muted/20 rounded-lg">
                     <p className="text-xs text-muted-foreground mb-1">Your User ID (share with friends):</p>
-                    <code className="text-xs font-mono break-all">{currentUserId}</code>
+                    <code className="text-xs font-mono break-all select-all">{currentUserId}</code>
                   </div>
                 )}
                 
