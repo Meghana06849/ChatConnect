@@ -831,6 +831,20 @@ export type Database = {
         Args: { checker_id: string; target_id: string }
         Returns: boolean
       }
+      search_messages: {
+        Args: { result_limit?: number; search_query: string }
+        Returns: {
+          content: string
+          conversation_id: string
+          conversation_name: string
+          created_at: string
+          message_id: string
+          message_type: string
+          sender_avatar: string
+          sender_id: string
+          sender_name: string
+        }[]
+      }
       search_profiles: {
         Args: { _query: string }
         Returns: {

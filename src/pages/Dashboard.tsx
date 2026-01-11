@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ChatLayout } from "@/components/layout/ChatLayout";
 import { useUserPresence } from '@/hooks/useUserPresence';
+import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { User } from '@supabase/supabase-js';
 
 const Dashboard = () => {
@@ -12,6 +13,9 @@ const Dashboard = () => {
   
   // Track user presence (online/offline status)
   useUserPresence();
+  
+  // Enable push notifications for new messages
+  useMessageNotifications(user?.id || null);
 
   useEffect(() => {
     // Check current session

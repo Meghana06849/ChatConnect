@@ -5,7 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Search, Heart, MessageCircle } from 'lucide-react';
+import { MessageSearch } from './MessageSearch';
 
 interface Contact {
   id: string;
@@ -96,9 +98,33 @@ export const ContactsList: React.FC<ContactsListProps> = ({
               </>
             )}
           </h2>
+          
+          {/* Global Message Search */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="hover:bg-white/10"
+              >
+                <Search className="w-5 h-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[350px] p-0 glass border-white/20">
+              <MessageSearch 
+                onResultClick={(conversationId) => {
+                  // Find contact by conversation ID and select it
+                  const contact = contacts.find(c => c.conversationId === conversationId);
+                  if (contact) {
+                    onContactSelect(contact);
+                  }
+                }}
+              />
+            </SheetContent>
+          </Sheet>
         </div>
         
-        {/* Search */}
+        {/* Local Contact Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
