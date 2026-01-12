@@ -151,22 +151,24 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Create conversation
-      const { data: conversation, error: convError } = await supabase
+      // Generate UUID client-side to avoid needing .select() after insert
+      const conversationId = crypto.randomUUID();
+
+      // Create conversation without .select() to avoid RLS issues
+      const { error: convError } = await supabase
         .from('conversations')
         .insert([{
+          id: conversationId,
           type: 'direct',
           created_by: user.id,
           is_lovers_conversation: isLoversConversation
-        }])
-        .select()
-        .single();
+        }]);
 
       if (convError) throw convError;
 
-      // Add participants
+      // Add participants (including self)
       const participants = [user.id, ...participantUserIds].map(userId => ({
-        conversation_id: conversation.id,
+        conversation_id: conversationId,
         user_id: userId
       }));
 
@@ -176,7 +178,13 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
 
       if (participantsError) throw participantsError;
 
-      return conversation;
+      // Return the conversation object with the generated ID
+      return { 
+        id: conversationId, 
+        type: 'direct', 
+        created_by: user.id, 
+        is_lovers_conversation: isLoversConversation 
+      };
     } catch (error: any) {
       toast({
         title: "Error creating conversation",
