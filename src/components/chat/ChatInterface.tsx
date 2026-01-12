@@ -9,10 +9,11 @@ import { MessageReactions } from './MessageReactions';
 import { VoiceMessageRecorder } from './VoiceMessageRecorder';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { LastSeenStatus } from './LastSeenStatus';
+import { EmojiKeyboard } from './EmojiKeyboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Smile, Mic, Phone, Video, Heart, X } from 'lucide-react';
+import { Send, Mic, Phone, Video, Heart } from 'lucide-react';
 
 interface ChatInterfaceProps {
   selectedContact?: {
@@ -312,13 +313,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
                 placeholder={isLoversMode ? "Send love..." : "Type a message..."}
                 className="pr-12 py-3 rounded-2xl glass border-white/20"
               />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 rounded-full hover:bg-white/10"
-              >
-                <Smile className="w-5 h-5" />
-              </Button>
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                <EmojiKeyboard
+                  onEmojiSelect={(emoji) => setMessageInput(prev => prev + emoji)}
+                  isLoversMode={isLoversMode}
+                />
+              </div>
             </div>
             
             {messageInput.trim() ? (
