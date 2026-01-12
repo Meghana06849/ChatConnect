@@ -18,6 +18,7 @@ interface Contact {
   unreadCount: number;
   avatar?: string;
   conversationId?: string;
+  lastSeen?: string | null;
 }
 
 interface ContactsListProps {
@@ -60,6 +61,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       isOnline: otherParticipant?.profiles?.is_online || false,
       unreadCount: 0, // Would need to calculate
       avatar: otherParticipant?.profiles?.avatar_url,
+      lastSeen: otherParticipant?.profiles?.last_seen,
     };
   });
   

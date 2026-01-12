@@ -36,6 +36,8 @@ interface Contact {
   isOnline: boolean;
   unreadCount: number;
   avatar?: string;
+  conversationId?: string;
+  lastSeen?: string | null;
 }
 
 export const ChatLayout = () => {
@@ -81,7 +83,16 @@ export const ChatLayout = () => {
               selectedContact={selectedContact}
               onContactSelect={setSelectedContact}
             />
-            <ChatInterface selectedContact={selectedContact} />
+            <ChatInterface 
+              selectedContact={selectedContact ? {
+                id: selectedContact.id,
+                name: selectedContact.name,
+                avatar: selectedContact.avatar,
+                isOnline: selectedContact.isOnline,
+                lastSeen: selectedContact.lastSeen,
+              } : undefined}
+              conversationId={selectedContact?.conversationId || selectedContact?.id}
+            />
           </div>
         );
       
