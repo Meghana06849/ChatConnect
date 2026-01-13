@@ -5,20 +5,40 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Search, Heart, MessageCircle } from 'lucide-react';
+import { VerificationBadge } from '@/components/profile/VerificationBadge';
+import { 
+  Search, 
+  Heart, 
+  MessageCircle, 
+  Image, 
+  Mic, 
+  Video, 
+  FileText,
+  Check,
+  CheckCheck,
+} from 'lucide-react';
 import { MessageSearch } from './MessageSearch';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Contact {
   id: string;
   name: string;
   lastMessage: string;
+  lastMessageType?: string;
   timestamp: Date;
   isOnline: boolean;
   unreadCount: number;
   avatar?: string;
   conversationId?: string;
   lastSeen?: string | null;
+  isVerified?: boolean;
+  verificationType?: string;
+  isMuted?: boolean;
+  isPinned?: boolean;
+  isTyping?: boolean;
 }
 
 interface ContactsListProps {
@@ -47,7 +67,6 @@ export const ContactsList: React.FC<ContactsListProps> = ({
 
   // Transform conversations to contacts format
   const contacts: Contact[] = conversations.map(conv => {
-    // Find the other participant (not current user)
     const otherParticipant = conv.conversation_participants.find(
       p => p.user_id !== currentUserId
     );
@@ -56,18 +75,59 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       id: conv.id,
       conversationId: conv.id,
       name: otherParticipant?.profiles?.display_name || conv.name || 'Unknown',
-      lastMessage: '', // Would need to fetch last message
+      lastMessage: '',
+      lastMessageType: 'text',
       timestamp: new Date(),
       isOnline: otherParticipant?.profiles?.is_online || false,
-      unreadCount: 0, // Would need to calculate
+      unreadCount: 0,
       avatar: otherParticipant?.profiles?.avatar_url,
       lastSeen: otherParticipant?.profiles?.last_seen,
+      isVerified: otherParticipant?.profiles?.is_verified,
+      verificationType: otherParticipant?.profiles?.verification_type,
     };
   });
   
   const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Sort: pinned first, then by timestamp
+  const sortedContacts = [...filteredContacts].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return b.timestamp.getTime() - a.timestamp.getTime();
+  });
+
+  const getLastMessagePreview = (contact: Contact) => {
+    if (contact.isTyping) {
+      return (
+        <span className={cn(
+          "animate-pulse",
+          isLoversMode ? "text-lovers-primary" : "text-general-primary"
+        )}>
+          typing...
+        </span>
+      );
+    }
+
+    if (!contact.lastMessage) {
+      return contact.isOnline ? 'Online' : 'Tap to chat';
+    }
+
+    const icons: Record<string, React.ReactNode> = {
+      image: <Image className="w-3 h-3 mr-1 inline" />,
+      video: <Video className="w-3 h-3 mr-1 inline" />,
+      voice: <Mic className="w-3 h-3 mr-1 inline" />,
+      document: <FileText className="w-3 h-3 mr-1 inline" />,
+    };
+
+    return (
+      <span className="flex items-center">
+        {icons[contact.lastMessageType || 'text']}
+        {contact.lastMessage.slice(0, 30)}{contact.lastMessage.length > 30 ? '...' : ''}
+      </span>
+    );
+  };
 
   const formatTime = (timestamp: Date) => {
     const now = new Date();
@@ -79,15 +139,16 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     if (minutes < 1) return 'now';
     if (minutes < 60) return `${minutes}m`;
     if (hours < 24) return `${hours}h`;
-    return `${days}d`;
+    if (days < 7) return `${days}d`;
+    return timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   return (
-    <div className="w-80 border-r border-white/20 glass flex flex-col">
+    <div className="w-full md:w-80 border-r border-white/20 glass flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-white/20">
+      <div className="p-4 border-b border-white/20 shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold flex items-center space-x-2">
+          <h2 className="text-xl font-bold flex items-center gap-2">
             {isLoversMode ? (
               <>
                 <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
@@ -101,13 +162,12 @@ export const ContactsList: React.FC<ContactsListProps> = ({
             )}
           </h2>
           
-          {/* Global Message Search */}
           <Sheet>
             <SheetTrigger asChild>
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="hover:bg-white/10"
+                className="hover:bg-white/10 rounded-full"
               >
                 <Search className="w-5 h-5" />
               </Button>
@@ -115,25 +175,21 @@ export const ContactsList: React.FC<ContactsListProps> = ({
             <SheetContent side="left" className="w-[350px] p-0 glass border-white/20">
               <MessageSearch 
                 onResultClick={(conversationId) => {
-                  // Find contact by conversation ID and select it
                   const contact = contacts.find(c => c.conversationId === conversationId);
-                  if (contact) {
-                    onContactSelect(contact);
-                  }
+                  if (contact) onContactSelect(contact);
                 }}
               />
             </SheetContent>
           </Sheet>
         </div>
         
-        {/* Local Contact Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search contacts..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 glass border-white/20"
+            className="pl-10 rounded-full glass border-white/20 text-sm"
           />
         </div>
       </div>
@@ -142,84 +198,113 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
           </div>
-        ) : filteredContacts.length === 0 ? (
+        ) : sortedContacts.length === 0 ? (
           <div className="p-8 text-center">
-            <MessageCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+            <div className={cn(
+              "w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4",
+              isLoversMode 
+                ? "bg-lovers-primary/10" 
+                : "bg-general-primary/10"
+            )}>
+              <MessageCircle className={cn(
+                "w-8 h-8",
+                isLoversMode ? "text-lovers-primary" : "text-general-primary"
+              )} />
+            </div>
             <h3 className="font-semibold mb-2">No conversations yet</h3>
             <p className="text-muted-foreground text-sm">
               {isLoversMode 
-                ? 'Start a romantic conversation with your partner'
-                : 'Add friends and start chatting!'
-              }
+                ? 'Start a romantic conversation'
+                : 'Add friends and start chatting!'}
             </p>
           </div>
         ) : (
-          filteredContacts.map((contact) => (
-            <Button
+          sortedContacts.map((contact) => (
+            <button
               key={contact.id}
-              variant="ghost"
               onClick={() => onContactSelect(contact)}
-              className={`
-                w-full p-4 h-auto justify-start rounded-none border-b border-white/10
-                hover:bg-white/10 transition-colors
-                ${selectedContact?.id === contact.id 
-                  ? `${isLoversMode 
-                      ? 'bg-lovers-primary/10 border-r-2 border-r-lovers-primary' 
-                      : 'bg-general-primary/10 border-r-2 border-r-general-primary'
-                    }` 
-                  : ''
-                }
-              `}
+              className={cn(
+                "w-full p-3 flex items-center gap-3 transition-all",
+                "hover:bg-white/5 active:bg-white/10",
+                "border-b border-white/5",
+                selectedContact?.id === contact.id && cn(
+                  "bg-white/10",
+                  isLoversMode 
+                    ? "border-l-2 border-l-lovers-primary" 
+                    : "border-l-2 border-l-general-primary"
+                )
+              )}
             >
-              <div className="flex items-start space-x-3 w-full">
-                <div className="relative">
-                  <Avatar className="w-12 h-12">
-                    {contact.avatar && <AvatarImage src={contact.avatar} />}
-                    <AvatarFallback className={`
-                      ${isLoversMode 
-                        ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
-                        : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                      }
-                    `}>
-                      {contact.name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  {contact.isOnline && (
-                    <div className={`
-                      absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white
-                      ${isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary'}
-                    `} />
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-medium text-sm truncate pr-2">
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <Avatar className="w-12 h-12">
+                  {contact.avatar && <AvatarImage src={contact.avatar} />}
+                  <AvatarFallback className={cn(
+                    "text-white font-medium",
+                    isLoversMode 
+                      ? "bg-gradient-to-br from-lovers-primary to-lovers-secondary" 
+                      : "bg-gradient-to-br from-general-primary to-general-secondary"
+                  )}>
+                    {contact.name[0]}
+                  </AvatarFallback>
+                </Avatar>
+                {contact.isOnline && (
+                  <div className={cn(
+                    "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-background",
+                    isLoversMode ? "bg-lovers-primary" : "bg-green-500"
+                  )} />
+                )}
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center justify-between mb-0.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <h3 className="font-medium text-sm truncate">
                       {contact.name}
                     </h3>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(contact.timestamp)}
-                    </span>
+                    {contact.isVerified && (
+                      <VerificationBadge 
+                        isVerified 
+                        verificationType={contact.verificationType}
+                        size="sm"
+                      />
+                    )}
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground truncate flex-1 pr-2">
-                      {contact.lastMessage || (contact.isOnline ? 'Online' : 'Tap to chat')}
-                    </p>
+                  <span className={cn(
+                    "text-xs shrink-0 ml-2",
+                    contact.unreadCount > 0 
+                      ? isLoversMode ? "text-lovers-primary" : "text-general-primary"
+                      : "text-muted-foreground"
+                  )}>
+                    {formatTime(contact.timestamp)}
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground truncate flex-1">
+                    {getLastMessagePreview(contact)}
+                  </p>
+                  <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                    {contact.isMuted && (
+                      <span className="text-xs">🔇</span>
+                    )}
                     {contact.unreadCount > 0 && (
-                      <div className={`
-                        min-w-[20px] h-5 rounded-full flex items-center justify-center text-xs text-white font-medium
-                        ${isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary'}
-                      `}>
+                      <Badge className={cn(
+                        "h-5 min-w-[20px] px-1.5 text-xs font-bold",
+                        isLoversMode 
+                          ? "bg-lovers-primary text-white" 
+                          : "bg-general-primary text-white"
+                      )}>
                         {contact.unreadCount > 99 ? '99+' : contact.unreadCount}
-                      </div>
+                      </Badge>
                     )}
                   </div>
                 </div>
               </div>
-            </Button>
+            </button>
           ))
         )}
       </div>
