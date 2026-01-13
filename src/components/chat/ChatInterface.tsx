@@ -2,18 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
+import { useCall } from '@/components/features/CallProvider';
 import { TypingIndicator } from './TypingIndicator';
-import { HeartReadReceipt } from './HeartReadReceipt';
 import { EmojiReactionPicker } from './EmojiReactionPicker';
-import { MessageReactions } from './MessageReactions';
 import { VoiceMessageRecorder } from './VoiceMessageRecorder';
-import { VoiceMessagePlayer } from './VoiceMessagePlayer';
-import { LastSeenStatus } from './LastSeenStatus';
 import { EmojiKeyboard } from './EmojiKeyboard';
+import { MediaAttachmentPicker } from './MediaAttachmentPicker';
+import { MessageBubble } from './MessageBubble';
+import { ChatHeader } from './ChatHeader';
+import { ReplyPreview } from './ReplyPreview';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Mic, Phone, Video, Heart } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Send, Mic, Heart, Loader2, ChevronDown } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface ChatInterfaceProps {
   selectedContact?: {
@@ -22,51 +25,103 @@ interface ChatInterfaceProps {
     avatar?: string;
     isOnline: boolean;
     lastSeen?: string | null;
+    isVerified?: boolean;
+    verificationType?: string;
   };
   conversationId?: string;
+  onBack?: () => void;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, conversationId }) => {
+interface ReplyInfo {
+  id: string;
+  content: string;
+  senderName: string;
+  messageType?: string;
+}
+
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  selectedContact, 
+  conversationId,
+  onBack 
+}) => {
   const { mode } = useChat();
+  const { startCall } = useCall();
+  const { toast } = useToast();
   const [messageInput, setMessageInput] = useState('');
-  const [disappearTimer, setDisappearTimer] = useState<'none' | '10s' | '1min' | 'custom'>('none');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyInfo | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isLoversMode = mode === 'lovers';
 
-  // Real-time chat hook
   const {
     messages,
     typingUsers,
     loading,
+    loadingMore,
+    hasMore,
     sendMessage,
     addReaction,
     setTyping,
+    loadOlderMessages,
   } = useEnhancedRealTimeChat(conversationId || null);
 
-  // Get current user
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentUserId(data.user?.id || null);
     });
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ 
+      behavior: smooth ? 'smooth' : 'auto' 
+    });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(false);
+  }, [conversationId]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isNearBottom) {
+        scrollToBottom();
+      }
+    }
   }, [messages]);
+
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Load older messages when near top
+    if (container.scrollTop < 100 && !loadingMore && hasMore) {
+      loadOlderMessages();
+    }
+
+    // Show scroll button when not at bottom
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    setShowScrollButton(!isNearBottom);
+  };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
 
-    await sendMessage(messageInput);
+    const metadata: any = {};
+    if (replyTo) {
+      metadata.replyTo = replyTo;
+    }
+
+    await sendMessage(messageInput, 'text');
     setMessageInput('');
+    setReplyTo(null);
     setTyping(false);
+    scrollToBottom();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -83,10 +138,34 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
     }
   };
 
-  const getMessageStatus = (msg: any): 'sending' | 'sent' | 'delivered' | 'seen' => {
-    if (msg.read_at) return 'seen';
-    if (msg.id) return 'delivered';
-    return 'sent';
+  const handleReply = (msg: any) => {
+    setReplyTo({
+      id: msg.id,
+      content: msg.content,
+      senderName: msg.sender_id === currentUserId ? 'You' : selectedContact?.name || 'Unknown',
+      messageType: msg.message_type,
+    });
+  };
+
+  const handleCall = async (isVideo: boolean) => {
+    if (!selectedContact) return;
+    try {
+      await startCall(selectedContact.id, selectedContact.name, isVideo);
+    } catch (error) {
+      toast({
+        title: "Call failed",
+        description: "Could not initiate call",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMediaSelect = (type: string, file: File) => {
+    toast({
+      title: `${type} selected`,
+      description: `${file.name} will be uploaded`,
+    });
+    // TODO: Implement file upload to Supabase Storage
   };
 
   const isPartnerTyping = typingUsers.length > 0;
@@ -94,14 +173,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
   if (!selectedContact) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className={`
-            w-24 h-24 rounded-full flex items-center justify-center mx-auto
-            ${isLoversMode 
-              ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
-              : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
-            }
-          `}>
+        <div className="text-center space-y-4 px-4">
+          <div className={cn(
+            "w-24 h-24 rounded-full flex items-center justify-center mx-auto",
+            isLoversMode
+              ? "bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20"
+              : "bg-gradient-to-br from-general-primary/20 to-general-secondary/20"
+          )}>
             {isLoversMode ? (
               <Heart className="w-12 h-12 text-lovers-primary animate-heart-beat" />
             ) : (
@@ -112,10 +190,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
             {isLoversMode ? 'Select someone special' : 'Start a conversation'}
           </h3>
           <p className="text-muted-foreground max-w-sm">
-            {isLoversMode 
+            {isLoversMode
               ? 'Choose a contact to share your heart with'
-              : 'Pick a contact from your list to start chatting'
-            }
+              : 'Pick a contact from your list to start chatting'}
           </p>
         </div>
       </div>
@@ -123,223 +200,199 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ selectedContact, c
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Chat Header */}
-      <div className="p-4 border-b border-white/20 glass">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className={`
-                ${isLoversMode 
-                  ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white' 
-                  : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                }
-              `}>
-                {selectedContact.name[0]}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="font-semibold">{selectedContact.name}</h3>
-              <LastSeenStatus 
-                isOnline={selectedContact.isOnline}
-                lastSeen={selectedContact.lastSeen}
-                isTyping={isPartnerTyping}
-                isLoversMode={isLoversMode}
-              />
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <select
-              value={disappearTimer}
-              onChange={(e) => setDisappearTimer(e.target.value as any)}
-              className="glass border-white/20 rounded-lg px-2 py-1 text-xs"
-            >
-              <option value="none">Normal</option>
-              <option value="10s">10s 💣</option>
-              <option value="1min">1min ⏱️</option>
-            </select>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full hover:bg-white/10"
-            >
-              <Phone className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full hover:bg-white/10"
-            >
-              <Video className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ChatHeader
+        contact={selectedContact}
+        isTyping={isPartnerTyping}
+        isLoversMode={isLoversMode}
+        onCall={() => handleCall(false)}
+        onVideoCall={() => handleCall(true)}
+        onBack={onBack}
+      />
 
-      {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-pulse text-muted-foreground">Loading messages...</div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-4">
-              <div className={`
-                w-16 h-16 rounded-full flex items-center justify-center mx-auto
-                ${isLoversMode 
-                  ? 'bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20' 
-                  : 'bg-gradient-to-br from-general-primary/20 to-general-secondary/20'
-                }
-              `}>
-                {isLoversMode ? (
-                  <Heart className="w-8 h-8 text-lovers-primary animate-heart-beat" />
-                ) : (
-                  <Send className="w-8 h-8 text-general-primary" />
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">
-                  {isLoversMode ? 'Share your heart' : 'No messages yet'}
-                </h3>
-                <p className="text-muted-foreground text-sm">
-                  {isLoversMode 
-                    ? 'Send a love message to start your conversation 💕'
-                    : 'Send a message to start chatting!'
-                  }
-                </p>
+      {/* Messages Area */}
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto relative"
+      >
+        <div className="p-4 space-y-3 min-h-full flex flex-col">
+          {/* Load more indicator */}
+          {loadingMore && (
+            <div className="flex justify-center py-2">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Beginning of chat */}
+          {!hasMore && messages.length > 0 && (
+            <div className="text-center py-4">
+              <div className={cn(
+                "inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs",
+                "bg-white/10 text-muted-foreground"
+              )}>
+                🔒 Messages are end-to-end encrypted
               </div>
             </div>
-          </div>
-        ) : (
-          messages.map((msg) => {
-            const isOwnMessage = msg.sender_id === currentUserId;
-            const reactions = Array.isArray(msg.reactions) ? msg.reactions : [];
-            
-            return (
-              <div
-                key={msg.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className="relative group max-w-[70%]">
-                  <div
-                    className={`
-                      rounded-2xl px-4 py-3 shadow-lg
-                      ${isOwnMessage
-                        ? isLoversMode 
-                          ? 'bg-gradient-to-br from-lovers-primary to-lovers-secondary text-white'
-                          : 'bg-gradient-to-br from-general-primary to-general-secondary text-white'
-                        : 'bg-white/90 backdrop-blur-sm text-foreground'
-                      }
-                    `}
-                  >
-                    {/* Voice message or text */}
-                    {msg.message_type === 'voice' && msg.metadata?.audioUrl ? (
-                      <VoiceMessagePlayer 
-                        audioUrl={msg.metadata.audioUrl}
-                        duration={msg.metadata.duration}
-                        isOwnMessage={isOwnMessage}
-                        isLoversMode={isLoversMode}
-                      />
-                    ) : (
-                      <p className="break-words">{msg.content}</p>
-                    )}
-                    
-                    {/* Reactions Display */}
-                    <MessageReactions 
-                      reactions={reactions}
-                      currentUserId={currentUserId || undefined}
-                      onReactionClick={(emoji) => addReaction(msg.id, emoji)}
-                      isLoversMode={isLoversMode}
-                    />
-                    
-                    <div className="flex items-center justify-end space-x-1 mt-1">
-                      <span className={`text-xs ${isOwnMessage ? 'text-white/70' : 'text-muted-foreground'}`}>
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {isOwnMessage && (
-                        <HeartReadReceipt 
-                          status={getMessageStatus(msg)}
-                          isLoversMode={isLoversMode}
-                          seenAt={msg.read_at || undefined}
-                        />
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Reaction Picker */}
-                  <div className={`absolute top-1/2 -translate-y-1/2 ${isOwnMessage ? '-left-10' : '-right-10'}`}>
-                    <EmojiReactionPicker
-                      onSelectEmoji={(emoji) => addReaction(msg.id, emoji)}
-                      isLoversMode={isLoversMode}
-                      existingReactions={reactions}
-                      currentUserId={currentUserId || undefined}
-                    />
-                  </div>
+          )}
+
+          {/* Loading state */}
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                <p className="text-sm text-muted-foreground">Loading messages...</p>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <div className={cn(
+                  "w-16 h-16 rounded-full flex items-center justify-center mx-auto",
+                  isLoversMode
+                    ? "bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20"
+                    : "bg-gradient-to-br from-general-primary/20 to-general-secondary/20"
+                )}>
+                  {isLoversMode ? (
+                    <Heart className="w-8 h-8 text-lovers-primary animate-heart-beat" />
+                  ) : (
+                    <Send className="w-8 h-8 text-general-primary" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">
+                    {isLoversMode ? 'Share your heart' : 'No messages yet'}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {isLoversMode
+                      ? 'Send a love message to start your conversation 💕'
+                      : 'Send a message to start chatting!'}
+                  </p>
                 </div>
               </div>
-            );
-          })
+            </div>
+          ) : (
+            <>
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  id={msg.id}
+                  content={msg.content}
+                  senderId={msg.sender_id}
+                  currentUserId={currentUserId}
+                  messageType={msg.message_type}
+                  createdAt={msg.created_at}
+                  readAt={msg.read_at}
+                  reactions={Array.isArray(msg.reactions) ? msg.reactions : []}
+                  metadata={msg.metadata}
+                  replyTo={msg.metadata?.replyTo}
+                  isLoversMode={isLoversMode}
+                  onReply={() => handleReply(msg)}
+                  onForward={() => toast({ title: 'Forward', description: 'Coming soon!' })}
+                  onReaction={(emoji) => addReaction(msg.id, emoji)}
+                  onStar={() => toast({ title: 'Starred', description: 'Message starred' })}
+                  onDelete={() => toast({ title: 'Delete', description: 'Coming soon!' })}
+                  onInfo={() => toast({ title: 'Info', description: 'Coming soon!' })}
+                />
+              ))}
+            </>
+          )}
+
+          {/* Typing Indicator */}
+          {isPartnerTyping && <TypingIndicator typingUsers={typingUsers} />}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Scroll to bottom button */}
+        {showScrollButton && (
+          <Button
+            size="icon"
+            onClick={() => scrollToBottom()}
+            className={cn(
+              "absolute bottom-4 right-4 rounded-full shadow-lg w-10 h-10",
+              isLoversMode ? "bg-lovers-primary" : "bg-general-primary"
+            )}
+          >
+            <ChevronDown className="w-5 h-5" />
+          </Button>
         )}
-        
-        {/* Typing Indicator */}
-        {isPartnerTyping && <TypingIndicator typingUsers={typingUsers} />}
-        <div ref={messagesEndRef} />
       </div>
 
+      {/* Reply Preview */}
+      {replyTo && (
+        <ReplyPreview
+          replyTo={replyTo}
+          onCancel={() => setReplyTo(null)}
+          isLoversMode={isLoversMode}
+        />
+      )}
+
       {/* Message Input */}
-      <div className="p-4 border-t border-white/20 glass">
+      <div className="p-3 border-t border-white/20 glass">
         {isRecordingVoice ? (
           <VoiceMessageRecorder
             isLoversMode={isLoversMode}
             onSend={async (audioBlob, duration) => {
-              // For now, create a local URL for the audio
-              // In production, you'd upload to storage and save the URL
               const audioUrl = URL.createObjectURL(audioBlob);
               await sendMessage('🎤 Voice message', 'voice');
               setIsRecordingVoice(false);
+              scrollToBottom();
             }}
             onCancel={() => setIsRecordingVoice(false)}
           />
         ) : (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
+            {/* Attachment Picker */}
+            <MediaAttachmentPicker
+              onImageSelect={(file) => handleMediaSelect('Image', file)}
+              onVideoSelect={(file) => handleMediaSelect('Video', file)}
+              onDocumentSelect={(file) => handleMediaSelect('Document', file)}
+              onCameraCapture={() => toast({ title: 'Camera', description: 'Coming soon!' })}
+              onLocationShare={() => toast({ title: 'Location', description: 'Coming soon!' })}
+              onContactShare={() => toast({ title: 'Contact', description: 'Coming soon!' })}
+              isLoversMode={isLoversMode}
+            />
+
+            {/* Message Input */}
             <div className="flex-1 relative">
               <Input
                 value={messageInput}
                 onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
-                onBlur={() => setTyping(false)}
+                onBlur={() => !messageInput.trim() && setTyping(false)}
                 placeholder={isLoversMode ? "Send love..." : "Type a message..."}
-                className="pr-12 py-3 rounded-2xl glass border-white/20"
+                className="pr-10 py-2.5 rounded-full glass border-white/20 text-sm"
               />
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
                 <EmojiKeyboard
                   onEmojiSelect={(emoji) => setMessageInput(prev => prev + emoji)}
                   isLoversMode={isLoversMode}
                 />
               </div>
             </div>
-            
+
+            {/* Send / Voice Button */}
             {messageInput.trim() ? (
               <Button
                 onClick={handleSendMessage}
-                className={`
-                  rounded-full w-12 h-12 p-0
-                  ${isLoversMode ? 'btn-lovers' : 'btn-general'}
-                `}
+                size="icon"
+                className={cn(
+                  "rounded-full w-10 h-10 shrink-0",
+                  isLoversMode ? "btn-lovers" : "btn-general"
+                )}
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4" />
               </Button>
             ) : (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsRecordingVoice(true)}
-                className={`
-                  rounded-full w-12 h-12 p-0 hover:bg-white/10
-                  ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}
-                `}
+                className={cn(
+                  "rounded-full w-10 h-10 shrink-0 hover:bg-white/10",
+                  isLoversMode ? "text-lovers-primary" : "text-general-primary"
+                )}
               >
                 <Mic className="w-5 h-5" />
               </Button>
