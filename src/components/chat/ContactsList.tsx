@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { VerificationBadge } from '@/components/profile/VerificationBadge';
+import { NewChatDialog } from './NewChatDialog';
 import { 
   Search, 
   Heart, 
@@ -162,25 +163,39 @@ export const ContactsList: React.FC<ContactsListProps> = ({
             )}
           </h2>
           
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="hover:bg-white/10 rounded-full"
-              >
-                <Search className="w-5 h-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[350px] p-0 glass border-white/20">
-              <MessageSearch 
-                onResultClick={(conversationId) => {
-                  const contact = contacts.find(c => c.conversationId === conversationId);
-                  if (contact) onContactSelect(contact);
-                }}
-              />
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-1">
+            <NewChatDialog 
+              onChatCreated={(contact) => onContactSelect({
+                id: contact.id,
+                name: contact.name,
+                lastMessage: '',
+                timestamp: new Date(),
+                isOnline: contact.isOnline,
+                unreadCount: 0,
+                avatar: contact.avatar,
+                conversationId: contact.conversationId,
+              })}
+            />
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="hover:bg-white/10 rounded-full"
+                >
+                  <Search className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[350px] p-0 glass border-white/20">
+                <MessageSearch 
+                  onResultClick={(conversationId) => {
+                    const contact = contacts.find(c => c.conversationId === conversationId);
+                    if (contact) onContactSelect(contact);
+                  }}
+                />
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
         
         <div className="relative">
