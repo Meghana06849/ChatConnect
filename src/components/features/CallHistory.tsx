@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
+import { useChat } from '@/contexts/ChatContext';
+import { cn } from '@/lib/utils';
 import { 
   Phone, 
   Video, 
@@ -14,7 +16,8 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
-  Loader2
+  Loader2,
+  Heart
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -29,6 +32,7 @@ interface CallRecord {
   contact_name?: string;
   contact_avatar?: string;
   direction: 'incoming' | 'outgoing';
+  is_lovers_call?: boolean;
 }
 
 interface CallHistoryProps {
@@ -36,15 +40,27 @@ interface CallHistoryProps {
 }
 
 export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
+  const { mode } = useChat();
+  const isLoversMode = mode === 'lovers';
   const [searchQuery, setSearchQuery] = useState('');
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [loversPartnerId, setLoversPartnerId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
-      setUserId(data?.user?.id || null);
+      if (data?.user?.id) {
+        setUserId(data.user.id);
+        // Get lovers partner ID for filtering
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('lovers_partner_id')
+          .eq('user_id', data.user.id)
+          .single();
+        setLoversPartnerId(profile?.lovers_partner_id || null);
+      }
     };
     loadUser();
   }, []);
@@ -87,12 +103,16 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
         const contactId = call.caller_id === userId ? call.callee_id : call.caller_id;
         const profile = profileMap.get(contactId);
         
+        // Mark as lovers call if the contact is the lovers partner
+        const isLoversCall = loversPartnerId ? contactId === loversPartnerId : false;
+        
         return {
           ...call,
           call_type: call.call_type as 'voice' | 'video',
           contact_name: profile?.display_name || profile?.username || 'Unknown',
           contact_avatar: profile?.avatar_url,
-          direction: call.caller_id === userId ? 'outgoing' : 'incoming'
+          direction: call.caller_id === userId ? 'outgoing' : 'incoming',
+          is_lovers_call: isLoversCall
         };
       });
 
@@ -122,9 +142,17 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, loversPartnerId]);
 
-  const filteredCalls = callHistory.filter(call =>
+  // Filter calls by mode - lovers mode shows only partner calls, general shows non-partner calls
+  const modeFilteredCalls = callHistory.filter(call => {
+    if (isLoversMode) {
+      return call.is_lovers_call === true;
+    }
+    return call.is_lovers_call !== true;
+  });
+
+  const filteredCalls = modeFilteredCalls.filter(call =>
     call.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -244,9 +272,22 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <Phone className="w-16 h-16 mx-auto mb-4 text-primary" />
-          <h1 className="text-3xl font-bold mb-2">Call History</h1>
-          <p className="text-muted-foreground">Your recent voice and video calls</p>
+          {isLoversMode ? (
+            <Heart className="w-16 h-16 mx-auto mb-4 text-lovers-primary animate-heart-beat" />
+          ) : (
+            <Phone className="w-16 h-16 mx-auto mb-4 text-general-primary" />
+          )}
+          <h1 className={cn(
+            "text-3xl font-bold mb-2",
+            isLoversMode 
+              ? "bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent"
+              : ""
+          )}>
+            {isLoversMode ? 'Love Calls' : 'Call History'}
+          </h1>
+          <p className="text-muted-foreground">
+            {isLoversMode ? 'Your romantic voice and video calls' : 'Your recent voice and video calls'}
+          </p>
         </div>
 
         {/* Search */}
@@ -337,32 +378,46 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
           <Card className="glass border-white/20">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Phone className="w-5 h-5 text-green-500" />
+                <Phone className={cn("w-5 h-5", isLoversMode ? "text-lovers-primary" : "text-green-500")} />
                 <span>Voice Calls</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+              <Button className={cn(
+                "w-full text-white",
+                isLoversMode 
+                  ? "bg-lovers-primary hover:bg-lovers-primary/90" 
+                  : "bg-green-500 hover:bg-green-600"
+              )}>
                 <PhoneCall className="w-4 h-4 mr-2" />
                 Start Voice Call
               </Button>
-              <p className="text-sm text-muted-foreground">High quality voice calling</p>
+              <p className="text-sm text-muted-foreground">
+                {isLoversMode ? 'Call your special someone' : 'High quality voice calling'}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="glass border-white/20">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Video className="w-5 h-5 text-blue-500" />
+                <Video className={cn("w-5 h-5", isLoversMode ? "text-lovers-secondary" : "text-blue-500")} />
                 <span>Video Calls</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+              <Button className={cn(
+                "w-full text-white",
+                isLoversMode 
+                  ? "bg-lovers-secondary hover:bg-lovers-secondary/90" 
+                  : "bg-blue-500 hover:bg-blue-600"
+              )}>
                 <Video className="w-4 h-4 mr-2" />
                 Start Video Call
               </Button>
-              <p className="text-sm text-muted-foreground">Face-to-face conversations</p>
+              <p className="text-sm text-muted-foreground">
+                {isLoversMode ? 'See your love face-to-face' : 'Face-to-face conversations'}
+              </p>
             </CardContent>
           </Card>
         </div>
