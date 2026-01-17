@@ -148,7 +148,7 @@ export const LoveVault: React.FC = () => {
         return;
       }
 
-      let fileUrl = null;
+      let filePath = null;
       let encryptedContent = null;
       let mimeType = null;
       let fileSize = null;
@@ -167,11 +167,8 @@ export const LoveVault: React.FC = () => {
 
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from('vault')
-          .getPublicUrl(fileName);
-
-        fileUrl = urlData.publicUrl;
+        // Store file path instead of public URL - we'll use signed URLs when viewing
+        filePath = fileName;
         mimeType = newItem.file.type;
         fileSize = newItem.file.size;
       }
@@ -184,7 +181,7 @@ export const LoveVault: React.FC = () => {
           title: newItem.title,
           description: newItem.description,
           item_type: newItem.type,
-          file_url: fileUrl,
+          file_url: filePath, // Store path, not public URL
           encrypted_content: encryptedContent,
           mime_type: mimeType,
           file_size: fileSize,
@@ -224,7 +221,16 @@ export const LoveVault: React.FC = () => {
         const decrypted = await decryptText(item.encrypted_content, pin);
         setDecryptedContent(decrypted);
       } else if (item.file_url) {
-        const response = await fetch(item.file_url);
+        // Use signed URL for secure, time-limited access
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from('vault')
+          .createSignedUrl(item.file_url, 3600); // 1 hour expiry
+
+        if (signedUrlError || !signedUrlData?.signedUrl) {
+          throw new Error('Failed to generate secure access URL');
+        }
+
+        const response = await fetch(signedUrlData.signedUrl);
         const encryptedBlob = await response.blob();
         const decryptedBlob = await decryptFile(encryptedBlob, pin, item.mime_type || 'application/octet-stream');
         const url = URL.createObjectURL(decryptedBlob);
@@ -241,11 +247,11 @@ export const LoveVault: React.FC = () => {
     }
   };
 
-  const deleteItem = async (itemId: string, fileUrl: string | null) => {
+  const deleteItem = async (itemId: string, filePath: string | null) => {
     try {
-      if (fileUrl) {
-        const path = fileUrl.split('/vault/')[1];
-        await supabase.storage.from('vault').remove([path]);
+      if (filePath) {
+        // filePath is now stored directly (e.g., "user_id/timestamp_filename.encrypted")
+        await supabase.storage.from('vault').remove([filePath]);
       }
 
       const { error } = await supabase
