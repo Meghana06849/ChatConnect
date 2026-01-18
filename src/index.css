@@ -563,3 +563,254 @@
 .animate-blink-star {
   animation: blink-star 2s ease-in-out infinite;
 }
+
+/* ============================================
+   Dream Call UI Animations - Lovers Mode
+   ============================================ */
+
+/* Star twinkle animation */
+@keyframes dream-star-twinkle {
+  0%, 100% { 
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+.dream-star {
+  animation: dream-star-twinkle var(--duration, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Star shimmer when partner speaks */
+@keyframes dream-star-shimmer {
+  0%, 100% {
+    opacity: 0.6;
+    filter: blur(0px);
+  }
+  25% {
+    opacity: 1;
+    filter: blur(0.5px);
+    transform: scale(1.5);
+  }
+  75% {
+    opacity: 0.8;
+  }
+}
+
+.dream-star-shimmer {
+  animation: dream-star-shimmer 0.8s ease-in-out infinite !important;
+}
+
+/* Moon drift animation */
+@keyframes dream-moon-drift {
+  0%, 100% { 
+    transform: translateY(0) rotate(0deg);
+  }
+  50% { 
+    transform: translateY(-10px) rotate(3deg);
+  }
+}
+
+.dream-moon {
+  animation: dream-moon-drift 8s ease-in-out infinite;
+  transition: opacity 0.5s ease, box-shadow 0.5s ease;
+}
+
+.dream-moon-dim {
+  opacity: 0.4;
+}
+
+/* Heart pulse animation */
+@keyframes dream-heart-pulse {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  50% { 
+    transform: scale(1.1);
+  }
+}
+
+.dream-heart-pulse {
+  animation: dream-heart-pulse 1.5s ease-in-out infinite;
+}
+
+/* Heart ring expansion */
+@keyframes dream-heart-ring {
+  0% { 
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  100% { 
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.dream-heart-ring {
+  animation: dream-heart-ring 2s ease-out infinite;
+}
+
+/* Heart collapse for end call */
+@keyframes dream-heart-collapse {
+  0% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.5);
+    opacity: 0.5;
+  }
+  100% { 
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.dream-heart-collapse {
+  animation: dream-heart-collapse 0.8s ease-in forwards;
+}
+
+/* Heart explode into particles */
+@keyframes dream-heart-explode {
+  0% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% { 
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+
+.dream-heart-explode {
+  animation: dream-heart-explode 0.3s ease-in forwards;
+}
+
+/* Particle animation for end call */
+@keyframes dream-particle-fly {
+  0% { 
+    transform: translate(-50%, -50%) translateX(0) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% { 
+    transform: translate(-50%, -50%) 
+               translateX(calc(cos(var(--angle)) * var(--distance))) 
+               translateY(calc(sin(var(--angle)) * var(--distance))) 
+               scale(0);
+    opacity: 0;
+  }
+}
+
+.dream-particle {
+  animation: dream-particle-fly 0.8s ease-out forwards;
+}
+
+/* Button pulse animation */
+@keyframes dream-button-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 hsla(320, 100%, 70%, 0.4);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px hsla(320, 100%, 70%, 0);
+  }
+}
+
+.dream-button-pulse {
+  animation: dream-button-pulse 2s ease-in-out infinite;
+}
+
+/* Ripple glow for speaker button */
+@keyframes dream-ripple-glow {
+  0% { 
+    box-shadow: inset 0 0 0 0 hsla(270, 80%, 60%, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: inset 0 0 30px 5px hsla(270, 80%, 60%, 0.2);
+  }
+  100% { 
+    box-shadow: inset 0 0 0 0 hsla(270, 80%, 60%, 0);
+    transform: scale(1);
+  }
+}
+
+.dream-ripple-glow {
+  animation: dream-ripple-glow 1.5s ease-in-out infinite;
+}
+
+/* Incoming call pulse */
+@keyframes dream-incoming-pulse {
+  0% { 
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% { 
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.dream-incoming-pulse {
+  animation: dream-incoming-pulse 2s ease-out infinite;
+}
+
+/* Accept button heartbeat */
+@keyframes dream-accept-pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 0 0 hsla(320, 100%, 70%, 0.5);
+  }
+  50% { 
+    transform: scale(1.05);
+    box-shadow: 0 0 20px 5px hsla(320, 100%, 70%, 0.3);
+  }
+}
+
+.dream-accept-pulse {
+  animation: dream-accept-pulse 1.2s ease-in-out infinite;
+}
+
+/* Title floating effect */
+@keyframes dream-title-float {
+  0%, 100% { 
+    transform: translateY(0);
+    text-shadow: 0 0 20px hsla(320, 100%, 80%, 0.5);
+  }
+  50% { 
+    transform: translateY(-5px);
+    text-shadow: 0 0 40px hsla(320, 100%, 80%, 0.8);
+  }
+}
+
+.dream-title {
+  animation: dream-title-float 3s ease-in-out infinite;
+}
+
+/* Partner glow when speaking */
+.dream-partner-glow {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+/* Constellation redraw animation (for reconnect) */
+@keyframes dream-constellation-draw {
+  0% { 
+    stroke-dashoffset: 1000;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% { 
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.dream-constellation-line {
+  stroke-dasharray: 1000;
+  animation: dream-constellation-draw 2s ease-out forwards;
+}
