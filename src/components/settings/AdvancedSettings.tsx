@@ -42,7 +42,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
 import { ProfileEditor } from '@/components/profile/ProfileEditor';
-import { ActivityDashboard } from '@/components/profile/ActivityDashboard';
+import { RealActivityDashboard } from '@/components/profile/RealActivityDashboard';
+import { PrivacySettings } from '@/components/profile/PrivacySettings';
 import { SongManager } from '@/components/media/SongManager';
 import { ImageEditor } from '@/components/media/ImageEditor';
 import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
@@ -600,6 +601,22 @@ export const AdvancedSettings: React.FC = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Privacy Settings Dialog */}
+        <Dialog open={showPrivacySettings} onOpenChange={setShowPrivacySettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>Privacy Settings</span>
+              </DialogTitle>
+              <DialogDescription>
+                Control who can see your profile, status, and content
+              </DialogDescription>
+            </DialogHeader>
+            <PrivacySettings isLoversMode={isLoversMode} />
+          </DialogContent>
+        </Dialog>
+
         {/* Song Manager Dialog */}
         <Dialog open={showSongManager} onOpenChange={setShowSongManager}>
           <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -736,10 +753,10 @@ export const AdvancedSettings: React.FC = () => {
                 <span>Activity Dashboard</span>
               </DialogTitle>
               <DialogDescription>
-                View your app usage statistics and achievements
+                View your app usage statistics
               </DialogDescription>
             </DialogHeader>
-            <ActivityDashboard />
+            <RealActivityDashboard />
           </DialogContent>
         </Dialog>
 

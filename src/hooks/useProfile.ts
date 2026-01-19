@@ -17,6 +17,7 @@ export interface Profile {
   lovers_partner_id?: string;
   dream_room_pin?: string;
   love_coins: number;
+  privacy_settings?: any; // JSONB field - any for flexibility
 }
 
 export const useProfile = () => {
