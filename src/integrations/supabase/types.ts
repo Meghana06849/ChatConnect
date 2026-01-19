@@ -101,6 +101,50 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_settings: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          disappearing_mode: string | null
+          id: string
+          is_muted: boolean | null
+          muted_until: string | null
+          updated_at: string | null
+          user_id: string
+          wallpaper_url: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          disappearing_mode?: string | null
+          id?: string
+          is_muted?: boolean | null
+          muted_until?: string | null
+          updated_at?: string | null
+          user_id: string
+          wallpaper_url?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          disappearing_mode?: string | null
+          id?: string
+          is_muted?: boolean | null
+          muted_until?: string | null
+          updated_at?: string | null
+          user_id?: string
+          wallpaper_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_settings_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           contact_user_id: string
@@ -426,6 +470,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           delivered_at: string | null
+          disappear_at: string | null
           dream_reveal_at: string | null
           id: string
           is_dream_message: boolean | null
@@ -441,6 +486,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           delivered_at?: string | null
+          disappear_at?: string | null
           dream_reveal_at?: string | null
           id?: string
           is_dream_message?: boolean | null
@@ -456,6 +502,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           delivered_at?: string | null
+          disappear_at?: string | null
           dream_reveal_at?: string | null
           id?: string
           is_dream_message?: boolean | null
@@ -570,6 +617,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      screenshot_notifications: {
+        Row: {
+          conversation_id: string
+          id: string
+          notified: boolean | null
+          screenshot_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          notified?: boolean | null
+          screenshot_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          notified?: boolean | null
+          screenshot_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screenshot_notifications_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       typing_indicators: {
         Row: {
