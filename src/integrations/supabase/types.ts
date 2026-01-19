@@ -538,6 +538,7 @@ export type Database = {
           love_coins: number | null
           lovers_mode_enabled: boolean | null
           lovers_partner_id: string | null
+          privacy_settings: Json | null
           updated_at: string
           user_id: string
           username: string | null
@@ -557,6 +558,7 @@ export type Database = {
           love_coins?: number | null
           lovers_mode_enabled?: boolean | null
           lovers_partner_id?: string | null
+          privacy_settings?: Json | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -576,6 +578,7 @@ export type Database = {
           love_coins?: number | null
           lovers_mode_enabled?: boolean | null
           lovers_partner_id?: string | null
+          privacy_settings?: Json | null
           updated_at?: string
           user_id?: string
           username?: string | null

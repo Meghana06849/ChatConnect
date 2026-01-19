@@ -99,10 +99,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       title: "You're All Set! 🎉",
       description: 'Start connecting with friends and unlock premium features as you explore.',
       features: [
-        'Earn Love Coins through activity',
+        'Connect with friends instantly',
         'Unlock exclusive themes & features',
-        'Build daily login streaks',
-        'Level up your relationships'
+        'Enable Lovers Mode for romantic features',
+        'Build meaningful relationships'
       ],
       emoji: '🚀'
     }
