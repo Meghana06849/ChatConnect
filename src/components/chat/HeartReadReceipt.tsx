@@ -1,41 +1,62 @@
 import React from 'react';
-import { Heart, Check, CheckCheck } from 'lucide-react';
+import { Heart, Check, CheckCheck, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface HeartReadReceiptProps {
   status: 'sending' | 'sent' | 'delivered' | 'seen';
   isLoversMode?: boolean;
   seenAt?: string;
+  deliveredAt?: string;
 }
 
 export const HeartReadReceipt: React.FC<HeartReadReceiptProps> = ({ 
   status, 
   isLoversMode = false,
-  seenAt 
+  seenAt,
+  deliveredAt
 }) => {
   if (status === 'sending') {
     return (
-      <div className="flex items-center gap-0.5">
-        <div className="w-3 h-3 rounded-full border border-current opacity-50 animate-pulse" />
+      <div className="flex items-center gap-0.5" title="Sending...">
+        <Clock className="w-3 h-3 opacity-50 animate-pulse" />
       </div>
     );
   }
 
   if (status === 'sent') {
     return (
-      <Check className="w-3 h-3 opacity-60" />
+      <div title="Sent">
+        <Check className={cn(
+          "w-3 h-3",
+          isLoversMode ? "text-white/60" : "text-muted-foreground"
+        )} />
+      </div>
     );
   }
 
   if (status === 'delivered') {
+    const title = deliveredAt 
+      ? `Delivered at ${new Date(deliveredAt).toLocaleTimeString()}` 
+      : 'Delivered';
     return (
-      <CheckCheck className="w-3 h-3 opacity-70" />
+      <div title={title}>
+        <CheckCheck className={cn(
+          "w-3.5 h-3.5",
+          isLoversMode ? "text-white/80" : "text-muted-foreground"
+        )} />
+      </div>
     );
   }
 
-  // Seen status with heart animation for lovers mode
+  // Seen status
+  const seenTitle = seenAt 
+    ? `Seen at ${new Date(seenAt).toLocaleTimeString()}` 
+    : 'Seen';
+
+  // Heart animation for lovers mode
   if (isLoversMode) {
     return (
-      <div className="relative flex items-center">
+      <div className="relative flex items-center" title={seenTitle}>
         <Heart 
           className="w-3.5 h-3.5 text-lovers-primary fill-lovers-primary animate-heart-seen" 
         />
@@ -48,7 +69,10 @@ export const HeartReadReceipt: React.FC<HeartReadReceiptProps> = ({
     );
   }
 
+  // Blue double check for general mode
   return (
-    <CheckCheck className="w-3 h-3 text-blue-400" />
+    <div title={seenTitle}>
+      <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+    </div>
   );
 };

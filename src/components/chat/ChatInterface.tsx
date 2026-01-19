@@ -3,6 +3,8 @@ import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
 import { useCall } from '@/components/features/CallProvider';
+import { useChatSettings } from '@/hooks/useChatSettings';
+import { useScreenshotDetection } from '@/hooks/useScreenshotDetection';
 import { TypingIndicator } from './TypingIndicator';
 import { EmojiReactionPicker } from './EmojiReactionPicker';
 import { VoiceMessageRecorder } from './VoiceMessageRecorder';
@@ -11,10 +13,12 @@ import { MediaAttachmentPicker } from './MediaAttachmentPicker';
 import { MessageBubble } from './MessageBubble';
 import { ChatHeader } from './ChatHeader';
 import { ReplyPreview } from './ReplyPreview';
+import { ChatSettingsDialog } from './ChatSettingsDialog';
+import { DisappearingMessageIndicator } from './DisappearingMessageIndicator';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Mic, Heart, Loader2, ChevronDown } from 'lucide-react';
+import { Send, Mic, Heart, Loader2, ChevronDown, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +56,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyInfo | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+
+  // Chat settings hook
+  const { 
+    settings: chatSettings, 
+    toggleMute, 
+    setDisappearingMode, 
+    setWallpaper 
+  } = useChatSettings(conversationId || null);
+
+  // Screenshot detection hook
+  useScreenshotDetection(conversationId || null, true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -200,15 +216,51 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden">
+    <div 
+      className="flex-1 flex flex-col h-full overflow-hidden"
+      style={chatSettings?.wallpaper_url ? { 
+        backgroundImage: `url(${chatSettings.wallpaper_url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+      } : undefined}
+    >
       {/* Chat Header */}
       <ChatHeader
         contact={selectedContact}
         isTyping={isPartnerTyping}
+        isMuted={chatSettings?.is_muted}
         isLoversMode={isLoversMode}
         onCall={() => handleCall(false)}
         onVideoCall={() => handleCall(true)}
+        onMuteToggle={toggleMute}
+        onBlock={() => toast({ title: 'Block', description: 'Opening block dialog...' })}
+        onClearChat={() => toast({ title: 'Clear chat', description: 'Coming soon!' })}
         onBack={onBack}
+      />
+
+      {/* Disappearing Message Indicator */}
+      {chatSettings?.disappearing_mode && chatSettings.disappearing_mode !== 'off' && (
+        <div className="px-4 py-1 flex justify-center">
+          <DisappearingMessageIndicator 
+            mode={chatSettings.disappearing_mode} 
+            isLoversMode={isLoversMode}
+          />
+        </div>
+      )}
+
+      {/* Chat Settings Dialog */}
+      <ChatSettingsDialog
+        open={showSettingsDialog}
+        onOpenChange={setShowSettingsDialog}
+        settings={chatSettings}
+        contactName={selectedContact.name}
+        isLoversMode={isLoversMode}
+        onMuteToggle={toggleMute}
+        onDisappearingModeChange={setDisappearingMode}
+        onWallpaperChange={() => toast({ title: 'Wallpaper', description: 'Upload feature coming soon!' })}
+        onBlock={() => toast({ title: 'Block', description: 'Coming soon!' })}
+        onRemoveFriend={() => toast({ title: 'Remove Friend', description: 'Coming soon!' })}
+        onClearChat={() => toast({ title: 'Clear Chat', description: 'Coming soon!' })}
       />
 
       {/* Messages Area */}
@@ -353,6 +405,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               onContactShare={() => toast({ title: 'Contact', description: 'Coming soon!' })}
               isLoversMode={isLoversMode}
             />
+
+            {/* Chat Settings Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowSettingsDialog(true)}
+              className="rounded-full w-8 h-8 shrink-0 hover:bg-white/10"
+            >
+              <Settings className="w-4 h-4 text-muted-foreground" />
+            </Button>
 
             {/* Message Input */}
             <div className="flex-1 relative">
