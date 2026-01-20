@@ -523,6 +523,91 @@ export type Database = {
           },
         ]
       }
+      moment_views: {
+        Row: {
+          id: string
+          moment_id: string
+          viewed_at: string
+          viewer_id: string
+        }
+        Insert: {
+          id?: string
+          moment_id: string
+          viewed_at?: string
+          viewer_id: string
+        }
+        Update: {
+          id?: string
+          moment_id?: string
+          viewed_at?: string
+          viewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moment_views_moment_id_fkey"
+            columns: ["moment_id"]
+            isOneToOne: false
+            referencedRelation: "moments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      moments: {
+        Row: {
+          content: string | null
+          created_at: string
+          excluded_users: string[] | null
+          expires_at: string
+          id: string
+          included_users: string[] | null
+          media_type: string | null
+          media_url: string | null
+          music_id: string | null
+          music_start_time: number | null
+          privacy_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          excluded_users?: string[] | null
+          expires_at?: string
+          id?: string
+          included_users?: string[] | null
+          media_type?: string | null
+          media_url?: string | null
+          music_id?: string | null
+          music_start_time?: number | null
+          privacy_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          excluded_users?: string[] | null
+          expires_at?: string
+          id?: string
+          included_users?: string[] | null
+          media_type?: string | null
+          media_url?: string | null
+          music_id?: string | null
+          music_start_time?: number | null
+          privacy_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moments_music_id_fkey"
+            columns: ["music_id"]
+            isOneToOne: false
+            referencedRelation: "user_songs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
