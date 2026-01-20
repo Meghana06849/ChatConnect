@@ -37,8 +37,10 @@ import {
   Mic,
   Star,
   Timer,
-  Trophy
+  Trophy,
+  Moon
 } from 'lucide-react';
+import { LoversModeSettings } from './LoversModeSettings';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
 import { ProfileEditor } from '@/components/profile/ProfileEditor';
@@ -106,6 +108,7 @@ export const AdvancedSettings: React.FC = () => {
   const [showHeartbeatSync, setShowHeartbeatSync] = useState(false);
   const [showVirtualPet, setShowVirtualPet] = useState(false);
   const [showSecurityCenter, setShowSecurityCenter] = useState(false);
+  const [showLoversSettings, setShowLoversSettings] = useState(false);
   
   // Privacy settings
   const [lastSeenVisible, setLastSeenVisible] = useState(true);
