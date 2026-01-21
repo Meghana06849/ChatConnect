@@ -32,6 +32,10 @@ export default {
 				'lovers-primary': 'hsl(var(--lovers-primary))',
 				'lovers-secondary': 'hsl(var(--lovers-secondary))',
 				'lovers-accent': 'hsl(var(--lovers-accent))',
+				'lovers-midnight': 'hsl(var(--lovers-midnight))',
+				'lovers-twilight': 'hsl(var(--lovers-twilight))',
+				'lovers-aurora': 'hsl(var(--lovers-aurora))',
+				'lovers-stardust': 'hsl(var(--lovers-stardust))',
 				
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
