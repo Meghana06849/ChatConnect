@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Shield, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Shield, CheckCircle, Clock, XCircle, Loader2, Upload, FileText, X, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface VerificationRequest {
@@ -18,12 +18,19 @@ interface VerificationRequest {
   status: string;
   submitted_at: string;
   admin_notes: string | null;
+  document_url: string | null;
 }
+
+const SIGNED_URL_EXPIRY_SECONDS = 1800; // 30 minutes for security
 
 export const VerificationRequest: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [existingRequest, setExistingRequest] = useState<VerificationRequest | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [viewingDocument, setViewingDocument] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     reason: '',
@@ -59,6 +66,61 @@ export const VerificationRequest: React.FC = () => {
     }
   };
 
+  const uploadDocument = async (userId: string): Promise<string | null> => {
+    if (!documentFile) return null;
+
+    setUploadingDocument(true);
+    try {
+      // Generate a unique filename with user ID prefix for RLS
+      const fileExt = documentFile.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}_document.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('verification-documents')
+        .upload(fileName, documentFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Store only the file path - we'll use signed URLs when viewing
+      return fileName;
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      throw error;
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const viewDocument = async () => {
+    if (!existingRequest?.document_url) return;
+
+    setViewingDocument(true);
+    try {
+      // Generate a signed URL with short expiry for security
+      const { data, error } = await supabase.storage
+        .from('verification-documents')
+        .createSignedUrl(existingRequest.document_url, SIGNED_URL_EXPIRY_SECONDS);
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      toast({
+        title: "Error",
+        description: "Could not access document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setViewingDocument(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName.trim() || !formData.reason.trim()) {
@@ -75,6 +137,12 @@ export const VerificationRequest: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Upload document if provided
+      let documentPath: string | null = null;
+      if (documentFile) {
+        documentPath = await uploadDocument(user.id);
+      }
+
       const { error } = await supabase
         .from('verification_requests')
         .insert({
@@ -82,10 +150,18 @@ export const VerificationRequest: React.FC = () => {
           full_name: formData.fullName.trim(),
           reason: formData.reason.trim(),
           verification_type: formData.verificationType,
-          social_media_url: formData.socialMediaUrl.trim() || null
+          social_media_url: formData.socialMediaUrl.trim() || null,
+          document_url: documentPath
         });
 
       if (error) {
+        // If insert failed and we uploaded a document, clean it up
+        if (documentPath) {
+          await supabase.storage
+            .from('verification-documents')
+            .remove([documentPath]);
+        }
+
         if (error.code === '23505') {
           toast({
             title: "Request pending",
@@ -105,6 +181,7 @@ export const VerificationRequest: React.FC = () => {
 
       fetchExistingRequest();
       setFormData({ fullName: '', reason: '', verificationType: 'standard', socialMediaUrl: '' });
+      setDocumentFile(null);
     } catch (error) {
       console.error('Error submitting request:', error);
       toast({
@@ -115,6 +192,35 @@ export const VerificationRequest: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type (images and PDFs only)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image (JPG, PNG, WebP) or PDF",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Document must be less than 10MB",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setDocumentFile(file);
+    }
+    e.target.value = '';
   };
 
   const getStatusBadge = (status: string) => {
@@ -163,6 +269,25 @@ export const VerificationRequest: React.FC = () => {
             <span className="text-muted-foreground">Type</span>
             <Badge variant="outline" className="capitalize">{existingRequest.verification_type}</Badge>
           </div>
+          {existingRequest.document_url && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Document</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={viewDocument}
+                disabled={viewingDocument}
+                className="gap-2"
+              >
+                {viewingDocument ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Eye className="w-3 h-3" />
+                )}
+                View Document
+              </Button>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground pt-2">
             Your verification request is being reviewed. This usually takes 1-3 business days.
           </p>
@@ -253,6 +378,50 @@ export const VerificationRequest: React.FC = () => {
           </div>
 
           <div className="space-y-2">
+            <Label>Identity Document (Optional)</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            {documentFile ? (
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                <FileText className="w-5 h-5 text-primary" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{documentFile.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(documentFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setDocumentFile(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4" />
+                Upload ID Document
+              </Button>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Photo ID, passport, or driver's license (JPG, PNG, PDF - max 10MB). 
+              Documents are stored securely and accessed only during review.
+            </p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="reason">Why should you be verified? *</Label>
             <Textarea
               id="reason"
@@ -264,11 +433,11 @@ export const VerificationRequest: React.FC = () => {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? (
+          <Button type="submit" className="w-full" disabled={submitting || uploadingDocument}>
+            {submitting || uploadingDocument ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Submitting...
+                {uploadingDocument ? 'Uploading Document...' : 'Submitting...'}
               </>
             ) : (
               <>
