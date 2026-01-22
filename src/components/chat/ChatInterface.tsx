@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
 import { useCall } from '@/components/features/CallProvider';
 import { useChatSettings } from '@/hooks/useChatSettings';
+import { useChatActions } from '@/hooks/useChatActions';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { useScreenshotDetection } from '@/hooks/useScreenshotDetection';
 import { TypingIndicator } from './TypingIndicator';
-import { EmojiReactionPicker } from './EmojiReactionPicker';
 import { VoiceMessageRecorder } from './VoiceMessageRecorder';
 import { EmojiKeyboard } from './EmojiKeyboard';
 import { MediaAttachmentPicker } from './MediaAttachmentPicker';
@@ -15,9 +16,11 @@ import { ChatHeader } from './ChatHeader';
 import { ReplyPreview } from './ReplyPreview';
 import { ChatSettingsDialog } from './ChatSettingsDialog';
 import { DisappearingMessageIndicator } from './DisappearingMessageIndicator';
+import { ChatWallpaperUpload } from './ChatWallpaperUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Send, Mic, Heart, Loader2, ChevronDown, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -57,14 +60,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [replyTo, setReplyTo] = useState<ReplyInfo | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showWallpaperDialog, setShowWallpaperDialog] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showRemoveFriendConfirm, setShowRemoveFriendConfirm] = useState(false);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
   // Chat settings hook
   const { 
     settings: chatSettings, 
     toggleMute, 
-    setDisappearingMode, 
-    setWallpaper 
+    setDisappearingMode,
+    setWallpaper,
+    reload: refreshSettings
   } = useChatSettings(conversationId || null);
+
+  // Chat actions hook
+  const {
+    clearChat,
+    removeFriend,
+    deleteMessage,
+    sendMediaMessage,
+    forwardMessage,
+    loading: actionLoading
+  } = useChatActions();
+
+  // Blocked users hook
+  const { blockUser } = useBlockedUsers();
 
   // Screenshot detection hook
   useScreenshotDetection(conversationId || null, true);
@@ -115,23 +136,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // Load older messages when near top
     if (container.scrollTop < 100 && !loadingMore && hasMore) {
       loadOlderMessages();
     }
 
-    // Show scroll button when not at bottom
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
     setShowScrollButton(!isNearBottom);
   };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
-
-    const metadata: any = {};
-    if (replyTo) {
-      metadata.replyTo = replyTo;
-    }
 
     await sendMessage(messageInput, 'text');
     setMessageInput('');
@@ -176,12 +190,54 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const handleMediaSelect = (type: string, file: File) => {
-    toast({
-      title: `${type} selected`,
-      description: `${file.name} will be uploaded`,
-    });
-    // TODO: Implement file upload to Supabase Storage
+  const handleMediaSelect = async (type: string, file: File) => {
+    if (!conversationId) return;
+    
+    const success = await sendMediaMessage(conversationId, file);
+    if (success) {
+      scrollToBottom();
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!selectedContact) return;
+    const success = await blockUser(selectedContact.id);
+    if (success) {
+      setShowBlockConfirm(false);
+      setShowSettingsDialog(false);
+      onBack?.();
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    if (!selectedContact) return;
+    const success = await removeFriend(selectedContact.id);
+    if (success) {
+      setShowRemoveFriendConfirm(false);
+      setShowSettingsDialog(false);
+      onBack?.();
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!conversationId) return;
+    const success = await clearChat(conversationId);
+    if (success) {
+      setShowClearChatConfirm(false);
+      setShowSettingsDialog(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    await deleteMessage(messageId);
+  };
+
+  const handleWallpaperUpload = async (url: string) => {
+    if (url) {
+      await setWallpaper(url);
+      setShowWallpaperDialog(false);
+      refreshSettings();
+    }
   };
 
   const isPartnerTyping = typingUsers.length > 0;
@@ -233,8 +289,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onCall={() => handleCall(false)}
         onVideoCall={() => handleCall(true)}
         onMuteToggle={toggleMute}
-        onBlock={() => toast({ title: 'Block', description: 'Opening block dialog...' })}
-        onClearChat={() => toast({ title: 'Clear chat', description: 'Coming soon!' })}
+        onBlock={() => setShowBlockConfirm(true)}
+        onClearChat={() => setShowClearChatConfirm(true)}
         onBack={onBack}
       />
 
@@ -257,11 +313,77 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         isLoversMode={isLoversMode}
         onMuteToggle={toggleMute}
         onDisappearingModeChange={setDisappearingMode}
-        onWallpaperChange={() => toast({ title: 'Wallpaper', description: 'Upload feature coming soon!' })}
-        onBlock={() => toast({ title: 'Block', description: 'Coming soon!' })}
-        onRemoveFriend={() => toast({ title: 'Remove Friend', description: 'Coming soon!' })}
-        onClearChat={() => toast({ title: 'Clear Chat', description: 'Coming soon!' })}
+        onWallpaperChange={() => setShowWallpaperDialog(true)}
+        onBlock={() => setShowBlockConfirm(true)}
+        onRemoveFriend={() => setShowRemoveFriendConfirm(true)}
+        onClearChat={() => setShowClearChatConfirm(true)}
       />
+
+      <Dialog open={showWallpaperDialog} onOpenChange={setShowWallpaperDialog}>
+        <DialogContent className="glass border-white/20">
+          <DialogHeader>
+            <DialogTitle>Change Chat Wallpaper</DialogTitle>
+          </DialogHeader>
+          <ChatWallpaperUpload 
+            onUploadComplete={handleWallpaperUpload}
+            currentWallpaper={chatSettings?.wallpaper_url}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Confirmation */}
+      <AlertDialog open={showBlockConfirm} onOpenChange={setShowBlockConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block {selectedContact.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They won't be able to message or call you. You can unblock them later in Settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlock} className="bg-destructive text-destructive-foreground">
+              Block
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove Friend Confirmation */}
+      <AlertDialog open={showRemoveFriendConfirm} onOpenChange={setShowRemoveFriendConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {selectedContact.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be removed from your friends list. You can add them back later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveFriend} className="bg-destructive text-destructive-foreground">
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Chat Confirmation */}
+      <AlertDialog open={showClearChatConfirm} onOpenChange={setShowClearChatConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear chat history?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your messages in this chat will be deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleClearChat} className="bg-destructive text-destructive-foreground">
+              Clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Messages Area */}
       <div 
@@ -270,14 +392,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         className="flex-1 overflow-y-auto relative"
       >
         <div className="p-4 space-y-3 min-h-full flex flex-col">
-          {/* Load more indicator */}
           {loadingMore && (
             <div className="flex justify-center py-2">
               <Loader2 className="w-5 h-5 animate-spin text-primary" />
             </div>
           )}
 
-          {/* Beginning of chat */}
           {!hasMore && messages.length > 0 && (
             <div className="text-center py-4">
               <div className={cn(
@@ -289,7 +409,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           )}
 
-          {/* Loading state */}
           {loading ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-2">
@@ -341,22 +460,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   replyTo={msg.metadata?.replyTo}
                   isLoversMode={isLoversMode}
                   onReply={() => handleReply(msg)}
-                  onForward={() => toast({ title: 'Forward', description: 'Coming soon!' })}
+                  onForward={() => toast({ title: 'Forward', description: 'Select a chat to forward this message' })}
                   onReaction={(emoji) => addReaction(msg.id, emoji)}
                   onStar={() => toast({ title: 'Starred', description: 'Message starred' })}
-                  onDelete={() => toast({ title: 'Delete', description: 'Coming soon!' })}
-                  onInfo={() => toast({ title: 'Info', description: 'Coming soon!' })}
+                  onDelete={() => handleDeleteMessage(msg.id)}
+                  onInfo={() => toast({ 
+                    title: 'Message Info',
+                    description: `Sent: ${new Date(msg.created_at).toLocaleString()}${msg.read_at ? `\nRead: ${new Date(msg.read_at).toLocaleString()}` : ''}`
+                  })}
                 />
               ))}
             </>
           )}
 
-          {/* Typing Indicator */}
           {isPartnerTyping && <TypingIndicator typingUsers={typingUsers} />}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Scroll to bottom button */}
         {showScrollButton && (
           <Button
             size="icon"
@@ -386,8 +506,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <VoiceMessageRecorder
             isLoversMode={isLoversMode}
             onSend={async (audioBlob, duration) => {
-              const audioUrl = URL.createObjectURL(audioBlob);
-              await sendMessage('🎤 Voice message', 'voice');
+              if (conversationId) {
+                const audioFile = new File([audioBlob], `voice-${Date.now()}.webm`, { type: 'audio/webm' });
+                await sendMediaMessage(conversationId, audioFile);
+              }
               setIsRecordingVoice(false);
               scrollToBottom();
             }}
@@ -395,18 +517,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           />
         ) : (
           <div className="flex items-center gap-2">
-            {/* Attachment Picker */}
             <MediaAttachmentPicker
               onImageSelect={(file) => handleMediaSelect('Image', file)}
               onVideoSelect={(file) => handleMediaSelect('Video', file)}
               onDocumentSelect={(file) => handleMediaSelect('Document', file)}
-              onCameraCapture={() => toast({ title: 'Camera', description: 'Coming soon!' })}
-              onLocationShare={() => toast({ title: 'Location', description: 'Coming soon!' })}
-              onContactShare={() => toast({ title: 'Contact', description: 'Coming soon!' })}
+              onCameraCapture={() => toast({ title: 'Camera', description: 'Camera access requires device permissions' })}
+              onLocationShare={() => {
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                      const locationUrl = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
+                      await sendMessage(locationUrl, 'location');
+                      scrollToBottom();
+                    },
+                    () => toast({ title: 'Location', description: 'Location access denied', variant: 'destructive' })
+                  );
+                } else {
+                  toast({ title: 'Location', description: 'Geolocation not supported', variant: 'destructive' });
+                }
+              }}
+              onContactShare={() => toast({ title: 'Contact', description: 'Contact sharing available soon' })}
               isLoversMode={isLoversMode}
             />
 
-            {/* Chat Settings Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -416,7 +549,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <Settings className="w-4 h-4 text-muted-foreground" />
             </Button>
 
-            {/* Message Input */}
             <div className="flex-1 relative">
               <Input
                 value={messageInput}
@@ -434,7 +566,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </div>
 
-            {/* Send / Voice Button */}
             {messageInput.trim() ? (
               <Button
                 onClick={handleSendMessage}

@@ -1,75 +1,102 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
+import { useChat } from '@/contexts/ChatContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Activity, 
-  Heart, 
-  Trophy, 
-  Star, 
   Users,
   MessageCircle,
   Phone,
   Calendar,
-  Shield,
-  Zap,
   Target,
-  TrendingUp
+  TrendingUp,
+  Coins
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { VerificationBadge } from './VerificationBadge';
 
 interface ActivityMetrics {
   messagesCount: number;
   callsCount: number;
-  storiesCount: number;
+  momentsCount: number;
   friendsCount: number;
-  loginStreak: number;
   loveCoins: number;
-  weeklyActivity: number;
-  achievements: string[];
 }
 
 export const ActivityDashboard: React.FC = () => {
   const { profile } = useProfile();
+  const { mode } = useChat();
+  const isLoversMode = mode === 'lovers';
+  
   const [metrics, setMetrics] = useState<ActivityMetrics>({
     messagesCount: 0,
     callsCount: 0,
-    storiesCount: 0,
+    momentsCount: 0,
     friendsCount: 0,
-    loginStreak: 0,
-    loveCoins: profile?.love_coins || 0,
-    weeklyActivity: 0,
-    achievements: []
+    loveCoins: 0
   });
+  const [loading, setLoading] = useState(true);
 
-  // Simulate loading real metrics (in a real app, fetch from database)
+  // Load REAL metrics from database
   useEffect(() => {
-    const loadMetrics = async () => {
-      // Simulate API call
-      setMetrics(prev => ({
-        ...prev,
-        messagesCount: Math.floor(Math.random() * 100) + 50,
-        callsCount: Math.floor(Math.random() * 20) + 5,
-        storiesCount: Math.floor(Math.random() * 15) + 3,
-        friendsCount: Math.floor(Math.random() * 25) + 10,
-        loginStreak: Math.floor(Math.random() * 30) + 1,
-        weeklyActivity: Math.floor(Math.random() * 80) + 20,
-        achievements: ['First Message', 'Daily User', 'Social Butterfly'],
-        loveCoins: profile?.love_coins || 100
-      }));
+    const loadRealMetrics = async () => {
+      if (!profile?.user_id) return;
+      
+      setLoading(true);
+      try {
+        // Get real message count
+        const { count: messagesCount } = await supabase
+          .from('messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_id', profile.user_id);
+
+        // Get real calls count
+        const { count: callsCount } = await supabase
+          .from('call_history')
+          .select('*', { count: 'exact', head: true })
+          .or(`caller_id.eq.${profile.user_id},callee_id.eq.${profile.user_id}`);
+
+        // Get real moments count
+        const { count: momentsCount } = await supabase
+          .from('moments')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', profile.user_id);
+
+        // Get real friends count (accepted contacts)
+        const { count: friendsCount } = await supabase
+          .from('contacts')
+          .select('*', { count: 'exact', head: true })
+          .or(`user_id.eq.${profile.user_id},contact_user_id.eq.${profile.user_id}`)
+          .eq('status', 'accepted');
+
+        setMetrics({
+          messagesCount: messagesCount || 0,
+          callsCount: callsCount || 0,
+          momentsCount: momentsCount || 0,
+          friendsCount: friendsCount || 0,
+          loveCoins: profile?.love_coins || 0
+        });
+      } catch (error) {
+        console.error('Error loading metrics:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    loadMetrics();
-  }, [profile]);
+    loadRealMetrics();
+  }, [profile?.user_id, profile?.love_coins]);
 
   const getActivityLevel = () => {
-    if (metrics.weeklyActivity >= 70) return { level: 'Very Active', color: 'text-green-500', bg: 'bg-green-500/20' };
-    if (metrics.weeklyActivity >= 40) return { level: 'Active', color: 'text-blue-500', bg: 'bg-blue-500/20' };
-    if (metrics.weeklyActivity >= 20) return { level: 'Moderate', color: 'text-yellow-500', bg: 'bg-yellow-500/20' };
-    return { level: 'Low', color: 'text-gray-500', bg: 'bg-gray-500/20' };
+    const totalActivity = metrics.messagesCount + metrics.callsCount + metrics.momentsCount;
+    if (totalActivity >= 100) return { level: 'Very Active', color: 'text-green-500', bg: 'bg-green-500/20', percent: 95 };
+    if (totalActivity >= 50) return { level: 'Active', color: 'text-blue-500', bg: 'bg-blue-500/20', percent: 70 };
+    if (totalActivity >= 20) return { level: 'Moderate', color: 'text-yellow-500', bg: 'bg-yellow-500/20', percent: 45 };
+    if (totalActivity >= 5) return { level: 'Starter', color: 'text-orange-500', bg: 'bg-orange-500/20', percent: 20 };
+    return { level: 'New User', color: 'text-gray-500', bg: 'bg-gray-500/20', percent: 5 };
   };
 
   const activityLevel = getActivityLevel();
@@ -77,139 +104,158 @@ export const ActivityDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Activity Overview */}
-      <Card className="glass border-white/20">
+      <Card className={cn(
+        "glass border-white/20",
+        isLoversMode && "border-lovers-primary/20"
+      )}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Activity className="w-5 h-5 text-primary" />
+            <Activity className={cn(
+              "w-5 h-5",
+              isLoversMode ? "text-lovers-primary" : "text-general-primary"
+            )} />
             <span>Activity Overview</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <Avatar className="w-12 h-12">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white">
-                  {profile?.display_name?.[0] || profile?.username?.[0] || 'U'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={profile?.avatar_url} />
+                  <AvatarFallback className={cn(
+                    "text-white",
+                    isLoversMode 
+                      ? "bg-gradient-to-br from-lovers-primary to-lovers-secondary"
+                      : "bg-gradient-to-br from-general-primary to-general-secondary"
+                  )}>
+                    {profile?.display_name?.[0] || profile?.username?.[0] || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                {profile?.is_verified && (
+                  <VerificationBadge 
+                    isVerified={true}
+                    verificationType={profile.verification_type}
+                    className="absolute -bottom-1 -right-1"
+                  />
+                )}
+              </div>
               <div>
                 <h3 className="font-semibold">{profile?.display_name || 'User'}</h3>
                 <Badge className={`${activityLevel.bg} ${activityLevel.color}`}>
-                  {activityLevel.level}
+                  {loading ? '...' : activityLevel.level}
                 </Badge>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-primary">{metrics.loveCoins}</p>
-              <p className="text-xs text-muted-foreground">Love Coins</p>
-            </div>
+            {isLoversMode && (
+              <div className="text-right">
+                <div className="flex items-center gap-1 justify-end">
+                  <Coins className="w-4 h-4 text-lovers-primary" />
+                  <p className="text-2xl font-bold text-lovers-primary">
+                    {loading ? '...' : metrics.loveCoins}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">Love Coins</p>
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Weekly Activity</span>
-              <span>{metrics.weeklyActivity}%</span>
+              <span>Activity Level</span>
+              <span>{loading ? '...' : `${activityLevel.percent}%`}</span>
             </div>
-            <Progress value={metrics.weeklyActivity} className="h-2" />
+            <Progress value={loading ? 0 : activityLevel.percent} className="h-2" />
           </div>
         </CardContent>
       </Card>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="glass border-white/20 text-center p-4">
-          <MessageCircle className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold">{metrics.messagesCount}</p>
-          <p className="text-xs text-muted-foreground">Messages</p>
+        <Card className={cn(
+          "glass border-white/20 text-center p-4",
+          isLoversMode && "border-lovers-primary/20"
+        )}>
+          <MessageCircle className={cn(
+            "w-8 h-8 mx-auto mb-2",
+            isLoversMode ? "text-lovers-primary" : "text-blue-500"
+          )} />
+          <p className="text-2xl font-bold">{loading ? '...' : metrics.messagesCount}</p>
+          <p className="text-xs text-muted-foreground">Messages Sent</p>
         </Card>
         
-        <Card className="glass border-white/20 text-center p-4">
-          <Phone className="w-8 h-8 text-green-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold">{metrics.callsCount}</p>
-          <p className="text-xs text-muted-foreground">Calls</p>
+        <Card className={cn(
+          "glass border-white/20 text-center p-4",
+          isLoversMode && "border-lovers-primary/20"
+        )}>
+          <Phone className={cn(
+            "w-8 h-8 mx-auto mb-2",
+            isLoversMode ? "text-lovers-secondary" : "text-green-500"
+          )} />
+          <p className="text-2xl font-bold">{loading ? '...' : metrics.callsCount}</p>
+          <p className="text-xs text-muted-foreground">Calls Made</p>
         </Card>
         
-        <Card className="glass border-white/20 text-center p-4">
-          <Calendar className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold">{metrics.storiesCount}</p>
-          <p className="text-xs text-muted-foreground">Stories</p>
+        <Card className={cn(
+          "glass border-white/20 text-center p-4",
+          isLoversMode && "border-lovers-primary/20"
+        )}>
+          <Calendar className={cn(
+            "w-8 h-8 mx-auto mb-2",
+            isLoversMode ? "text-lovers-accent" : "text-purple-500"
+          )} />
+          <p className="text-2xl font-bold">{loading ? '...' : metrics.momentsCount}</p>
+          <p className="text-xs text-muted-foreground">Moments</p>
         </Card>
         
-        <Card className="glass border-white/20 text-center p-4">
-          <Users className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold">{metrics.friendsCount}</p>
+        <Card className={cn(
+          "glass border-white/20 text-center p-4",
+          isLoversMode && "border-lovers-primary/20"
+        )}>
+          <Users className={cn(
+            "w-8 h-8 mx-auto mb-2",
+            isLoversMode ? "text-lovers-primary" : "text-orange-500"
+          )} />
+          <p className="text-2xl font-bold">{loading ? '...' : metrics.friendsCount}</p>
           <p className="text-xs text-muted-foreground">Friends</p>
         </Card>
       </div>
 
-      {/* Achievements */}
-      <Card className="glass border-white/20">
+      {/* Stats Summary */}
+      <Card className={cn(
+        "glass border-white/20",
+        isLoversMode && "border-lovers-primary/20"
+      )}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <Trophy className="w-5 h-5 text-yellow-500" />
-            <span>Recent Achievements</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {metrics.achievements.map((achievement, index) => (
-              <div key={index} className="flex items-center space-x-3 p-2 rounded-lg bg-white/5">
-                <Star className="w-5 h-5 text-yellow-500" />
-                <span className="flex-1">{achievement}</span>
-                <Badge variant="outline">New</Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Login Streak */}
-      <Card className="glass border-white/20">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Target className="w-5 h-5 text-red-500" />
-            <span>Login Streak</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-primary mb-2">{metrics.loginStreak}</div>
-            <p className="text-muted-foreground">Days in a row</p>
-            <div className="mt-4 flex justify-center space-x-1">
-              {Array.from({ length: 7 }, (_, i) => (
-                <div
-                  key={i}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
-                    i < metrics.loginStreak % 7 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-white/10 text-muted-foreground'
-                  }`}
-                >
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Stats */}
-      <Card className="glass border-white/20">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-            <span>This Week</span>
+            <TrendingUp className={cn(
+              "w-5 h-5",
+              isLoversMode ? "text-lovers-primary" : "text-green-500"
+            )} />
+            <span>Your Stats</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <p className="text-xl font-bold text-green-500">+{Math.floor(metrics.messagesCount * 0.3)}</p>
-              <p className="text-xs text-muted-foreground">New Messages</p>
+            <div className="text-center p-4 rounded-lg bg-white/5">
+              <Target className={cn(
+                "w-6 h-6 mx-auto mb-2",
+                isLoversMode ? "text-lovers-primary" : "text-primary"
+              )} />
+              <p className="text-lg font-bold">
+                {loading ? '...' : metrics.messagesCount + metrics.callsCount}
+              </p>
+              <p className="text-xs text-muted-foreground">Total Interactions</p>
             </div>
-            <div className="text-center">
-              <p className="text-xl font-bold text-blue-500">+{Math.floor(metrics.callsCount * 0.4)}</p>
-              <p className="text-xs text-muted-foreground">Call Minutes</p>
+            <div className="text-center p-4 rounded-lg bg-white/5">
+              <Activity className={cn(
+                "w-6 h-6 mx-auto mb-2",
+                isLoversMode ? "text-lovers-secondary" : "text-primary"
+              )} />
+              <p className="text-lg font-bold">
+                {loading ? '...' : metrics.momentsCount + metrics.friendsCount}
+              </p>
+              <p className="text-xs text-muted-foreground">Social Activity</p>
             </div>
           </div>
         </CardContent>
