@@ -169,14 +169,40 @@ export const SongManager: React.FC = () => {
 
   const togglePlay = (songId: string) => {
     if (currentlyPlaying === songId) {
+      // Stop playback
+      const existingAudio = document.getElementById(`audio-${songId}`) as HTMLAudioElement;
+      if (existingAudio) {
+        existingAudio.pause();
+        existingAudio.remove();
+      }
       setCurrentlyPlaying(null);
     } else {
-      setCurrentlyPlaying(songId);
-      // TODO: Implement actual audio playback
-      toast({
-        title: "Playing",
-        description: "Audio playback coming soon!",
-      });
+      // Stop any currently playing audio
+      if (currentlyPlaying) {
+        const prev = document.getElementById(`audio-${currentlyPlaying}`) as HTMLAudioElement;
+        if (prev) { prev.pause(); prev.remove(); }
+      }
+
+      const song = songs.find(s => s.id === songId);
+      if (song?.file_url) {
+        const audio = document.createElement('audio');
+        audio.id = `audio-${songId}`;
+        audio.src = song.file_url;
+        audio.onended = () => {
+          setCurrentlyPlaying(null);
+          audio.remove();
+        };
+        audio.onerror = () => {
+          toast({ title: "Playback error", description: "Could not play this song", variant: "destructive" });
+          setCurrentlyPlaying(null);
+          audio.remove();
+        };
+        document.body.appendChild(audio);
+        audio.play();
+        setCurrentlyPlaying(songId);
+      } else {
+        toast({ title: "No audio file", description: "This song has no audio file attached", variant: "destructive" });
+      }
     }
   };
 
