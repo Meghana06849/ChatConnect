@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
 import { useCall } from '@/components/features/CallProvider';
 import { useChatSettings } from '@/hooks/useChatSettings';
+import { useChatActions } from '@/hooks/useChatActions';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { supabase } from '@/integrations/supabase/client';
 import { DreamBackground } from './DreamBackground';
 import { DreamChatHeader } from './DreamChatHeader';
@@ -10,6 +12,9 @@ import { DreamTypingIndicator } from './DreamTypingIndicator';
 import { DreamMessageInput } from './DreamMessageInput';
 import { VoiceMessageRecorder } from '@/components/chat/VoiceMessageRecorder';
 import { ChatSettingsDialog } from '@/components/chat/ChatSettingsDialog';
+import { ChatWallpaperUpload } from '@/components/chat/ChatWallpaperUpload';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronDown, Heart, Lock, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +44,10 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showWallpaperDialog, setShowWallpaperDialog] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showRemoveFriendConfirm, setShowRemoveFriendConfirm] = useState(false);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -55,7 +64,9 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
     loadOlderMessages,
   } = useEnhancedRealTimeChat(conversationId || null);
 
-  const { settings: chatSettings, toggleMute, setDisappearingMode } = useChatSettings(conversationId || null);
+  const { settings: chatSettings, toggleMute, setDisappearingMode, setWallpaper, reload: refreshSettings } = useChatSettings(conversationId || null);
+  const { clearChat, removeFriend, sendMediaMessage } = useChatActions();
+  const { blockUser } = useBlockedUsers();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -291,7 +302,33 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
             onSend={handleSendMessage}
             onTyping={setTyping}
             onVoiceRecord={() => setIsRecordingVoice(true)}
-            onMediaSelect={(type) => toast({ title: type, description: 'Coming soon!' })}
+            onMediaSelect={async (type) => {
+              if (type === 'location' && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  async (position) => {
+                    const locationUrl = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
+                    await sendMessage(locationUrl, 'location');
+                    scrollToBottom();
+                  },
+                  () => toast({ title: 'Location', description: 'Location access denied', variant: 'destructive' })
+                );
+              } else if (type === 'camera') {
+                toast({ title: 'Camera', description: 'Camera access requires device permissions' });
+              } else if (type === 'gallery') {
+                // Create a file input to select an image
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file && conversationId) {
+                    await sendMediaMessage(conversationId, file);
+                    scrollToBottom();
+                  }
+                };
+                input.click();
+              }
+            }}
           />
         )}
       </div>
@@ -305,11 +342,86 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
         isLoversMode={true}
         onMuteToggle={toggleMute}
         onDisappearingModeChange={setDisappearingMode}
-        onWallpaperChange={() => toast({ title: 'Wallpaper', description: 'Dream wallpapers coming soon!' })}
-        onBlock={() => toast({ title: 'Block', description: 'Coming soon!' })}
-        onRemoveFriend={() => toast({ title: 'Remove', description: 'Coming soon!' })}
-        onClearChat={() => toast({ title: 'Clear Chat', description: 'Coming soon!' })}
+        onWallpaperChange={() => setShowWallpaperDialog(true)}
+        onBlock={() => setShowBlockConfirm(true)}
+        onRemoveFriend={() => setShowRemoveFriendConfirm(true)}
+        onClearChat={() => setShowClearChatConfirm(true)}
       />
+
+      {/* Wallpaper Dialog */}
+      <Dialog open={showWallpaperDialog} onOpenChange={setShowWallpaperDialog}>
+        <DialogContent className="glass border-white/20">
+          <DialogHeader>
+            <DialogTitle>Dream Wallpaper</DialogTitle>
+          </DialogHeader>
+          <ChatWallpaperUpload 
+            onUploadComplete={async (url) => {
+              if (url) {
+                await setWallpaper(url);
+                setShowWallpaperDialog(false);
+                refreshSettings();
+              }
+            }}
+            currentWallpaper={chatSettings?.wallpaper_url}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Confirmation */}
+      <AlertDialog open={showBlockConfirm} onOpenChange={setShowBlockConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block {selectedContact.name}?</AlertDialogTitle>
+            <AlertDialogDescription>They won't be able to message or call you.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
+              await blockUser(selectedContact.id);
+              setShowBlockConfirm(false);
+              setShowSettings(false);
+              onBack?.();
+            }}>Block</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove Friend Confirmation */}
+      <AlertDialog open={showRemoveFriendConfirm} onOpenChange={setShowRemoveFriendConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {selectedContact.name}?</AlertDialogTitle>
+            <AlertDialogDescription>They will be removed from your friends list.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
+              await removeFriend(selectedContact.id);
+              setShowRemoveFriendConfirm(false);
+              setShowSettings(false);
+              onBack?.();
+            }}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Chat Confirmation */}
+      <AlertDialog open={showClearChatConfirm} onOpenChange={setShowClearChatConfirm}>
+        <AlertDialogContent className="glass border-white/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear chat history?</AlertDialogTitle>
+            <AlertDialogDescription>All messages will be deleted. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
+              if (conversationId) await clearChat(conversationId);
+              setShowClearChatConfirm(false);
+              setShowSettings(false);
+            }}>Clear</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

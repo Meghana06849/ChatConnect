@@ -536,7 +536,18 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   toast({ title: 'Location', description: 'Geolocation not supported', variant: 'destructive' });
                 }
               }}
-              onContactShare={() => toast({ title: 'Contact', description: 'Contact sharing available soon' })}
+              onContactShare={() => {
+                // Share current user's contact info as a message
+                if (conversationId && currentUserId) {
+                  supabase.from('profiles').select('display_name, username, avatar_url').eq('user_id', currentUserId).single().then(({ data }) => {
+                    if (data) {
+                      const contactCard = `📇 Contact: ${data.display_name || 'Unknown'}\n@${data.username || 'N/A'}`;
+                      sendMessage(contactCard, 'text');
+                      scrollToBottom();
+                    }
+                  });
+                }
+              }}
               isLoversMode={isLoversMode}
             />
 
