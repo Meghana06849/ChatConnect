@@ -21,42 +21,16 @@ import {
   Eye,
   EyeOff,
   ChevronRight,
-  Users,
-  Image,
-  MessageSquare,
-  Globe,
-  UserPlus,
-  Download,
   LogOut,
   HelpCircle,
-  Database,
-  Music,
-  Edit3,
   Mail,
   Activity,
-  Mic,
-  Star,
-  Timer,
-  Trophy,
-  Moon
 } from 'lucide-react';
-import { LoversModeSettings } from './LoversModeSettings';
 import { useToast } from '@/hooks/use-toast';
 import { ModeSwitch } from './ModeSwitch';
 import { ProfileEditor } from '@/components/profile/ProfileEditor';
 import { RealActivityDashboard } from '@/components/profile/RealActivityDashboard';
 import { PrivacySettings } from '@/components/profile/PrivacySettings';
-import { SongManager } from '@/components/media/SongManager';
-import { ImageEditor } from '@/components/media/ImageEditor';
-import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
-import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
-import { ARFilters } from '@/components/unique/ARFilters';
-import { SecretVault } from '@/components/unique/SecretVault';
-import { ScreenshotDetection } from '@/components/unique/ScreenshotDetection';
-import { MoodSync } from '@/components/unique/MoodSync';
-import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
-import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
-import { VirtualPet } from '@/components/unique/VirtualPet';
 import { SecurityCenter } from '@/components/profile/SecurityCenter';
 
 const SettingsItem: React.FC<{
@@ -89,32 +63,10 @@ export const AdvancedSettings: React.FC = () => {
   const [showPasswords, setShowPasswords] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showActivityDashboard, setShowActivityDashboard] = useState(false);
-  const [showSongManager, setShowSongManager] = useState(false);
-  const [showImageEditor, setShowImageEditor] = useState(false);
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
-  const [showChatSettings, setShowChatSettings] = useState(false);
-  const [showStorageSettings, setShowStorageSettings] = useState(false);
-  const [showHelpSettings, setShowHelpSettings] = useState(false);
-  
-  // Feature dialogs
-  const [showVoiceChanger, setShowVoiceChanger] = useState(false);
-  const [showARFilters, setShowARFilters] = useState(false);
-  const [showSecretVault, setShowSecretVault] = useState(false);
-  const [showDisappearingMessages, setShowDisappearingMessages] = useState(false);
-  const [showScreenshotDetection, setShowScreenshotDetection] = useState(false);
-  const [showMoodSync, setShowMoodSync] = useState(false);
-  const [showCoupleChallenge, setShowCoupleChallenge] = useState(false);
-  const [showHeartbeatSync, setShowHeartbeatSync] = useState(false);
-  const [showVirtualPet, setShowVirtualPet] = useState(false);
   const [showSecurityCenter, setShowSecurityCenter] = useState(false);
-  const [showLoversSettings, setShowLoversSettings] = useState(false);
-  
-  // Privacy settings
-  const [lastSeenVisible, setLastSeenVisible] = useState(true);
-  const [profilePhotoVisible, setProfilePhotoVisible] = useState(true);
-  const [statusVisible, setStatusVisible] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
+  const [showHelpSettings, setShowHelpSettings] = useState(false);
   
   // Notification settings
   const [messageNotifications, setMessageNotifications] = useState(true);
@@ -186,9 +138,10 @@ export const AdvancedSettings: React.FC = () => {
         <div className="text-center mb-8">
           <Settings className={`w-16 h-16 mx-auto mb-4 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
           <h1 className="text-3xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize your ChatConnect experience</p>
+          <p className="text-muted-foreground">Account, Privacy & Security</p>
         </div>
 
+        {/* Account Section */}
         <Card className="glass border-white/20">
           <CardContent className="p-0">
             <div className="p-4 border-b border-white/10">
@@ -200,7 +153,7 @@ export const AdvancedSettings: React.FC = () => {
                 </Avatar>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{profile?.display_name || 'Your Name'}</h3>
-                  <p className="text-sm text-muted-foreground">{profile?.username}</p>
+                  <p className="text-sm text-muted-foreground">@{profile?.username}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {isLoversMode ? '💕 In Lovers Mode' : '💬 General Mode'}
                   </p>
@@ -212,7 +165,7 @@ export const AdvancedSettings: React.FC = () => {
               <SettingsItem 
                 icon={<User className="w-5 h-5" />}
                 title="Profile"
-                subtitle="Edit profile picture and bio"
+                subtitle="Edit profile picture, name and bio"
                 onClick={() => setShowProfileEditor(true)}
               />
               
@@ -222,31 +175,17 @@ export const AdvancedSettings: React.FC = () => {
                 subtitle="View your app usage and statistics"
                 onClick={() => setShowActivityDashboard(true)}
               />
-              
-              <SettingsItem 
-                icon={<Shield className="w-5 h-5" />}
-                title="Privacy"
-                subtitle="Control who can see your profile and status"
-                onClick={() => setShowPrivacySettings(true)}
-              />
-              
-              <SettingsItem 
-                icon={<Bell className="w-5 h-5" />}
-                title="Notifications"
-                subtitle="Message, call and story alerts"
-                onClick={() => setShowNotificationSettings(true)}
-              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Mode Switch Component */}
+        {/* Mode Switch */}
         <ModeSwitch />
 
         {isLoversMode && (
           <Card className="glass border-white/20">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Coins className="w-6 h-6 text-lovers-primary" />
                   <div>
@@ -263,121 +202,41 @@ export const AdvancedSettings: React.FC = () => {
           </Card>
         )}
 
-        <Card className="glass border-white/20">
-          <CardContent className="p-0">
-            <div className="divide-y divide-white/10">
-              <SettingsItem 
-                icon={<MessageSquare className="w-5 h-5" />}
-                title="Chats"
-                subtitle="Theme, wallpapers, backup & export"
-                onClick={() => setShowChatSettings(true)}
-              />
-              <SettingsItem 
-                icon={<Users className="w-5 h-5" />}
-                title="Friends"
-                subtitle="Block list, friend invitations, privacy"
-                onClick={() => toast({ title: "Friends Settings", description: "Manage blocked users, friend invitations, and privacy settings for friend suggestions." })}
-              />
-              <SettingsItem 
-                icon={<Music className="w-5 h-5" />}
-                title="Music Collection"
-                subtitle="Manage your songs and playlists"
-                onClick={() => setShowSongManager(true)}
-              />
-              <SettingsItem 
-                icon={<Edit3 className="w-5 h-5" />}
-                title="Image Editor"
-                subtitle="Edit and enhance your photos"
-                onClick={() => setShowImageEditor(true)}
-              />
-              <SettingsItem 
-                icon={<Database className="w-5 h-5" />}
-                title="Storage"
-                subtitle="Cache, downloads, auto-delete settings"
-                onClick={() => setShowStorageSettings(true)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Features Section */}
+        {/* Privacy & Security Section */}
         <Card className="glass border-white/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Star className={`w-5 h-5 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
-              Features
+              <Shield className={`w-5 h-5 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
+              Privacy & Security
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-white/10">
               <SettingsItem 
-                icon={<Mic className="w-5 h-5" />}
-                title="Voice Changer"
-                subtitle="Transform voice with real-time effects"
-                onClick={() => setShowVoiceChanger(true)}
-              />
-              <SettingsItem 
-                icon={<Star className="w-5 h-5" />}
-                title="AR Filters"
-                subtitle="Magic AR effects for photos & videos"
-                onClick={() => setShowARFilters(true)}
-              />
-              <SettingsItem 
                 icon={<Shield className="w-5 h-5" />}
-                title="Secret Vault"
-                subtitle="Ultra-secure storage with decoy mode"
-                onClick={() => setShowSecretVault(true)}
+                title="Privacy"
+                subtitle="Control who can see your profile and status"
+                onClick={() => setShowPrivacySettings(true)}
               />
-              <SettingsItem 
-                icon={<Timer className="w-5 h-5" />}
-                title="Disappearing Messages"
-                subtitle="Self-destructing secret messages"
-                onClick={() => setShowDisappearingMessages(true)}
-              />
-              <SettingsItem 
-                icon={<Shield className="w-5 h-5" />}
-                title="Screenshot Detection"
-                subtitle="Privacy protection alerts"
-                onClick={() => setShowScreenshotDetection(true)}
-              />
+              
               <SettingsItem 
                 icon={<Lock className="w-5 h-5" />}
                 title="Security Center"
                 subtitle="Manage security settings and logs"
                 onClick={() => setShowSecurityCenter(true)}
               />
-              {isLoversMode && (
-                <>
-                  <SettingsItem 
-                    icon={<Heart className="w-5 h-5" />}
-                    title="Mood Sync"
-                    subtitle="Share your feelings together"
-                    onClick={() => setShowMoodSync(true)}
-                  />
-                  <SettingsItem 
-                    icon={<Trophy className="w-5 h-5" />}
-                    title="Couple Challenges"
-                    subtitle="Fun activities to do together"
-                    onClick={() => setShowCoupleChallenge(true)}
-                  />
-                  <SettingsItem 
-                    icon={<Activity className="w-5 h-5" />}
-                    title="Heartbeat Sync"
-                    subtitle="Share your heartbeat live"
-                    onClick={() => setShowHeartbeatSync(true)}
-                  />
-                  <SettingsItem 
-                    icon={<Star className="w-5 h-5" />}
-                    title="Virtual Pet"
-                    subtitle="Care for your love pet together"
-                    onClick={() => setShowVirtualPet(true)}
-                  />
-                </>
-              )}
+
+              <SettingsItem 
+                icon={<Bell className="w-5 h-5" />}
+                title="Notifications"
+                subtitle="Message, call and story alerts"
+                onClick={() => setShowNotificationSettings(true)}
+              />
             </div>
           </CardContent>
         </Card>
 
+        {/* Support */}
         <Card className="glass border-white/20">
           <CardContent className="p-0">
             <div className="divide-y divide-white/10">
@@ -387,16 +246,11 @@ export const AdvancedSettings: React.FC = () => {
                 subtitle="Get help and contact support"
                 onClick={() => setShowHelpSettings(true)}
               />
-              <SettingsItem 
-                icon={<UserPlus className="w-5 h-5" />}
-                title="Invite Friends"
-                subtitle="Share ChatConnect via link or code"
-                onClick={() => toast({ title: "Invite Friends", description: "Share ChatConnect with friends using your personal invite link or unique friend code!" })}
-              />
             </div>
           </CardContent>
         </Card>
 
+        {/* Sign Out */}
         <Card className="glass border-white/20">
           <CardContent className="p-0">
             <div className="flex items-center justify-between p-4 hover:bg-white/5 cursor-pointer transition-colors text-destructive" onClick={handleSignOut}>
@@ -411,6 +265,7 @@ export const AdvancedSettings: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* PIN Dialog */}
         <Dialog open={showPinDialog} onOpenChange={setShowPinDialog}>
           <DialogContent className="glass border-white/20">
             <DialogHeader>
@@ -423,7 +278,6 @@ export const AdvancedSettings: React.FC = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <p className="text-muted-foreground">Create a secure PIN to protect your private conversations and Dream Room access.</p>
               <div className="space-y-2">
                 <Label htmlFor="pin">PIN (4+ characters)</Label>
                 <div className="relative">
@@ -461,48 +315,17 @@ export const AdvancedSettings: React.FC = () => {
 
         {/* Privacy Settings Dialog */}
         <Dialog open={showPrivacySettings} onOpenChange={setShowPrivacySettings}>
-          <DialogContent className="glass border-white/20 max-w-2xl">
+          <DialogContent className="glass border-white/20 max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center space-x-2">
                 <Shield className="w-5 h-5" />
                 <span>Privacy Settings</span>
               </DialogTitle>
               <DialogDescription>
-                Control who can see your information and activity
+                Control who can see your profile, status, and content
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Last Seen</Label>
-                    <p className="text-sm text-muted-foreground">Show when you were last online</p>
-                  </div>
-                  <Switch checked={lastSeenVisible} onCheckedChange={setLastSeenVisible} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Profile Photo</Label>
-                    <p className="text-sm text-muted-foreground">Who can see your profile picture</p>
-                  </div>
-                  <Switch checked={profilePhotoVisible} onCheckedChange={setProfilePhotoVisible} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Status</Label>
-                    <p className="text-sm text-muted-foreground">Show your bio and status updates</p>
-                  </div>
-                  <Switch checked={statusVisible} onCheckedChange={setStatusVisible} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Read Receipts</Label>
-                    <p className="text-sm text-muted-foreground">Show when you've read messages</p>
-                  </div>
-                  <Switch checked={readReceipts} onCheckedChange={setReadReceipts} />
-                </div>
-              </div>
-            </div>
+            <PrivacySettings isLoversMode={isLoversMode} />
           </DialogContent>
         </Dialog>
 
@@ -553,184 +376,6 @@ export const AdvancedSettings: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Chat Settings Dialog */}
-        <Dialog open={showChatSettings} onOpenChange={setShowChatSettings}>
-          <DialogContent className="glass border-white/20 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <MessageSquare className="w-5 h-5" />
-                <span>Chat Settings</span>
-              </DialogTitle>
-              <DialogDescription>
-                Customize your chat experience
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Theme Options</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm">Default</Button>
-                      <Button variant="outline" size="sm">Dark</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Chat Backup</h4>
-                    <p className="text-sm text-muted-foreground mb-3">Export your chat history</p>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Chats
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Profile Editor Dialog */}
-        <Dialog open={showProfileEditor} onOpenChange={setShowProfileEditor}>
-          <DialogContent className="glass border-white/20 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Profile</DialogTitle>
-              <DialogDescription>
-                Update your profile information and avatar
-              </DialogDescription>
-            </DialogHeader>
-            <ProfileEditor />
-          </DialogContent>
-        </Dialog>
-
-        {/* Privacy Settings Dialog */}
-        <Dialog open={showPrivacySettings} onOpenChange={setShowPrivacySettings}>
-          <DialogContent className="glass border-white/20 max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Shield className="w-5 h-5" />
-                <span>Privacy Settings</span>
-              </DialogTitle>
-              <DialogDescription>
-                Control who can see your profile, status, and content
-              </DialogDescription>
-            </DialogHeader>
-            <PrivacySettings isLoversMode={isLoversMode} />
-          </DialogContent>
-        </Dialog>
-
-        {/* Song Manager Dialog */}
-        <Dialog open={showSongManager} onOpenChange={setShowSongManager}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Music Collection</DialogTitle>
-              <DialogDescription>
-                Manage your personal music library
-              </DialogDescription>
-            </DialogHeader>
-            <SongManager />
-          </DialogContent>
-        </Dialog>
-
-        {/* Storage Settings Dialog */}
-        <Dialog open={showStorageSettings} onOpenChange={setShowStorageSettings}>
-          <DialogContent className="glass border-white/20 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Database className="w-5 h-5" />
-                <span>Storage Settings</span>
-              </DialogTitle>
-              <DialogDescription>
-                Manage app storage and downloads
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Auto-delete old messages</Label>
-                    <p className="text-sm text-muted-foreground">Delete messages older than 30 days</p>
-                  </div>
-                  <Switch />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Download media on WiFi only</Label>
-                    <p className="text-sm text-muted-foreground">Save mobile data usage</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Storage Usage</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Messages</span>
-                        <span>12.5 MB</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Media</span>
-                        <span>245 MB</span>
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full mt-2">
-                        Clear Cache
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Help Settings Dialog */}
-        <Dialog open={showHelpSettings} onOpenChange={setShowHelpSettings}>
-          <DialogContent className="glass border-white/20 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <HelpCircle className="w-5 h-5" />
-                <span>Help & Support</span>
-              </DialogTitle>
-              <DialogDescription>
-                Get help and contact our support team
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Frequently Asked Questions</h4>
-                    <p className="text-sm text-muted-foreground mb-3">Find answers to common questions</p>
-                    <Button variant="outline" size="sm">
-                      View FAQ
-                    </Button>
-                  </CardContent>
-                </Card>
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Contact Support</h4>
-                    <p className="text-sm text-muted-foreground mb-3">Get help from our team</p>
-                    <Button variant="outline" size="sm">
-                      <Mail className="w-4 h-4 mr-2" />
-                      Email Support
-                    </Button>
-                  </CardContent>
-                </Card>
-                <Card className="glass border-white/20">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Report a Bug</h4>
-                    <p className="text-sm text-muted-foreground mb-3">Help us improve ChatConnect</p>
-                    <Button variant="outline" size="sm">
-                      Report Issue
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Profile Editor Dialog */}
         <Dialog open={showProfileEditor} onOpenChange={setShowProfileEditor}>
           <DialogContent className="glass border-white/20 max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -763,88 +408,7 @@ export const AdvancedSettings: React.FC = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Image Editor */}
-        <ImageEditor 
-          isOpen={showImageEditor} 
-          onClose={() => setShowImageEditor(false)} 
-        />
-
-        {/* Feature Dialogs */}
-        <Dialog open={showVoiceChanger} onOpenChange={setShowVoiceChanger}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Mic className="w-5 h-5" />
-                <span>Voice Changer</span>
-              </DialogTitle>
-              <DialogDescription>
-                Transform your voice with fun effects
-              </DialogDescription>
-            </DialogHeader>
-            <VoiceChangeChat />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showARFilters} onOpenChange={setShowARFilters}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Star className="w-5 h-5" />
-                <span>AR Filters</span>
-              </DialogTitle>
-              <DialogDescription>
-                Apply magical effects to your photos and videos
-              </DialogDescription>
-            </DialogHeader>
-            <ARFilters />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showSecretVault} onOpenChange={setShowSecretVault}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Shield className="w-5 h-5" />
-                <span>Secret Vault</span>
-              </DialogTitle>
-              <DialogDescription>
-                Store your private content securely
-              </DialogDescription>
-            </DialogHeader>
-            <SecretVault />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showDisappearingMessages} onOpenChange={setShowDisappearingMessages}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Timer className="w-5 h-5" />
-                <span>Disappearing Messages</span>
-              </DialogTitle>
-              <DialogDescription>
-                Send self-destructing messages
-              </DialogDescription>
-            </DialogHeader>
-            <DisappearingMessages />
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showScreenshotDetection} onOpenChange={setShowScreenshotDetection}>
-          <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
-                <Shield className="w-5 h-5" />
-                <span>Screenshot Detection</span>
-              </DialogTitle>
-              <DialogDescription>
-                Privacy protection alerts
-              </DialogDescription>
-            </DialogHeader>
-            <ScreenshotDetection />
-          </DialogContent>
-        </Dialog>
-
+        {/* Security Center Dialog */}
         <Dialog open={showSecurityCenter} onOpenChange={setShowSecurityCenter}>
           <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -853,76 +417,48 @@ export const AdvancedSettings: React.FC = () => {
                 <span>Security Center</span>
               </DialogTitle>
               <DialogDescription>
-                Manage your security settings
+                Review security settings and activity logs
               </DialogDescription>
             </DialogHeader>
             <SecurityCenter />
           </DialogContent>
         </Dialog>
 
-        {isLoversMode && (
-          <>
-            <Dialog open={showMoodSync} onOpenChange={setShowMoodSync}>
-              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center space-x-2">
-                    <Heart className="w-5 h-5" />
-                    <span>Mood Sync</span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    Share your feelings with your partner
-                  </DialogDescription>
-                </DialogHeader>
-                <MoodSync />
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={showCoupleChallenge} onOpenChange={setShowCoupleChallenge}>
-              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center space-x-2">
-                    <Trophy className="w-5 h-5" />
-                    <span>Couple Challenges</span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    Fun activities to do together
-                  </DialogDescription>
-                </DialogHeader>
-                <CoupleChallenge />
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={showHeartbeatSync} onOpenChange={setShowHeartbeatSync}>
-              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center space-x-2">
-                    <Activity className="w-5 h-5" />
-                    <span>Heartbeat Sync</span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    Share your heartbeat in real-time
-                  </DialogDescription>
-                </DialogHeader>
-                <HeartbeatSync />
-              </DialogContent>
-            </Dialog>
-
-            <Dialog open={showVirtualPet} onOpenChange={setShowVirtualPet}>
-              <DialogContent className="glass border-white/20 max-w-4xl max-h-[80vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center space-x-2">
-                    <Star className="w-5 h-5" />
-                    <span>Virtual Pet</span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    Raise a pet together with your partner
-                  </DialogDescription>
-                </DialogHeader>
-                <VirtualPet />
-              </DialogContent>
-            </Dialog>
-          </>
-        )}
+        {/* Help Settings Dialog */}
+        <Dialog open={showHelpSettings} onOpenChange={setShowHelpSettings}>
+          <DialogContent className="glass border-white/20 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <HelpCircle className="w-5 h-5" />
+                <span>Help & Support</span>
+              </DialogTitle>
+              <DialogDescription>
+                Get help and contact our support team
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Frequently Asked Questions</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Find answers to common questions</p>
+                    <Button variant="outline" size="sm">View FAQ</Button>
+                  </CardContent>
+                </Card>
+                <Card className="glass border-white/20">
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Contact Support</h4>
+                    <p className="text-sm text-muted-foreground mb-3">Get help from our team</p>
+                    <Button variant="outline" size="sm">
+                      <Mail className="w-4 h-4 mr-2" />
+                      Email Support
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
