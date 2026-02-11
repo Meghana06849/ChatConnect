@@ -1,205 +1,177 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Camera, 
   Sparkles, 
-  Star, 
-  Heart,
-  Smile,
-  Eye,
-  Zap,
-  Crown,
-  Flame,
-  Snowflake
+  Send,
+  Upload,
+  X,
+  RotateCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
-export const ARFilters: React.FC = () => {
+interface ARFiltersProps {
+  onSendImage?: (file: File) => void;
+}
+
+const filters = [
+  { id: 'none', name: 'Original', icon: '😊', css: '' },
+  { id: 'warm', name: 'Warm', icon: '🌅', css: 'saturate(1.3) sepia(0.2) brightness(1.05)' },
+  { id: 'cool', name: 'Cool', icon: '❄️', css: 'saturate(0.9) hue-rotate(20deg) brightness(1.05)' },
+  { id: 'vintage', name: 'Vintage', icon: '📷', css: 'sepia(0.5) contrast(1.1) brightness(0.95)' },
+  { id: 'dramatic', name: 'Dramatic', icon: '🎭', css: 'contrast(1.4) saturate(1.3) brightness(0.9)' },
+  { id: 'glow', name: 'Glow', icon: '✨', css: 'brightness(1.2) contrast(0.95) saturate(1.2)' },
+  { id: 'noir', name: 'Noir', icon: '🖤', css: 'grayscale(1) contrast(1.3) brightness(0.9)' },
+  { id: 'pop', name: 'Pop Art', icon: '🎨', css: 'saturate(2) contrast(1.5) brightness(1.1)' },
+  { id: 'dream', name: 'Dreamy', icon: '💫', css: 'brightness(1.1) saturate(0.8) blur(0.5px) contrast(0.9)' },
+  { id: 'fire', name: 'Fire', icon: '🔥', css: 'saturate(1.8) hue-rotate(-10deg) contrast(1.2)' },
+  { id: 'ice', name: 'Ice', icon: '🧊', css: 'saturate(0.7) hue-rotate(180deg) brightness(1.1)' },
+  { id: 'sunset', name: 'Sunset', icon: '🌇', css: 'sepia(0.3) saturate(1.5) hue-rotate(-20deg) brightness(1.05)' },
+];
+
+export const ARFilters: React.FC<ARFiltersProps> = ({ onSendImage }) => {
   const [selectedFilter, setSelectedFilter] = useState('none');
-  const [isRecording, setIsRecording] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const { toast } = useToast();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  const filters = [
-    { id: 'none', name: 'No Filter', icon: '😊', color: 'bg-gray-500' },
-    { id: 'sparkle', name: 'Sparkle Eyes', icon: '✨', color: 'bg-yellow-500' },
-    { id: 'heart', name: 'Heart Eyes', icon: '😍', color: 'bg-pink-500' },
-    { id: 'fire', name: 'Fire Crown', icon: '🔥', color: 'bg-orange-500' },
-    { id: 'ice', name: 'Ice Queen', icon: '❄️', color: 'bg-blue-500' },
-    { id: 'rainbow', name: 'Rainbow', icon: '🌈', color: 'bg-purple-500' },
-    { id: 'angel', name: 'Angel Halo', icon: '😇', color: 'bg-white' },
-    { id: 'devil', name: 'Devil Horns', icon: '😈', color: 'bg-red-500' },
-    { id: 'cat', name: 'Cat Ears', icon: '🐱', color: 'bg-orange-400' },
-    { id: 'bunny', name: 'Bunny Ears', icon: '🐰', color: 'bg-pink-400' },
-    { id: 'crown', name: 'Royal Crown', icon: '👑', color: 'bg-yellow-600' },
-    { id: 'glasses', name: 'Cool Glasses', icon: '😎', color: 'bg-gray-700' },
-  ];
-
-  const handleTakePhoto = () => {
-    toast({
-      title: "Photo captured! 📸",
-      description: `Photo taken with ${filters.find(f => f.id === selectedFilter)?.name} filter`
-    });
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    setImageFile(file);
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+    
+    const img = document.createElement('img');
+    img.onload = () => { imageRef.current = img; applyFilter(img, 'none'); };
+    img.src = url;
+    setSelectedFilter('none');
+    e.target.value = '';
   };
 
-  const handleStartVideo = () => {
-    setIsRecording(!isRecording);
-    toast({
-      title: isRecording ? "Video stopped" : "Video recording started",
-      description: isRecording 
-        ? "Video saved to your gallery" 
-        : `Recording with ${filters.find(f => f.id === selectedFilter)?.name} filter`
-    });
+  const applyFilter = useCallback((img: HTMLImageElement, filterId: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const maxW = 800;
+    const scale = img.width > maxW ? maxW / img.width : 1;
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    const filterDef = filters.find(f => f.id === filterId);
+    ctx.filter = filterDef?.css || 'none';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }, []);
+
+  const handleFilterSelect = (filterId: string) => {
+    setSelectedFilter(filterId);
+    if (imageRef.current) {
+      applyFilter(imageRef.current, filterId);
+    }
+  };
+
+  const handleSend = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !onSendImage) return;
+    setSending(true);
+    try {
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed')), 'image/jpeg', 0.9);
+      });
+      const file = new File([blob], `filtered_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      onSendImage(file);
+      toast({ title: '📸 Image sent!', description: `Sent with ${filters.find(f => f.id === selectedFilter)?.name} filter` });
+      resetState();
+    } catch (err: any) {
+      toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const resetState = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setSelectedFilter('none');
+    imageRef.current = null;
   };
 
   return (
-    <div className="flex-1 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <Camera className="w-16 h-16 mx-auto mb-4 text-primary animate-bounce" />
-          <h1 className="text-3xl font-bold mb-2">AR Filters & Effects</h1>
-          <p className="text-muted-foreground">
-            Transform yourself with amazing AR filters and create magical content
-          </p>
-        </div>
-
-        {/* Camera Preview */}
-        <Card className="glass border-white/20 mb-6">
-          <CardContent className="p-0">
-            <div className="relative w-full h-80 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg flex items-center justify-center overflow-hidden">
-              {/* Simulated camera view */}
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 animate-pulse"></div>
-              
-              {/* Filter preview overlay */}
-              <div className="relative z-10 text-center">
-                <div className="text-6xl mb-2">
-                  {filters.find(f => f.id === selectedFilter)?.icon || '😊'}
-                </div>
-                <p className="text-white font-medium">
-                  {filters.find(f => f.id === selectedFilter)?.name} Active
-                </p>
-              </div>
-
-              {/* Recording indicator */}
-              {isRecording && (
-                <div className="absolute top-4 right-4 flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-white text-sm font-medium">REC</span>
-                </div>
-              )}
-
-              {/* Camera controls */}
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center space-x-4">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                  onClick={handleTakePhoto}
-                >
-                  <Camera className="w-5 h-5" />
-                </Button>
-                <Button
-                  size="lg"
-                  className={`
-                    ${isRecording 
-                      ? 'bg-red-500 hover:bg-red-600' 
-                      : 'bg-primary hover:bg-primary/90'
-                    }
-                  `}
-                  onClick={handleStartVideo}
-                >
-                  {isRecording ? '⏹️ Stop' : '🎥 Record'}
-                </Button>
-              </div>
-            </div>
+    <div className="space-y-4">
+      {!imageFile ? (
+        <Card className="glass border-white/20">
+          <CardContent className="p-8 text-center">
+            <Camera className="w-16 h-16 mx-auto mb-4 text-primary" />
+            <h3 className="text-lg font-semibold mb-2">Choose a photo to apply filters</h3>
+            <p className="text-muted-foreground mb-4 text-sm">Select an image, apply a filter, then send it in chat</p>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+            <Button onClick={() => fileInputRef.current?.click()} size="lg">
+              <Upload className="w-4 h-4 mr-2" /> Choose Photo
+            </Button>
           </CardContent>
         </Card>
-
-        {/* Filter Selection */}
-        <Card className="glass border-white/20 mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Sparkles className="w-5 h-5" />
-              <span>AR Filters</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              {filters.map((filter) => (
-                <Button
-                  key={filter.id}
-                  variant={selectedFilter === filter.id ? "default" : "outline"}
-                  className={`
-                    h-20 flex-col space-y-2 p-2
-                    ${selectedFilter === filter.id 
-                      ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2" 
-                      : "glass border-white/20 hover:bg-white/10"
-                    }
-                  `}
-                  onClick={() => setSelectedFilter(filter.id)}
-                >
-                  <span className="text-2xl">{filter.icon}</span>
-                  <span className="text-xs font-medium text-center leading-tight">
-                    {filter.name}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Filter Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="glass border-white/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Heart className="w-5 h-5 text-pink-500" />
-                <span>Beauty Filters</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Badge variant="outline" className="glass">Smooth Skin</Badge>
-                <Badge variant="outline" className="glass">Bright Eyes</Badge>
-                <Badge variant="outline" className="glass">Lip Enhancement</Badge>
+      ) : (
+        <>
+          {/* Preview */}
+          <Card className="glass border-white/20 relative">
+            <CardContent className="p-2">
+              <Button
+                variant="ghost" size="icon"
+                className="absolute top-3 right-3 z-10 rounded-full bg-black/50 hover:bg-black/70 text-white"
+                onClick={resetState}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+              <div className="flex justify-center">
+                <canvas
+                  ref={canvasRef}
+                  className="max-w-full max-h-[320px] object-contain rounded-lg"
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass border-white/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Crown className="w-5 h-5 text-yellow-500" />
-                <span>Fantasy Effects</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Badge variant="outline" className="glass">Magic Particles</Badge>
-                <Badge variant="outline" className="glass">Fairy Wings</Badge>
-                <Badge variant="outline" className="glass">Dragon Eyes</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Filters strip */}
+          <div className="flex gap-2 overflow-x-auto pb-2 px-1">
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => handleFilterSelect(filter.id)}
+                className={cn(
+                  "flex flex-col items-center gap-1 p-2 rounded-xl min-w-[60px] shrink-0 transition-all",
+                  selectedFilter === filter.id
+                    ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 ring-offset-background"
+                    : "bg-white/5 hover:bg-white/10"
+                )}
+              >
+                <span className="text-xl">{filter.icon}</span>
+                <span className="text-[10px] font-medium leading-tight">{filter.name}</span>
+              </button>
+            ))}
+          </div>
 
-          <Card className="glass border-white/20">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-purple-500" />
-                <span>Trending Now</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Badge variant="outline" className="glass">Galaxy Eyes</Badge>
-                <Badge variant="outline" className="glass">Neon Glow</Badge>
-                <Badge variant="outline" className="glass">Time Warp</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 glass border-white/20" onClick={() => handleFilterSelect('none')}>
+              <RotateCw className="w-4 h-4 mr-2" /> Reset
+            </Button>
+            {onSendImage && (
+              <Button className="flex-1" onClick={handleSend} disabled={sending}>
+                <Send className="w-4 h-4 mr-2" /> {sending ? 'Sending...' : 'Send in Chat'}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

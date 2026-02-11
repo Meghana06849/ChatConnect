@@ -114,18 +114,23 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
   }, [conversationId, loadingMore, hasMore, messages, toast]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, messageType: string = 'text') => {
+  const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, any>) => {
     if (!conversationId || !currentUserIdRef.current) return;
 
     try {
+      const insertData: any = {
+        conversation_id: conversationId,
+        sender_id: currentUserIdRef.current,
+        content,
+        message_type: messageType,
+      };
+      if (metadata && Object.keys(metadata).length > 0) {
+        insertData.metadata = metadata;
+      }
+
       const { error } = await supabase
         .from('messages')
-        .insert([{
-          conversation_id: conversationId,
-          sender_id: currentUserIdRef.current,
-          content,
-          message_type: messageType,
-        }]);
+        .insert([insertData]);
 
       if (error) throw error;
 

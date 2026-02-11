@@ -33,14 +33,14 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
   }, {} as Record<string, { count: number; hasUserReacted: boolean }>);
 
   return (
-    <div className="flex flex-wrap gap-1 mt-1">
+    <div className="flex flex-wrap gap-1 mt-1.5 -mb-0.5">
       {Object.entries(groupedReactions).map(([emoji, { count, hasUserReacted }]) => (
         <button
           key={emoji}
           onClick={() => onReactionClick?.(emoji)}
           className={`
-            inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs
-            transition-all hover:scale-105
+            inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs
+            transition-all hover:scale-110 active:scale-95
             ${hasUserReacted 
               ? isLoversMode 
                 ? 'bg-lovers-primary/30 ring-1 ring-lovers-primary/50' 
@@ -48,13 +48,16 @@ export const MessageReactions: React.FC<MessageReactionsProps> = ({
               : 'bg-white/10 hover:bg-white/20'
             }
           `}
+          title={hasUserReacted ? 'Click to remove your reaction' : 'Click to react'}
         >
-          <span className="text-sm">{emoji}</span>
-          {count > 1 && (
-            <span className={`font-medium ${hasUserReacted ? 'text-lovers-primary' : 'text-muted-foreground'}`}>
-              {count}
-            </span>
-          )}
+          <span className="text-sm leading-none">{emoji}</span>
+          <span className={`text-[10px] font-semibold ${
+            hasUserReacted 
+              ? isLoversMode ? 'text-lovers-primary' : 'text-primary' 
+              : 'text-muted-foreground'
+          }`}>
+            {count}
+          </span>
         </button>
       ))}
     </div>
