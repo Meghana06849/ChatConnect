@@ -455,9 +455,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   messageType={msg.message_type}
                   createdAt={msg.created_at}
                   readAt={msg.read_at}
+                  deliveredAt={(msg as any).delivered_at}
                   reactions={Array.isArray(msg.reactions) ? msg.reactions : []}
-                  metadata={msg.metadata}
-                  replyTo={msg.metadata?.replyTo}
+                  metadata={typeof msg.metadata === 'object' && msg.metadata !== null ? msg.metadata : {}}
+                  replyTo={(msg.metadata as any)?.replyTo}
                   isLoversMode={isLoversMode}
                   onReply={() => handleReply(msg)}
                   onForward={() => toast({ title: 'Forward', description: 'Select a chat to forward this message' })}

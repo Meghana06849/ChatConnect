@@ -27,6 +27,7 @@ import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, Phone, Users, Heart, Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Contact {
   id: string;
@@ -83,16 +84,22 @@ export const ChatLayout = () => {
               selectedContact={selectedContact}
               onContactSelect={setSelectedContact}
             />
-            <ChatInterface 
-              selectedContact={selectedContact ? {
-                id: selectedContact.id,
-                name: selectedContact.name,
-                avatar: selectedContact.avatar,
-                isOnline: selectedContact.isOnline,
-                lastSeen: selectedContact.lastSeen,
-              } : undefined}
-              conversationId={selectedContact?.conversationId || selectedContact?.id}
-            />
+            <div className={cn(
+              "flex-1 h-full",
+              !selectedContact ? "hidden md:flex" : "flex"
+            )}>
+              <ChatInterface 
+                selectedContact={selectedContact ? {
+                  id: selectedContact.id,
+                  name: selectedContact.name,
+                  avatar: selectedContact.avatar,
+                  isOnline: selectedContact.isOnline,
+                  lastSeen: selectedContact.lastSeen,
+                } : undefined}
+                conversationId={selectedContact?.conversationId || selectedContact?.id}
+                onBack={() => setSelectedContact(undefined)}
+              />
+            </div>
           </div>
         );
       
