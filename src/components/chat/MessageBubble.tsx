@@ -3,6 +3,7 @@ import { HeartReadReceipt } from './HeartReadReceipt';
 import { MessageReactions } from './MessageReactions';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { MessageContextMenu } from './MessageContextMenu';
+import { EmojiReactionPicker } from './EmojiReactionPicker';
 import { Image, FileText, Video, MapPin, Play, Download, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +41,31 @@ interface MessageBubbleProps {
   onInfo: () => void;
 }
 
+// Parse @mentions and render as highlighted spans
+const renderTextWithMentions = (text: string, isOwnMessage: boolean, isLoversMode: boolean) => {
+  const parts = text.split(/(@\w+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('@')) {
+      return (
+        <span
+          key={i}
+          className={cn(
+            "font-semibold rounded px-0.5",
+            isOwnMessage
+              ? "text-white/90 bg-white/20"
+              : isLoversMode
+                ? "text-lovers-primary bg-lovers-primary/10"
+                : "text-primary bg-primary/10"
+          )}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   id,
   content,
@@ -70,12 +96,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     return 'sending';
   };
 
-  // Get image/media URL - check both content and metadata
   const getMediaUrl = (): string | null => {
     if (metadata?.imageUrl) return metadata.imageUrl;
     if (metadata?.audioUrl) return metadata.audioUrl;
     if (metadata?.videoUrl) return metadata.videoUrl;
-    // Media uploads store URL in content field
     if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
       return content;
     }
@@ -115,9 +139,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 <Image className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
-            {metadata?.filename && (
-              <p className="mt-1 text-xs opacity-70">{metadata.filename}</p>
-            )}
           </div>
         );
         
@@ -125,12 +146,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         return (
           <div className="relative rounded-lg overflow-hidden max-w-[280px]">
             {mediaUrl ? (
-              <video 
-                src={mediaUrl} 
-                controls 
-                className="w-full max-h-[300px] rounded-lg"
-                preload="metadata"
-              />
+              <video src={mediaUrl} controls className="w-full max-h-[300px] rounded-lg" preload="metadata" />
             ) : (
               <div className="w-full h-32 bg-black/50 flex items-center justify-center">
                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
@@ -138,30 +154,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               </div>
             )}
-            {metadata?.filename && (
-              <p className="mt-1 text-xs opacity-70">{metadata.filename}</p>
-            )}
           </div>
         );
         
       case 'document':
         return (
           <a 
-            href={mediaUrl || '#'} 
-            target="_blank" 
-            rel="noopener noreferrer"
+            href={mediaUrl || '#'} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-3 p-3 bg-white/5 rounded-lg min-w-[200px] hover:bg-white/10 transition-colors"
           >
             <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {metadata?.filename || 'Document'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {metadata?.size ? `${(metadata.size / 1024).toFixed(1)} KB` : 'File'}
-              </p>
+              <p className="text-sm font-medium truncate">{metadata?.filename || 'Document'}</p>
+              <p className="text-xs text-muted-foreground">{metadata?.size ? `${(metadata.size / 1024).toFixed(1)} KB` : 'File'}</p>
             </div>
             <Download className="w-4 h-4 shrink-0 opacity-60" />
           </a>
@@ -171,9 +178,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         const locationUrl = content.startsWith('http') ? content : null;
         return (
           <a 
-            href={locationUrl || '#'} 
-            target="_blank" 
-            rel="noopener noreferrer"
+            href={locationUrl || '#'} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
           >
             <MapPin className="w-5 h-5 text-green-500 shrink-0" />
@@ -184,16 +189,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <ExternalLink className="w-3 h-3 ml-auto opacity-60" />
           </a>
         );
-
-      case 'contact':
-        return (
-          <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg">
-            <p className="text-sm whitespace-pre-wrap">{content}</p>
-          </div>
-        );
         
       default:
-        return <p className="break-words whitespace-pre-wrap">{content}</p>;
+        return (
+          <p className="break-words whitespace-pre-wrap">
+            {renderTextWithMentions(content, isOwnMessage, isLoversMode)}
+          </p>
+        );
     }
   };
 
@@ -217,15 +219,24 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Reply reference */}
           {replyTo && (
             <div className={cn(
-              "text-xs px-3 py-1.5 mb-1 rounded-t-2xl border-l-2",
+              "text-xs px-3 py-1.5 mb-0.5 rounded-t-2xl border-l-2 cursor-pointer",
               isOwnMessage
                 ? isLoversMode
                   ? "bg-lovers-primary/30 border-lovers-secondary"
                   : "bg-general-primary/30 border-general-secondary"
                 : "bg-white/20 border-white/40"
             )}>
-              <p className="font-medium truncate">{replyTo.senderName}</p>
-              <p className="truncate opacity-80">{replyTo.content.slice(0, 40)}...</p>
+              <p className={cn(
+                "font-semibold truncate text-[11px]",
+                isOwnMessage ? "text-white/90" : isLoversMode ? "text-lovers-primary" : "text-primary"
+              )}>
+                ↩ {replyTo.senderName}
+              </p>
+              <p className="truncate opacity-70 text-[11px]">
+                {replyTo.messageType && replyTo.messageType !== 'text' 
+                  ? `📎 ${replyTo.messageType}` 
+                  : replyTo.content?.slice(0, 50)}
+              </p>
             </div>
           )}
 
@@ -249,6 +260,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
           >
             {renderContent()}
+            
+            {/* Inline reaction picker - appears on hover */}
+            <div className={cn(
+              "absolute -top-3 opacity-0 group-hover:opacity-100 transition-opacity z-10",
+              isOwnMessage ? "left-0" : "right-0"
+            )}>
+              <EmojiReactionPicker
+                onSelectEmoji={onReaction}
+                isLoversMode={isLoversMode}
+                existingReactions={reactions}
+                currentUserId={currentUserId || undefined}
+                className="opacity-100"
+              />
+            </div>
             
             {/* Reactions */}
             {reactions.length > 0 && (

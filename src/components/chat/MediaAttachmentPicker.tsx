@@ -188,7 +188,10 @@ export const MediaAttachmentPicker: React.FC<MediaAttachmentPickerProps> = ({
       <ImageEditor 
         isOpen={showImageEditor} 
         onClose={() => setShowImageEditor(false)}
-        onSave={onImageEdited}
+        onSave={(url) => {
+          onImageEdited?.(url);
+          setShowImageEditor(false);
+        }}
       />
 
       {/* Music Manager Dialog */}
@@ -204,29 +207,35 @@ export const MediaAttachmentPicker: React.FC<MediaAttachmentPickerProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* AR Filters Dialog */}
+      {/* AR Filters Dialog — now functional */}
       <Dialog open={showARFilters} onOpenChange={setShowARFilters}>
-        <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Sparkles className="w-5 h-5" />
               <span>AR Filters & Effects</span>
             </DialogTitle>
           </DialogHeader>
-          <ARFilters />
+          <ARFilters onSendImage={(file) => {
+            onImageSelect(file);
+            setShowARFilters(false);
+          }} />
         </DialogContent>
       </Dialog>
 
-      {/* Voice Changer Dialog */}
+      {/* Voice Changer Dialog — now functional */}
       <Dialog open={showVoiceChanger} onOpenChange={setShowVoiceChanger}>
-        <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Mic className="w-5 h-5" />
               <span>Voice Changer</span>
             </DialogTitle>
           </DialogHeader>
-          <VoiceChangeChat />
+          <VoiceChangeChat onSendVoice={(file) => {
+            onImageSelect(file); // reuse same upload handler
+            setShowVoiceChanger(false);
+          }} />
         </DialogContent>
       </Dialog>
     </>

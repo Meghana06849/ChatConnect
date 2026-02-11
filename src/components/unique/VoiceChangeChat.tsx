@@ -1,193 +1,319 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Mic, 
-  Volume2, 
-  Settings, 
-  Play, 
   Square,
   Headphones,
   Waves,
-  Bot
+  Send,
+  Trash2,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
-export const VoiceChangeChat: React.FC = () => {
+interface VoiceChangeChatProps {
+  onSendVoice?: (file: File) => void;
+}
+
+const voiceEffects = [
+  { id: 'normal', name: 'Normal', icon: '👤', pitch: 1, speed: 1 },
+  { id: 'deep', name: 'Deep', icon: '🦹‍♂️', pitch: 0.65, speed: 0.95 },
+  { id: 'chipmunk', name: 'Chipmunk', icon: '🐿️', pitch: 1.8, speed: 1.1 },
+  { id: 'robot', name: 'Robot', icon: '🤖', pitch: 0.85, speed: 1 },
+  { id: 'echo', name: 'Echo', icon: '🔊', pitch: 1, speed: 1 },
+  { id: 'slow', name: 'Slow-mo', icon: '🐢', pitch: 0.8, speed: 0.7 },
+  { id: 'fast', name: 'Fast', icon: '⚡', pitch: 1.2, speed: 1.5 },
+  { id: 'whisper', name: 'Whisper', icon: '🤫', pitch: 1.1, speed: 0.9 },
+];
+
+export const VoiceChangeChat: React.FC<VoiceChangeChatProps> = ({ onSendVoice }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState('normal');
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
   const { toast } = useToast();
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const voiceEffects = [
-    { id: 'normal', name: 'Normal', icon: '👤' },
-    { id: 'robot', name: 'Robot', icon: '🤖' },
-    { id: 'deep', name: 'Deep Voice', icon: '🦹‍♂️' },
-    { id: 'chipmunk', name: 'Chipmunk', icon: '🐿️' },
-    { id: 'echo', name: 'Echo', icon: '🔊' },
-    { id: 'whisper', name: 'Whisper', icon: '🤫' },
-    { id: 'demon', name: 'Demon', icon: '👹' },
-    { id: 'alien', name: 'Alien', icon: '👽' },
-  ];
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    toast({
-      title: "Recording started",
-      description: "Speak your message with the selected voice effect"
-    });
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+      setDuration(0);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        processAudio(blob);
+      };
+
+      mediaRecorder.start(100);
+      setIsRecording(true);
+      timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+    } catch {
+      toast({ title: 'Microphone access denied', variant: 'destructive' });
+    }
   };
 
-  const handleStopRecording = () => {
+  const stopRecording = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    mediaRecorderRef.current?.stop();
     setIsRecording(false);
-    toast({
-      title: "Message sent!",
-      description: `Voice message sent with ${voiceEffects.find(v => v.id === selectedVoice)?.name} effect`
-    });
   };
+
+  const processAudio = useCallback(async (blob: Blob) => {
+    const effect = voiceEffects.find(v => v.id === selectedVoice);
+    if (!effect || selectedVoice === 'normal') {
+      setRecordedBlob(blob);
+      setPreviewUrl(URL.createObjectURL(blob));
+      return;
+    }
+
+    try {
+      const ctx = new AudioContext();
+      audioContextRef.current = ctx;
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+      // Create offline context with adjusted speed
+      const offlineCtx = new OfflineAudioContext(
+        audioBuffer.numberOfChannels,
+        Math.ceil(audioBuffer.length / effect.speed),
+        audioBuffer.sampleRate
+      );
+
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.playbackRate.value = effect.speed;
+
+      // Pitch shift via detune
+      const pitchShift = Math.log2(effect.pitch) * 1200;
+      source.detune.value = pitchShift;
+
+      let lastNode: AudioNode = source;
+
+      // Echo effect
+      if (selectedVoice === 'echo') {
+        const delay = offlineCtx.createDelay(1);
+        delay.delayTime.value = 0.25;
+        const feedback = offlineCtx.createGain();
+        feedback.gain.value = 0.4;
+        source.connect(delay);
+        delay.connect(feedback);
+        feedback.connect(delay);
+        delay.connect(offlineCtx.destination);
+      }
+
+      // Whisper effect - reduce low frequencies
+      if (selectedVoice === 'whisper') {
+        const highpass = offlineCtx.createBiquadFilter();
+        highpass.type = 'highpass';
+        highpass.frequency.value = 800;
+        const gain = offlineCtx.createGain();
+        gain.gain.value = 0.5;
+        lastNode.connect(highpass);
+        highpass.connect(gain);
+        lastNode = gain;
+      }
+
+      lastNode.connect(offlineCtx.destination);
+      source.start();
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      
+      // Convert to WAV blob
+      const wavBlob = audioBufferToWav(renderedBuffer);
+      setRecordedBlob(wavBlob);
+      setPreviewUrl(URL.createObjectURL(wavBlob));
+      ctx.close();
+    } catch (err) {
+      console.error('Audio processing error:', err);
+      // Fallback to original
+      setRecordedBlob(blob);
+      setPreviewUrl(URL.createObjectURL(blob));
+    }
+  }, [selectedVoice]);
+
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const data = new Float32Array(buffer.length * numChannels);
+    
+    for (let ch = 0; ch < numChannels; ch++) {
+      const channelData = buffer.getChannelData(ch);
+      for (let i = 0; i < buffer.length; i++) {
+        data[i * numChannels + ch] = channelData[i];
+      }
+    }
+
+    const dataLength = data.length * bytesPerSample;
+    const headerLength = 44;
+    const arrayBuffer = new ArrayBuffer(headerLength + dataLength);
+    const view = new DataView(arrayBuffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + dataLength, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    let offset = 44;
+    for (let i = 0; i < data.length; i++) {
+      const sample = Math.max(-1, Math.min(1, data[i]));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  };
+
+  const handlePreview = () => {
+    if (!previewUrl) return;
+    if (isPlaying && previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+    const audio = new Audio(previewUrl);
+    previewAudioRef.current = audio;
+    audio.onended = () => setIsPlaying(false);
+    audio.play();
+    setIsPlaying(true);
+  };
+
+  const handleSend = () => {
+    if (!recordedBlob || !onSendVoice) return;
+    const ext = recordedBlob.type.includes('wav') ? 'wav' : 'webm';
+    const file = new File([recordedBlob], `voice_${selectedVoice}_${Date.now()}.${ext}`, { type: recordedBlob.type });
+    onSendVoice(file);
+    toast({ title: '🎤 Voice sent!', description: `Sent with ${voiceEffects.find(v => v.id === selectedVoice)?.name} effect` });
+    resetState();
+  };
+
+  const resetState = () => {
+    setRecordedBlob(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setDuration(0);
+    setIsPlaying(false);
+  };
+
+  const formatDuration = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="flex-1 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <Headphones className="w-16 h-16 mx-auto mb-4 text-primary animate-pulse" />
-          <h1 className="text-3xl font-bold mb-2">Voice Change Chat</h1>
-          <p className="text-muted-foreground">
-            Transform your voice with real-time effects and send unique voice messages
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Voice Effects Grid */}
+      <div className="grid grid-cols-4 gap-2">
+        {voiceEffects.map((effect) => (
+          <button
+            key={effect.id}
+            onClick={() => setSelectedVoice(effect.id)}
+            className={cn(
+              "flex flex-col items-center gap-1 p-2.5 rounded-xl transition-all",
+              selectedVoice === effect.id
+                ? "bg-primary text-primary-foreground ring-2 ring-primary"
+                : "bg-white/5 hover:bg-white/10"
+            )}
+          >
+            <span className="text-xl">{effect.icon}</span>
+            <span className="text-[10px] font-medium">{effect.name}</span>
+          </button>
+        ))}
+      </div>
 
-        {/* Voice Effects Grid */}
-        <Card className="glass border-white/20 mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Waves className="w-5 h-5" />
-              <span>Voice Effects</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {voiceEffects.map((effect) => (
-                <Button
-                  key={effect.id}
-                  variant={selectedVoice === effect.id ? "default" : "outline"}
-                  className={`h-20 flex-col space-y-2 ${
-                    selectedVoice === effect.id 
-                      ? "bg-primary text-primary-foreground" 
-                      : "glass border-white/20 hover:bg-white/10"
-                  }`}
-                  onClick={() => setSelectedVoice(effect.id)}
-                >
-                  <span className="text-2xl">{effect.icon}</span>
-                  <span className="text-sm font-medium">{effect.name}</span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recording Interface */}
-        <Card className="glass border-white/20 mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Mic className="w-5 h-5" />
-                <span>Voice Recorder</span>
-              </div>
-              <Badge variant="outline" className="glass">
-                {voiceEffects.find(v => v.id === selectedVoice)?.name} Selected
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <div className="flex flex-col items-center space-y-6">
-              <div className={`
-                w-32 h-32 rounded-full border-4 flex items-center justify-center
-                ${isRecording 
-                  ? 'border-red-500 bg-red-500/20 animate-pulse' 
-                  : 'border-primary bg-primary/20'
-                }
-              `}>
+      {/* Recording / Preview */}
+      <Card className="glass border-white/20">
+        <CardContent className="p-6 text-center">
+          {!recordedBlob ? (
+            <div className="flex flex-col items-center gap-4">
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={cn(
+                  "w-24 h-24 rounded-full border-4 flex items-center justify-center transition-all",
+                  isRecording
+                    ? "border-destructive bg-destructive/20 animate-pulse"
+                    : "border-primary bg-primary/20 hover:scale-105"
+                )}
+              >
                 {isRecording ? (
-                  <Square className="w-8 h-8 text-red-500" />
+                  <Square className="w-8 h-8 text-destructive" />
                 ) : (
                   <Mic className="w-8 h-8 text-primary" />
                 )}
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-lg font-medium">
-                  {isRecording ? 'Recording...' : 'Ready to record'}
+              </button>
+              <div>
+                <p className="font-medium">
+                  {isRecording ? formatDuration(duration) : 'Tap to record'}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {isRecording 
-                    ? 'Tap to stop and send' 
-                    : `Press to record with ${voiceEffects.find(v => v.id === selectedVoice)?.name} effect`
-                  }
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isRecording ? 'Tap to stop' : `Will apply ${voiceEffects.find(v => v.id === selectedVoice)?.name} effect`}
                 </p>
               </div>
-
-              <Button
-                size="lg"
-                className={`
-                  px-8 py-4 text-lg font-medium
-                  ${isRecording 
-                    ? 'bg-red-500 hover:bg-red-600 text-white' 
-                    : 'bg-primary hover:bg-primary/90'
-                  }
-                `}
-                onClick={isRecording ? handleStopRecording : handleStartRecording}
-              >
-                {isRecording ? (
-                  <>
-                    <Square className="w-5 h-5 mr-2" />
-                    Stop & Send
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-5 h-5 mr-2" />
-                    Start Recording
-                  </>
-                )}
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Voice Messages */}
-        <Card className="glass border-white/20">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Volume2 className="w-5 h-5" />
-              <span>Recent Voice Messages</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { effect: 'Robot', time: '2 minutes ago', duration: '00:05' },
-                { effect: 'Chipmunk', time: '1 hour ago', duration: '00:03' },
-                { effect: 'Echo', time: '3 hours ago', duration: '00:07' },
-              ].map((message, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <Button size="sm" variant="outline" className="w-10 h-10 p-0">
-                      <Play className="w-4 h-4" />
-                    </Button>
-                    <div>
-                      <p className="font-medium">{message.effect} Voice</p>
-                      <p className="text-sm text-muted-foreground">{message.time}</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="glass">
-                    {message.duration}
-                  </Badge>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="icon" className="rounded-full" onClick={handlePreview}>
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </Button>
+                <div className="text-left">
+                  <p className="font-medium text-sm">{voiceEffects.find(v => v.id === selectedVoice)?.name} Voice</p>
+                  <p className="text-xs text-muted-foreground">{formatDuration(duration)}</p>
                 </div>
-              ))}
+                <Badge variant="outline" className="ml-2">{voiceEffects.find(v => v.id === selectedVoice)?.icon}</Badge>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button variant="outline" className="flex-1" onClick={resetState}>
+                  <Trash2 className="w-4 h-4 mr-2" /> Discard
+                </Button>
+                {onSendVoice && (
+                  <Button className="flex-1" onClick={handleSend}>
+                    <Send className="w-4 h-4 mr-2" /> Send
+                  </Button>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -147,7 +147,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSendMessage = async () => {
     if (!messageInput.trim()) return;
 
-    await sendMessage(messageInput, 'text');
+    const metadata: Record<string, any> = {};
+    if (replyTo) {
+      metadata.replyTo = {
+        id: replyTo.id,
+        content: replyTo.content.slice(0, 100),
+        senderName: replyTo.senderName,
+        messageType: replyTo.messageType,
+      };
+    }
+
+    await sendMessage(messageInput, 'text', Object.keys(metadata).length > 0 ? metadata : undefined);
     setMessageInput('');
     setReplyTo(null);
     setTyping(false);
