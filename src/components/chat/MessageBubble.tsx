@@ -3,7 +3,7 @@ import { HeartReadReceipt } from './HeartReadReceipt';
 import { MessageReactions } from './MessageReactions';
 import { VoiceMessagePlayer } from './VoiceMessagePlayer';
 import { MessageContextMenu } from './MessageContextMenu';
-import { Image, FileText, Video, MapPin, Play } from 'lucide-react';
+import { Image, FileText, Video, MapPin, Play, Download, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Reaction {
@@ -26,6 +26,7 @@ interface MessageBubbleProps {
   messageType: string;
   createdAt: string;
   readAt?: string | null;
+  deliveredAt?: string | null;
   reactions: Reaction[];
   metadata?: any;
   replyTo?: ReplyInfo | null;
@@ -47,6 +48,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   messageType,
   createdAt,
   readAt,
+  deliveredAt,
   reactions,
   metadata,
   replyTo,
@@ -63,17 +65,32 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   
   const getMessageStatus = (): 'sending' | 'sent' | 'delivered' | 'seen' => {
     if (readAt) return 'seen';
-    if (id) return 'delivered';
-    return 'sent';
+    if (deliveredAt) return 'delivered';
+    if (id) return 'sent';
+    return 'sending';
+  };
+
+  // Get image/media URL - check both content and metadata
+  const getMediaUrl = (): string | null => {
+    if (metadata?.imageUrl) return metadata.imageUrl;
+    if (metadata?.audioUrl) return metadata.audioUrl;
+    if (metadata?.videoUrl) return metadata.videoUrl;
+    // Media uploads store URL in content field
+    if (content && (content.startsWith('http://') || content.startsWith('https://'))) {
+      return content;
+    }
+    return null;
   };
 
   const renderContent = () => {
+    const mediaUrl = getMediaUrl();
+    
     switch (messageType) {
       case 'voice':
-        return metadata?.audioUrl ? (
+        return mediaUrl ? (
           <VoiceMessagePlayer
-            audioUrl={metadata.audioUrl}
-            duration={metadata.duration}
+            audioUrl={mediaUrl}
+            duration={metadata?.duration}
             isOwnMessage={isOwnMessage}
             isLoversMode={isLoversMode}
           />
@@ -83,59 +100,95 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         
       case 'image':
         return (
-          <div className="relative rounded-lg overflow-hidden max-w-[240px]">
-            {metadata?.imageUrl ? (
-              <img 
-                src={metadata.imageUrl} 
-                alt="Shared image" 
-                className="w-full h-auto max-h-[300px] object-cover"
-              />
+          <div className="relative rounded-lg overflow-hidden max-w-[280px]">
+            {mediaUrl ? (
+              <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+                <img 
+                  src={mediaUrl} 
+                  alt={metadata?.filename || "Shared image"} 
+                  className="w-full h-auto max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  loading="lazy"
+                />
+              </a>
             ) : (
               <div className="w-full h-32 bg-white/10 flex items-center justify-center">
                 <Image className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
-            {content && <p className="mt-2 text-sm">{content}</p>}
+            {metadata?.filename && (
+              <p className="mt-1 text-xs opacity-70">{metadata.filename}</p>
+            )}
           </div>
         );
         
       case 'video':
         return (
-          <div className="relative rounded-lg overflow-hidden max-w-[240px]">
-            <div className="w-full h-32 bg-black/50 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                <Play className="w-6 h-6 text-white fill-white" />
+          <div className="relative rounded-lg overflow-hidden max-w-[280px]">
+            {mediaUrl ? (
+              <video 
+                src={mediaUrl} 
+                controls 
+                className="w-full max-h-[300px] rounded-lg"
+                preload="metadata"
+              />
+            ) : (
+              <div className="w-full h-32 bg-black/50 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                  <Play className="w-6 h-6 text-white fill-white" />
+                </div>
               </div>
-            </div>
-            {content && <p className="mt-2 text-sm">{content}</p>}
+            )}
+            {metadata?.filename && (
+              <p className="mt-1 text-xs opacity-70">{metadata.filename}</p>
+            )}
           </div>
         );
         
       case 'document':
         return (
-          <div className="flex items-center gap-3 p-2 bg-white/5 rounded-lg min-w-[200px]">
-            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+          <a 
+            href={mediaUrl || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3 bg-white/5 rounded-lg min-w-[200px] hover:bg-white/10 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
-                {metadata?.fileName || 'Document'}
+                {metadata?.filename || 'Document'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {metadata?.fileSize || 'File'}
+                {metadata?.size ? `${(metadata.size / 1024).toFixed(1)} KB` : 'File'}
               </p>
             </div>
-          </div>
+            <Download className="w-4 h-4 shrink-0 opacity-60" />
+          </a>
         );
         
       case 'location':
+        const locationUrl = content.startsWith('http') ? content : null;
+        return (
+          <a 
+            href={locationUrl || '#'} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <MapPin className="w-5 h-5 text-green-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium">📍 Shared location</p>
+              <p className="text-xs text-blue-400 underline">Open in Maps</p>
+            </div>
+            <ExternalLink className="w-3 h-3 ml-auto opacity-60" />
+          </a>
+        );
+
+      case 'contact':
         return (
           <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg">
-            <MapPin className="w-5 h-5 text-green-500" />
-            <div>
-              <p className="text-sm font-medium">Shared location</p>
-              <p className="text-xs text-muted-foreground">Tap to view</p>
-            </div>
+            <p className="text-sm whitespace-pre-wrap">{content}</p>
           </div>
         );
         
@@ -173,6 +226,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}>
               <p className="font-medium truncate">{replyTo.senderName}</p>
               <p className="truncate opacity-80">{replyTo.content.slice(0, 40)}...</p>
+            </div>
+          )}
+
+          {/* Forwarded label */}
+          {metadata?.forwarded && (
+            <div className="text-[10px] text-muted-foreground italic px-4 mb-0.5">
+              ↗ Forwarded
             </div>
           )}
           

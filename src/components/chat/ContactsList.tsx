@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,12 +17,12 @@ import {
   Mic, 
   Video, 
   FileText,
+  MapPin,
   Check,
   CheckCheck,
 } from 'lucide-react';
 import { MessageSearch } from './MessageSearch';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
 
 interface Contact {
   id: string;
@@ -40,6 +40,8 @@ interface Contact {
   isMuted?: boolean;
   isPinned?: boolean;
   isTyping?: boolean;
+  lastMessageSenderId?: string;
+  lastMessageReadAt?: string | null;
 }
 
 interface ContactsListProps {
@@ -54,6 +56,8 @@ export const ContactsList: React.FC<ContactsListProps> = ({
   const { mode } = useChat();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [lastMessages, setLastMessages] = useState<Record<string, any>>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   
   const isLoversMode = mode === 'lovers';
   const { conversations, loading } = useRealTimeChat(isLoversMode);
@@ -66,21 +70,80 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     loadUser();
   }, []);
 
-  // Transform conversations to contacts format
+  // Load last messages and unread counts for all conversations
+  const loadLastMessagesAndCounts = useCallback(async () => {
+    if (!currentUserId || conversations.length === 0) return;
+
+    const convIds = conversations.map(c => c.id);
+    
+    // Fetch last message per conversation
+    const { data: allMessages } = await supabase
+      .from('messages')
+      .select('id, content, message_type, created_at, sender_id, read_at, conversation_id')
+      .in('conversation_id', convIds)
+      .order('created_at', { ascending: false });
+
+    if (allMessages) {
+      const lastMsgs: Record<string, any> = {};
+      const unreads: Record<string, number> = {};
+
+      for (const convId of convIds) {
+        const convMessages = allMessages.filter(m => m.conversation_id === convId);
+        if (convMessages.length > 0) {
+          lastMsgs[convId] = convMessages[0]; // already sorted desc
+        }
+        // Count unread: messages not from me, with no read_at
+        unreads[convId] = convMessages.filter(
+          m => m.sender_id !== currentUserId && !m.read_at
+        ).length;
+      }
+
+      setLastMessages(lastMsgs);
+      setUnreadCounts(unreads);
+    }
+  }, [currentUserId, conversations]);
+
+  useEffect(() => {
+    loadLastMessagesAndCounts();
+  }, [loadLastMessagesAndCounts]);
+
+  // Subscribe to new messages to update last message + unread in real-time
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const channel = supabase
+      .channel('contacts-list-messages')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages'
+      }, () => {
+        // Reload on any message change
+        loadLastMessagesAndCounts();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUserId, loadLastMessagesAndCounts]);
+
+  // Transform conversations to contacts format with real data
   const contacts: Contact[] = conversations.map(conv => {
     const otherParticipant = conv.conversation_participants.find(
       p => p.user_id !== currentUserId
     );
+    const lastMsg = lastMessages[conv.id];
     
     return {
       id: conv.id,
       conversationId: conv.id,
       name: otherParticipant?.profiles?.display_name || conv.name || 'Unknown',
-      lastMessage: '',
-      lastMessageType: 'text',
-      timestamp: new Date(),
+      lastMessage: lastMsg?.content || '',
+      lastMessageType: lastMsg?.message_type || 'text',
+      lastMessageSenderId: lastMsg?.sender_id,
+      lastMessageReadAt: lastMsg?.read_at,
+      timestamp: lastMsg ? new Date(lastMsg.created_at) : new Date(),
       isOnline: otherParticipant?.profiles?.is_online || false,
-      unreadCount: 0,
+      unreadCount: unreadCounts[conv.id] || 0,
       avatar: otherParticipant?.profiles?.avatar_url,
       lastSeen: otherParticipant?.profiles?.last_seen,
       isVerified: otherParticipant?.profiles?.is_verified,
@@ -92,7 +155,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     contact.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort: pinned first, then by timestamp
+  // Sort: pinned first, then by most recent message
   const sortedContacts = [...filteredContacts].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
@@ -112,20 +175,40 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     }
 
     if (!contact.lastMessage) {
-      return contact.isOnline ? 'Online' : 'Tap to chat';
+      return <span className="italic">Tap to start chatting</span>;
     }
 
-    const icons: Record<string, React.ReactNode> = {
-      image: <Image className="w-3 h-3 mr-1 inline" />,
-      video: <Video className="w-3 h-3 mr-1 inline" />,
-      voice: <Mic className="w-3 h-3 mr-1 inline" />,
-      document: <FileText className="w-3 h-3 mr-1 inline" />,
+    const isOwn = contact.lastMessageSenderId === currentUserId;
+    const prefix = isOwn ? 'You: ' : '';
+
+    const typeIcons: Record<string, React.ReactNode> = {
+      image: <><Image className="w-3 h-3 mr-1 inline" />Photo</>,
+      video: <><Video className="w-3 h-3 mr-1 inline" />Video</>,
+      voice: <><Mic className="w-3 h-3 mr-1 inline" />Voice message</>,
+      document: <><FileText className="w-3 h-3 mr-1 inline" />Document</>,
+      location: <><MapPin className="w-3 h-3 mr-1 inline" />Location</>,
     };
 
+    const msgType = contact.lastMessageType || 'text';
+    
+    if (msgType !== 'text' && typeIcons[msgType]) {
+      return (
+        <span className="flex items-center">
+          {isOwn && <span className="mr-0.5">{prefix}</span>}
+          {typeIcons[msgType]}
+        </span>
+      );
+    }
+
+    const text = contact.lastMessage;
     return (
-      <span className="flex items-center">
-        {icons[contact.lastMessageType || 'text']}
-        {contact.lastMessage.slice(0, 30)}{contact.lastMessage.length > 30 ? '...' : ''}
+      <span className="flex items-center gap-0.5">
+        {isOwn && (
+          contact.lastMessageReadAt 
+            ? <CheckCheck className="w-3 h-3 text-blue-400 shrink-0" />
+            : <Check className="w-3 h-3 text-muted-foreground shrink-0" />
+        )}
+        <span className="truncate">{text.slice(0, 35)}{text.length > 35 ? '...' : ''}</span>
       </span>
     );
   };
@@ -145,7 +228,10 @@ export const ContactsList: React.FC<ContactsListProps> = ({
   };
 
   return (
-    <div className="w-full md:w-80 border-r border-white/20 glass flex flex-col h-full">
+    <div className={cn(
+      "w-full md:w-80 border-r border-white/20 glass flex flex-col h-full",
+      selectedContact ? "hidden md:flex" : "flex"
+    )}>
       {/* Header */}
       <div className="p-4 border-b border-white/20 shrink-0">
         <div className="flex items-center justify-between mb-4">
@@ -277,7 +363,10 @@ export const ContactsList: React.FC<ContactsListProps> = ({
               <div className="flex-1 min-w-0 text-left">
                 <div className="flex items-center justify-between mb-0.5">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <h3 className="font-medium text-sm truncate">
+                    <h3 className={cn(
+                      "font-medium text-sm truncate",
+                      contact.unreadCount > 0 && "font-semibold"
+                    )}>
                       {contact.name}
                     </h3>
                     {contact.isVerified && (
@@ -291,7 +380,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
                   <span className={cn(
                     "text-xs shrink-0 ml-2",
                     contact.unreadCount > 0 
-                      ? isLoversMode ? "text-lovers-primary" : "text-general-primary"
+                      ? isLoversMode ? "text-lovers-primary font-semibold" : "text-general-primary font-semibold"
                       : "text-muted-foreground"
                   )}>
                     {formatTime(contact.timestamp)}
@@ -299,7 +388,10 @@ export const ContactsList: React.FC<ContactsListProps> = ({
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground truncate flex-1">
+                  <p className={cn(
+                    "text-sm truncate flex-1",
+                    contact.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                  )}>
                     {getLastMessagePreview(contact)}
                   </p>
                   <div className="flex items-center gap-1.5 ml-2 shrink-0">
