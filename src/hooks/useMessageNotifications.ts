@@ -47,6 +47,16 @@ export const useMessageNotifications = (currentUserId: string | null) => {
 
           if (!participant) return;
 
+          // Check if this chat is muted
+          const { data: chatSetting } = await supabase
+            .from('chat_settings')
+            .select('is_muted')
+            .eq('conversation_id', message.conversation_id)
+            .eq('user_id', currentUserId)
+            .maybeSingle();
+
+          if (chatSetting?.is_muted) return; // Skip notification for muted chats
+
           // Get sender info
           const { data: sender } = await supabase
             .from('profiles')

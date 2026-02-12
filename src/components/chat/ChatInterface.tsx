@@ -104,7 +104,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     addReaction,
     setTyping,
     loadOlderMessages,
-  } = useEnhancedRealTimeChat(conversationId || null);
+  } = useEnhancedRealTimeChat(conversationId || null, chatSettings?.disappearing_mode || 'off');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
