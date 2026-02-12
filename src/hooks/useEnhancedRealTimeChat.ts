@@ -27,7 +27,7 @@ interface TypingUser {
 
 const MESSAGES_PER_PAGE = 50;
 
-export const useEnhancedRealTimeChat = (conversationId: string | null) => {
+export const useEnhancedRealTimeChat = (conversationId: string | null, disappearingMode?: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const channelRef = useRef<RealtimeChannel>();
   const currentUserIdRef = useRef<string>();
+  const disappearTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Load current user
   useEffect(() => {
@@ -145,6 +146,32 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
     }
   }, [conversationId, toast]);
 
+  // Schedule disappearing message deletion
+  const scheduleDisappear = useCallback(async (messageId: string, mode: string) => {
+    if (!mode || mode === 'off') return;
+
+    let delayMs = 0;
+    if (mode === '30s') delayMs = 30_000;
+    else if (mode === '1min') delayMs = 60_000;
+    else if (mode === 'on_seen') delayMs = 2000; // small delay so user sees "read" status
+
+    // Clear any existing timeout for this message
+    const existing = disappearTimeoutsRef.current.get(messageId);
+    if (existing) clearTimeout(existing);
+
+    const timeout = setTimeout(async () => {
+      try {
+        await supabase.from('messages').delete().eq('id', messageId);
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      } catch (e) {
+        console.error('Failed to delete disappearing message:', e);
+      }
+      disappearTimeoutsRef.current.delete(messageId);
+    }, delayMs);
+
+    disappearTimeoutsRef.current.set(messageId, timeout);
+  }, []);
+
   // Mark message as read
   const markAsRead = useCallback(async (messageId: string) => {
     try {
@@ -155,10 +182,15 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
         .is('read_at', null);
 
       if (error) throw error;
+
+      // If disappearing mode is active, schedule deletion
+      if (disappearingMode && disappearingMode !== 'off') {
+        scheduleDisappear(messageId, disappearingMode);
+      }
     } catch (error: any) {
       console.error('Error marking message as read:', error);
     }
-  }, []);
+  }, [disappearingMode, scheduleDisappear]);
 
   // Mark all messages in conversation as read
   const markAllAsRead = useCallback(async () => {
@@ -311,6 +343,19 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
       .on(
         'postgres_changes',
         {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('Message deleted:', payload);
+          setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
           event: '*',
           schema: 'public',
           table: 'typing_indicators',
@@ -349,6 +394,9 @@ export const useEnhancedRealTimeChat = (conversationId: string | null) => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
+      // Clean up disappearing message timeouts
+      disappearTimeoutsRef.current.forEach(t => clearTimeout(t));
+      disappearTimeoutsRef.current.clear();
     };
   }, [conversationId, loadMessages, markAsRead]);
 
