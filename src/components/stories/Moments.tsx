@@ -57,17 +57,51 @@ export const Moments: React.FC = () => {
       if (!user) return;
       setCurrentUserId(user.id);
 
-      // Load all visible moments
+      // Load all visible moments with profile data
       const { data: simpleMoments, error: simpleError } = await supabase
         .from('moments')
-        .select('*')
+        .select('*, profiles!moments_user_id_fkey(display_name, avatar_url, username)')
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
       
-      if (simpleError) throw simpleError;
+      if (simpleError) {
+        // Fallback without foreign key hint
+        const { data: fallbackMoments, error: fallbackError } = await supabase
+          .from('moments')
+          .select('*')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        
+        // Manually fetch profiles for each unique user_id
+        const userIds = [...new Set((fallbackMoments || []).map(m => m.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, avatar_url, username')
+          .in('user_id', userIds);
+        
+        const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+        const enriched = (fallbackMoments || []).map(m => ({
+          ...m,
+          profile: profileMap.get(m.user_id) || undefined,
+        }));
+        
+        const myMomentsData = enriched.filter(m => m.user_id === user.id) as Moment[];
+        const friendsMoments = enriched.filter(m => m.user_id !== user.id) as Moment[];
+        setMyMoments(myMomentsData);
+        setMoments(friendsMoments);
+        setLoading(false);
+        return;
+      }
       
-      const myMomentsData = (simpleMoments?.filter(m => m.user_id === user.id) || []) as Moment[];
-      const friendsMoments = (simpleMoments?.filter(m => m.user_id !== user.id) || []) as Moment[];
+      const enrichedMoments = (simpleMoments || []).map((m: any) => ({
+        ...m,
+        profile: m.profiles || undefined,
+      }));
+      
+      const myMomentsData = enrichedMoments.filter(m => m.user_id === user.id) as Moment[];
+      const friendsMoments = enrichedMoments.filter(m => m.user_id !== user.id) as Moment[];
       
       setMyMoments(myMomentsData);
       setMoments(friendsMoments);

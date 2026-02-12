@@ -82,23 +82,36 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
+      // Fetch contacts bidirectionally (both directions)
+      const { data: sentContacts } = await supabase
         .from('contacts')
-        .select(`
-          contact_user_id,
-          profiles:contact_user_id(user_id, display_name, username, avatar_url)
-        `)
+        .select('contact_user_id')
         .eq('user_id', user.id)
         .eq('status', 'accepted');
 
-      if (data) {
-        const friendsList = data.map((c: any) => ({
-          user_id: c.contact_user_id,
-          display_name: c.profiles?.display_name,
-          username: c.profiles?.username,
-          avatar_url: c.profiles?.avatar_url
-        }));
-        setFriends(friendsList);
+      const { data: receivedContacts } = await supabase
+        .from('contacts')
+        .select('user_id')
+        .eq('contact_user_id', user.id)
+        .eq('status', 'accepted');
+
+      const friendIds = [
+        ...(sentContacts || []).map(c => c.contact_user_id),
+        ...(receivedContacts || []).map(c => c.user_id),
+      ].filter((id, i, arr) => arr.indexOf(id) === i); // deduplicate
+
+      if (friendIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, username, avatar_url')
+          .in('user_id', friendIds);
+
+        setFriends((profiles || []).map(p => ({
+          user_id: p.user_id,
+          display_name: p.display_name,
+          username: p.username,
+          avatar_url: p.avatar_url,
+        })));
       }
     } catch (error) {
       console.error('Error loading friends:', error);

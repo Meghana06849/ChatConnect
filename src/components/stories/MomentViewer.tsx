@@ -72,7 +72,24 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
         .order('viewed_at', { ascending: false });
 
       if (error) throw error;
-      setViewers(data || []);
+      
+      // Fetch profiles for viewers
+      const viewerIds = (data || []).map(v => v.viewer_id);
+      if (viewerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, display_name, avatar_url')
+          .in('user_id', viewerIds);
+        
+        const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+        const enriched = (data || []).map(v => ({
+          ...v,
+          profile: profileMap.get(v.viewer_id) || undefined,
+        }));
+        setViewers(enriched);
+      } else {
+        setViewers(data || []);
+      }
     } catch (error) {
       console.error('Error loading viewers:', error);
     }
