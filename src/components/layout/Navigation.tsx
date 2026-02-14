@@ -19,8 +19,11 @@ import {
   Lock,
   Home,
   Star,
-  Coins
+  Coins,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { toast } from '@/hooks/use-toast';
 
 const navigationItems = {
@@ -51,6 +54,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const { mode } = useChat();
   const { profile } = useProfile();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -99,7 +103,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           >
             <MessageCircle className={`w-8 h-8 ${isLoversMode ? 'text-lovers-primary' : 'text-general-primary'}`} />
           </div>
-          <div className="hidden lg:block">
+          <div className="hidden lg:block flex-1">
             <h1 className={`
               font-bold text-lg bg-gradient-to-r bg-clip-text text-transparent
               ${isLoversMode 
@@ -113,6 +117,15 @@ export const Navigation: React.FC<NavigationProps> = ({
               {isLoversMode ? 'Private Mode' : 'Connect & Chat'}
             </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="rounded-full w-8 h-8 shrink-0 hover:bg-white/10"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
         </div>
         
         {/* Love Coins Display for Lovers Mode */}

@@ -71,7 +71,7 @@ export const useChatActions = () => {
     }
   }, [toast]);
 
-  // Delete a specific message
+  // Delete a specific message for everyone (hard delete, sender only)
   const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -82,8 +82,47 @@ export const useChatActions = () => {
       if (error) throw error;
 
       toast({
-        title: 'Message deleted'
+        title: 'Message deleted for everyone'
       });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Failed to delete message',
+        description: error.message,
+        variant: 'destructive'
+      });
+      return false;
+    }
+  }, [toast]);
+
+  // Delete a message for the current user only (soft delete)
+  const deleteForMe = useCallback(async (messageId: string): Promise<boolean> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Get current deleted_for array
+      const { data: msg, error: fetchError } = await supabase
+        .from('messages')
+        .select('deleted_for')
+        .eq('id', messageId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentDeletedFor = Array.isArray(msg?.deleted_for) ? msg.deleted_for : [];
+      if (!currentDeletedFor.includes(user.id)) {
+        currentDeletedFor.push(user.id);
+      }
+
+      const { error } = await supabase
+        .from('messages')
+        .update({ deleted_for: currentDeletedFor } as any)
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      toast({ title: 'Message deleted for you' });
       return true;
     } catch (error: any) {
       toast({
@@ -306,6 +345,7 @@ export const useChatActions = () => {
     clearChat,
     removeFriend,
     deleteMessage,
+    deleteForMe,
     uploadMedia,
     sendMediaMessage,
     uploadWallpaper,

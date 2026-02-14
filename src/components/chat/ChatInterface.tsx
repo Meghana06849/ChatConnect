@@ -79,6 +79,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     clearChat,
     removeFriend,
     deleteMessage,
+    deleteForMe,
     sendMediaMessage,
     forwardMessage,
     loading: actionLoading
@@ -240,6 +241,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleDeleteMessage = async (messageId: string) => {
     await deleteMessage(messageId);
+  };
+
+  const handleDeleteForMe = async (messageId: string) => {
+    await deleteForMe(messageId);
   };
 
   const handleWallpaperUpload = async (url: string) => {
@@ -474,6 +479,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   onForward={() => toast({ title: 'Forward', description: 'Select a chat to forward this message' })}
                   onReaction={(emoji) => addReaction(msg.id, emoji)}
                   onStar={() => toast({ title: 'Starred', description: 'Message starred' })}
+                  onDeleteForMe={() => handleDeleteForMe(msg.id)}
                   onDelete={() => handleDeleteMessage(msg.id)}
                   onInfo={() => toast({ 
                     title: 'Message Info',

@@ -42,7 +42,7 @@ export const HeartReadReceipt: React.FC<HeartReadReceiptProps> = ({
       <div title={title}>
         <CheckCheck className={cn(
           "w-3.5 h-3.5",
-          isLoversMode ? "text-white/80" : "text-muted-foreground"
+          isLoversMode ? "text-white/80" : "text-blue-300"
         )} />
       </div>
     );
@@ -72,7 +72,7 @@ export const HeartReadReceipt: React.FC<HeartReadReceiptProps> = ({
   // Blue double check for general mode
   return (
     <div title={seenTitle}>
-      <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+      <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
     </div>
   );
 };
