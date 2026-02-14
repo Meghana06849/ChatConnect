@@ -38,6 +38,7 @@ interface MessageBubbleProps {
   onReaction: (emoji: string) => void;
   onStar: () => void;
   onDelete: () => void;
+  onDeleteForMe?: () => void;
   onInfo: () => void;
 }
 
@@ -85,6 +86,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onReaction,
   onStar,
   onDelete,
+  onDeleteForMe,
   onInfo,
 }) => {
   const isOwnMessage = senderId === currentUserId;
@@ -212,6 +214,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         onCopy={() => {}}
         onStar={onStar}
         onDelete={onDelete}
+        onDeleteForMe={onDeleteForMe}
         onInfo={onInfo}
         isLoversMode={isLoversMode}
       >

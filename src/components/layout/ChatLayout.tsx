@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Navigation } from './Navigation';
 import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
@@ -48,7 +49,13 @@ export const ChatLayout = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>();
   const [loveStreak, setLoveStreak] = useState(0);
   
+  const isMobile = useIsMobile();
   const isLoversMode = mode === 'lovers';
+
+  // Reset selected contact on mode change
+  useEffect(() => {
+    setSelectedContact(undefined);
+  }, [mode]);
   
   // Load love streak data
   useEffect(() => {
@@ -329,10 +336,12 @@ export const ChatLayout = () => {
       {isLoversMode && (
         <div className="fixed inset-0 bg-gradient-to-br from-lovers-primary/5 via-background to-lovers-secondary/5 -z-10" />
       )}
-      <Navigation 
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-      />
+      {!(isMobile && selectedContact && activeSection === 'chats') && (
+        <Navigation 
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+        />
+      )}
       <div className="relative z-10 flex-1">
         {renderContent()}
       </div>
