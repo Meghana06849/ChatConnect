@@ -65,12 +65,8 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
       if (error) throw error;
       
       const messagesData = (data || []) as Message[];
-      const userId = currentUserIdRef.current;
-      const filtered = userId
-        ? messagesData.filter((m: any) => !Array.isArray(m.deleted_for) || !m.deleted_for.includes(userId))
-        : messagesData;
       // Reverse to show oldest first in the list
-      setMessages(filtered.reverse());
+      setMessages(messagesData.reverse());
       setHasMore(messagesData.length === MESSAGES_PER_PAGE);
     } catch (error: any) {
       toast({
@@ -321,10 +317,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
         },
         (payload) => {
           console.log('New message:', payload);
-          const newMsg = payload.new as any;
-          const userId = currentUserIdRef.current;
-          if (Array.isArray(newMsg.deleted_for) && userId && newMsg.deleted_for.includes(userId)) return;
-          setMessages((prev) => [...prev, newMsg as Message]);
+          setMessages((prev) => [...prev, payload.new as Message]);
           
           // Mark as read if not from current user
           if (payload.new.sender_id !== currentUserIdRef.current) {
@@ -342,15 +335,9 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
         },
         (payload) => {
           console.log('Message updated:', payload);
-          const updatedMsg = payload.new as any;
-          const userId = currentUserIdRef.current;
-          if (Array.isArray(updatedMsg.deleted_for) && userId && updatedMsg.deleted_for.includes(userId)) {
-            setMessages((prev) => prev.filter((msg) => msg.id !== updatedMsg.id));
-          } else {
-            setMessages((prev) =>
-              prev.map((msg) => (msg.id === updatedMsg.id ? updatedMsg as Message : msg))
-            );
-          }
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === payload.new.id ? payload.new as Message : msg))
+          );
         }
       )
       .on(

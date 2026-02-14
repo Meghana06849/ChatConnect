@@ -31,7 +31,6 @@ interface MessageContextMenuProps {
   onCopy: () => void;
   onStar: () => void;
   onDelete: () => void;
-  onDeleteForMe?: () => void;
   onInfo: () => void;
   onPin?: () => void;
   onDownload?: () => void;
@@ -51,7 +50,6 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
   onCopy,
   onStar,
   onDelete,
-  onDeleteForMe,
   onInfo,
   onPin,
   onDownload,
@@ -118,25 +116,13 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         
         <ContextMenuSeparator className="bg-white/10" />
         
-        {onDeleteForMe && (
-          <ContextMenuItem 
-            onClick={onDeleteForMe} 
-            className={cn(menuItemClass, "text-destructive focus:text-destructive")}
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete for me</span>
-          </ContextMenuItem>
-        )}
-
-        {isOwnMessage && (
-          <ContextMenuItem 
-            onClick={onDelete} 
-            className={cn(menuItemClass, "text-destructive focus:text-destructive")}
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Delete for everyone</span>
-          </ContextMenuItem>
-        )}
+        <ContextMenuItem 
+          onClick={onDelete} 
+          className={cn(menuItemClass, "text-destructive focus:text-destructive")}
+        >
+          <Trash2 className="w-4 h-4" />
+          <span>{isOwnMessage ? 'Delete for everyone' : 'Delete for me'}</span>
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );

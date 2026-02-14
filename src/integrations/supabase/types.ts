@@ -469,7 +469,6 @@ export type Database = {
           content: string
           conversation_id: string
           created_at: string
-          deleted_for: Json | null
           delivered_at: string | null
           disappear_at: string | null
           dream_reveal_at: string | null
@@ -486,7 +485,6 @@ export type Database = {
           content: string
           conversation_id: string
           created_at?: string
-          deleted_for?: Json | null
           delivered_at?: string | null
           disappear_at?: string | null
           dream_reveal_at?: string | null
@@ -503,7 +501,6 @@ export type Database = {
           content?: string
           conversation_id?: string
           created_at?: string
-          deleted_for?: Json | null
           delivered_at?: string | null
           disappear_at?: string | null
           dream_reveal_at?: string | null
