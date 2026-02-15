@@ -69,10 +69,10 @@ export const HeartReadReceipt: React.FC<HeartReadReceiptProps> = ({
     );
   }
 
-  // Blue double check for general mode
+  // Blue double check for general mode - bright vivid blue
   return (
     <div title={seenTitle}>
-      <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+      <CheckCheck className="w-3.5 h-3.5 text-sky-400 drop-shadow-[0_0_3px_rgba(56,189,248,0.6)]" />
     </div>
   );
 };

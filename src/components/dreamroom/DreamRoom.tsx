@@ -9,16 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DreamRoomWelcome } from './DreamRoomWelcome';
 import { CoupleCalendar } from './CoupleCalendar';
 import { LoveVault } from './LoveVault';
+import { GamesHub } from '@/components/features/GamesHub';
 import { 
   Home, 
-  Clock, 
   Moon, 
-  Sun, 
   Palette, 
-  Sofa, 
   Music,
   Heart,
-  Lock,
   Sparkles,
   Star,
   Calendar,
@@ -27,47 +24,20 @@ import {
   Gamepad2,
   Smile,
   TreePine,
-  Play,
   Pin,
-  Shield,
-  Eye,
-  EyeOff
 } from 'lucide-react';
 
 interface DreamRoomProps {
   isTimeRestricted?: boolean;
 }
 
-export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [isAccessible, setIsAccessible] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(true); // Auto-unlock since PIN is verified at entry
+export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }) => {
+  const [isUnlocked, setIsUnlocked] = useState(true);
   const [petMood, setPetMood] = useState('happy');
   const [currentMusic, setCurrentMusic] = useState('None');
   const [nightModeStars, setNightModeStars] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [currentView, setCurrentView] = useState<'main' | 'calendar' | 'vault'>('main');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now);
-      
-      if (!isTimeRestricted) {
-        setIsAccessible(true);
-        return;
-      }
-
-      const hour = now.getHours();
-      // Accessible from 12 AM (0) to 5 AM (5) - 00:00 to 04:59
-      setIsAccessible(hour >= 0 && hour <= 4);
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [isTimeRestricted]);
+  const [currentView, setCurrentView] = useState<'main' | 'calendar' | 'vault' | 'games'>('main');
 
   const decorationItems = [
     { name: 'Romantic Candles', icon: '🕯️', price: 50 },
@@ -134,32 +104,18 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
     );
   }
 
-  if (!isAccessible && isTimeRestricted) {
+  if (currentView === 'games') {
     return (
-      <div className="flex-1 p-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="glass p-12 rounded-3xl border-white/20">
-            <Moon className="w-24 h-24 mx-auto mb-6 text-lovers-primary animate-float" />
-            <h1 className="text-4xl font-bold mb-4 text-lovers-primary">Dream Room</h1>
-            <p className="text-xl text-muted-foreground mb-6">
-              Your private virtual space opens at midnight 🌙
-            </p>
-            
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <Clock className="w-6 h-6 text-lovers-secondary" />
-              <span className="text-lg font-medium">
-                Current time: {currentTime.toLocaleTimeString()}
-              </span>
-            </div>
-            
-            <Badge variant="outline" className="text-lovers-primary border-lovers-primary/50">
-              Available: 12:00 AM - 5:00 AM
-            </Badge>
-            
-            <p className="text-sm text-muted-foreground mt-4">
-              Come back during the magical hours to design your dream space together 💕
-            </p>
-          </div>
+      <div className="relative">
+        <Button
+          onClick={() => setCurrentView('main')}
+          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
+        >
+          <Home className="w-4 h-4 mr-2" />
+          Back to Dream Room
+        </Button>
+        <div className="pt-16 px-6">
+          <GamesHub />
         </div>
       </div>
     );
@@ -185,7 +141,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
             <div className="flex items-center justify-center space-x-2 mt-4">
               <Moon className="w-5 h-5 text-lovers-primary" />
               <span className="text-sm text-lovers-primary font-medium">
-                Night Mode Active (12 AM - 5 AM)
+                Night Mode Active
               </span>
             </div>
           )}
@@ -295,11 +251,9 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = true })
                       key={idx} 
                       className="text-center p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 cursor-pointer"
                       onClick={() => {
-                        if (feature.name === 'Couple Calendar') {
-                          setCurrentView('calendar');
-                        } else if (feature.name === 'Love Vault') {
-                          setCurrentView('vault');
-                        }
+                        if (feature.name === 'Couple Calendar') setCurrentView('calendar');
+                        else if (feature.name === 'Love Vault') setCurrentView('vault');
+                        else if (feature.name === 'Mini-Games') setCurrentView('games');
                       }}
                     >
                       <div className="text-3xl mb-2">{feature.icon}</div>
