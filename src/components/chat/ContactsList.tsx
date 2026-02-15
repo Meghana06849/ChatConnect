@@ -205,7 +205,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       <span className="flex items-center gap-0.5">
         {isOwn && (
           contact.lastMessageReadAt 
-            ? <CheckCheck className="w-3 h-3 text-blue-400 shrink-0" />
+            ? <CheckCheck className="w-3 h-3 text-sky-400 drop-shadow-[0_0_2px_rgba(56,189,248,0.5)] shrink-0" />
             : <Check className="w-3 h-3 text-muted-foreground shrink-0" />
         )}
         <span className="truncate">{text.slice(0, 35)}{text.length > 35 ? '...' : ''}</span>

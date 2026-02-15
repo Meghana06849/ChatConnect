@@ -25,6 +25,7 @@ import { Stories } from '@/components/stories/Stories';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
+import { LoveVault } from '@/components/dreamroom/LoveVault';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gamepad2, Phone, Users, Heart, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -165,19 +166,8 @@ export const ChatLayout = () => {
       
       case 'vault':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto text-center">
-              <Heart className="w-16 h-16 mx-auto mb-4 text-lovers-primary animate-heart-beat" />
-              <h1 className="text-3xl font-bold mb-2">Secret Vault</h1>
-              <p className="text-muted-foreground mb-8">
-                Extra secure conversations for your most private moments
-              </p>
-              <div className="glass p-8 rounded-2xl border-white/20">
-                <p className="text-muted-foreground">
-                  Vault is empty. Start a secret conversation!
-                </p>
-              </div>
-            </div>
+          <div className="flex-1">
+            <LoveVault />
           </div>
         );
 
@@ -320,20 +310,32 @@ export const ChatLayout = () => {
   };
 
   return (
-    <div className={`h-screen flex ${isLoversMode ? 'mode-lovers' : 'mode-general'} relative`}>
-      {/* Only show background in general mode */}
-      {!isLoversMode && (
-        <div className="fixed inset-0 bg-gradient-to-br from-general-primary/5 via-background to-general-secondary/5 -z-10" />
-      )}
-      {/* Simple gradient background for lovers mode */}
-      {isLoversMode && (
-        <div className="fixed inset-0 bg-gradient-to-br from-lovers-primary/5 via-background to-lovers-secondary/5 -z-10" />
-      )}
-      <Navigation 
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-      />
-      <div className="relative z-10 flex-1">
+    <div className={cn(
+      "h-screen flex relative",
+      isLoversMode ? 'mode-lovers' : 'mode-general'
+    )}>
+      {/* Background gradient */}
+      <div className={cn(
+        "fixed inset-0 -z-10",
+        isLoversMode 
+          ? "bg-gradient-to-br from-lovers-primary/5 via-background to-lovers-secondary/5"
+          : "bg-gradient-to-br from-general-primary/5 via-background to-general-secondary/5"
+      )} />
+      
+      {/* Navigation - hide on mobile when in chat */}
+      <div className={cn(
+        "shrink-0",
+        selectedContact && activeSection === 'chats' ? "hidden md:block" : ""
+      )}>
+        <Navigation 
+          activeSection={activeSection}
+          onSectionChange={(section) => {
+            setActiveSection(section);
+            if (section !== 'chats') setSelectedContact(undefined);
+          }}
+        />
+      </div>
+      <div className="relative z-10 flex-1 min-w-0">
         {renderContent()}
       </div>
     </div>
