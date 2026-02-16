@@ -1,409 +1,382 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DreamRoomWelcome } from './DreamRoomWelcome';
 import { CoupleCalendar } from './CoupleCalendar';
 import { LoveVault } from './LoveVault';
 import { GamesHub } from '@/components/features/GamesHub';
+import { useProfile } from '@/hooks/useProfile';
+import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Home, 
-  Moon, 
-  Palette, 
-  Music,
   Heart,
   Sparkles,
-  Star,
   Calendar,
-  StickyNote,
-  Camera,
   Gamepad2,
-  Smile,
-  TreePine,
-  Pin,
+  Lock,
+  Music,
+  Flame,
 } from 'lucide-react';
 
 interface DreamRoomProps {
   isTimeRestricted?: boolean;
 }
 
+// Cozy room decoration items with positions
+const roomDecorations = {
+  candles: [
+    { id: 1, x: '8%', y: '65%', size: 'text-2xl', delay: '0s' },
+    { id: 2, x: '88%', y: '60%', size: 'text-xl', delay: '1.5s' },
+    { id: 3, x: '15%', y: '72%', size: 'text-lg', delay: '0.8s' },
+    { id: 4, x: '82%', y: '70%', size: 'text-2xl', delay: '2s' },
+  ],
+  plants: [
+    { id: 1, x: '5%', y: '80%', emoji: '🪴', size: 'text-3xl' },
+    { id: 2, x: '92%', y: '78%', emoji: '🌿', size: 'text-2xl' },
+    { id: 3, x: '72%', y: '85%', emoji: '🌱', size: 'text-xl' },
+  ],
+  sparkles: Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    x: `${5 + Math.random() * 90}%`,
+    y: `${5 + Math.random() * 40}%`,
+    delay: `${Math.random() * 5}s`,
+    duration: `${2 + Math.random() * 3}s`,
+    size: Math.random() * 3 + 1,
+  })),
+};
+
 export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }) => {
-  const [isUnlocked, setIsUnlocked] = useState(true);
-  const [petMood, setPetMood] = useState('happy');
-  const [currentMusic, setCurrentMusic] = useState('None');
-  const [nightModeStars, setNightModeStars] = useState(true);
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentView, setCurrentView] = useState<'main' | 'calendar' | 'vault' | 'games'>('main');
+  const [loveLevel, setLoveLevel] = useState(42);
+  const [loveStreak, setLoveStreak] = useState(0);
+  const [togetherSince, setTogetherSince] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState('Your Love');
 
-  const decorationItems = [
-    { name: 'Romantic Candles', icon: '🕯️', price: 50 },
-    { name: 'Rose Petals', icon: '🌹', price: 30 },
-    { name: 'Fairy Lights', icon: '✨', price: 40 },
-    { name: 'Cozy Couch', icon: '🛋️', price: 200 },
-    { name: 'Love Mirror', icon: '🪞', price: 150 },
-    { name: 'Heart Balloons', icon: '🎈', price: 25 },
-    { name: 'Dream Jar', icon: '🏺', price: 75 },
-    { name: 'Virtual Plant', icon: '🌱', price: 100 },
-  ];
+  const { profile } = useProfile();
+  const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
 
-  const themes = [
-    { name: 'Midnight Romance', colors: ['#1a1a2e', '#16213e', '#0f3460'], price: 100 },
-    { name: 'Sunset Dreams', colors: ['#ff6b6b', '#feca57', '#ff9ff3'], price: 120 },
-    { name: 'Ethereal Garden', colors: ['#a8e6cf', '#dcedc1', '#ffd3a5'], price: 110 },
-    { name: 'Starlit Night', colors: ['#0c0c0c', '#1a1a2e', '#16213e'], price: 130 },
-  ];
+  useEffect(() => {
+    if (presencePartnerName) setPartnerName(presencePartnerName);
+  }, [presencePartnerName]);
 
-  const dreamFeatures = [
-    { name: 'Dream Jar', description: 'Drop wishes that open later', icon: '🏺' },
-    { name: 'Love Vault', description: 'Encrypted private storage', icon: '🔒' },
-    { name: 'Shared Playlist', description: 'Auto-sync music with Spotify', icon: '🎵' },
-    { name: 'Virtual Pet', description: 'Grows as you chat together', icon: '🐱' },
-    { name: 'Couple Calendar', description: 'Never miss special moments', icon: '📅' },
-    { name: 'Night Mode', description: 'Stars change based on moods', icon: '🌟' },
-    { name: 'Dream Board', description: 'Upload memories & quotes', icon: '📌' },
-    { name: 'Mini-Games', description: 'Play together in your space', icon: '🎮' },
-  ];
+  useEffect(() => {
+    const loadData = async () => {
+      if (!profile?.user_id) return;
 
-  // Dream Room is accessible since PIN was verified at entry
+      const { data: streakData } = await supabase
+        .from('love_streaks')
+        .select('current_streak, created_at')
+        .eq('user_id', profile.user_id)
+        .maybeSingle();
+
+      if (streakData) {
+        setLoveStreak(streakData.current_streak || 0);
+        setTogetherSince(streakData.created_at);
+      }
+
+      if (profile.lovers_partner_id && !presencePartnerName) {
+        const { data: partnerData } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', profile.lovers_partner_id)
+          .maybeSingle();
+        if (partnerData?.display_name) setPartnerName(partnerData.display_name);
+      }
+    };
+    loadData();
+  }, [profile, presencePartnerName]);
+
+  const daysTogether = useMemo(() => {
+    if (!togetherSince) return 0;
+    return Math.floor((Date.now() - new Date(togetherSince).getTime()) / 86400000);
+  }, [togetherSince]);
 
   if (showWelcome) {
     return <DreamRoomWelcome onEnter={() => setShowWelcome(false)} />;
   }
 
-  if (currentView === 'calendar') {
+  // Sub-views with back button
+  if (currentView !== 'main') {
+    const viewMap: Record<string, React.ReactNode> = {
+      calendar: <CoupleCalendar />,
+      vault: <LoveVault />,
+      games: <div className="pt-16 px-4 md:px-6"><GamesHub /></div>,
+    };
     return (
-      <div className="relative">
+      <div className="relative min-h-screen">
+        <DreamRoomBackground />
         <Button
           onClick={() => setCurrentView('main')}
-          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
+          className="absolute top-4 left-4 z-20 bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] text-white shadow-lg"
+          size="sm"
         >
           <Home className="w-4 h-4 mr-2" />
-          Back to Dream Room
+          Dream Room
         </Button>
-        <CoupleCalendar />
-      </div>
-    );
-  }
-
-  if (currentView === 'vault') {
-    return (
-      <div className="relative">
-        <Button
-          onClick={() => setCurrentView('main')}
-          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
-        >
-          <Home className="w-4 h-4 mr-2" />
-          Back to Dream Room
-        </Button>
-        <LoveVault />
-      </div>
-    );
-  }
-
-  if (currentView === 'games') {
-    return (
-      <div className="relative">
-        <Button
-          onClick={() => setCurrentView('main')}
-          className="absolute top-6 left-6 z-10 bg-lovers-primary text-white"
-        >
-          <Home className="w-4 h-4 mr-2" />
-          Back to Dream Room
-        </Button>
-        <div className="pt-16 px-6">
-          <GamesHub />
-        </div>
+        <div className="relative z-10">{viewMap[currentView]}</div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <Home className="w-12 h-12 text-lovers-primary animate-heart-beat" />
-            <Sparkles className="w-8 h-8 text-lovers-secondary animate-float" />
-          </div>
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
-            Dream Room
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Your private 3D virtual space - Design it together 💕
-          </p>
-          
-          {isTimeRestricted && (
-            <div className="flex items-center justify-center space-x-2 mt-4">
-              <Moon className="w-5 h-5 text-lovers-primary" />
-              <span className="text-sm text-lovers-primary font-medium">
-                Night Mode Active
-              </span>
+    <div className="relative min-h-screen overflow-hidden">
+      <DreamRoomBackground />
+
+      {/* Room Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4 md:p-6">
+        <div className="w-full max-w-3xl mx-auto">
+
+          {/* Room Interior Scene */}
+          <div className="relative w-full aspect-[16/10] md:aspect-[16/9] rounded-3xl overflow-hidden border border-[hsl(var(--lovers-primary)/0.3)] shadow-2xl mb-6"
+            style={{
+              background: 'linear-gradient(180deg, hsl(280 40% 12%) 0%, hsl(320 30% 15%) 40%, hsl(340 25% 18%) 70%, hsl(20 30% 14%) 100%)',
+            }}
+          >
+            {/* Warm ambient glow */}
+            <div className="absolute inset-0" style={{
+              background: 'radial-gradient(ellipse 80% 60% at 50% 70%, hsla(340, 60%, 40%, 0.25) 0%, transparent 70%)',
+            }} />
+            <div className="absolute inset-0" style={{
+              background: 'radial-gradient(circle at 20% 80%, hsla(30, 80%, 50%, 0.15) 0%, transparent 40%)',
+            }} />
+            <div className="absolute inset-0" style={{
+              background: 'radial-gradient(circle at 80% 75%, hsla(30, 80%, 50%, 0.12) 0%, transparent 35%)',
+            }} />
+
+            {/* Window with moonlight */}
+            <div className="absolute top-6 left-1/2 -translate-x-1/2 w-24 h-20 md:w-32 md:h-24 rounded-t-full border-2 border-[hsl(var(--lovers-primary)/0.3)]"
+              style={{
+                background: 'linear-gradient(180deg, hsla(220, 60%, 30%, 0.6) 0%, hsla(260, 40%, 20%, 0.8) 100%)',
+                boxShadow: '0 0 40px 15px hsla(220, 60%, 40%, 0.1)',
+              }}
+            >
+              {/* Moon in window */}
+              <div className="absolute top-3 right-4 w-6 h-6 md:w-8 md:h-8 rounded-full animate-float"
+                style={{
+                  background: 'radial-gradient(circle at 30% 30%, hsl(45 100% 95%), hsl(45 80% 75%))',
+                  boxShadow: '0 0 20px 8px hsla(45, 100%, 85%, 0.3)',
+                }}
+              />
+              {/* Stars in window */}
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="absolute rounded-full bg-white blink-star"
+                  style={{
+                    width: `${1 + Math.random()}px`,
+                    height: `${1 + Math.random()}px`,
+                    left: `${10 + Math.random() * 60}%`,
+                    top: `${15 + Math.random() * 50}%`,
+                    animationDelay: `${Math.random() * 3}s`,
+                  }}
+                />
+              ))}
             </div>
-          )}
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Room View */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Home className="w-6 h-6 text-lovers-primary" />
-                    <span>Your Dream Space</span>
-                  </div>
-                  <Badge className="bg-lovers-primary/20 text-lovers-primary">
-                    🔒 Private Mode
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="w-full h-80 bg-gradient-to-br from-lovers-accent/20 to-lovers-primary/10 rounded-2xl border border-lovers-primary/20 flex items-center justify-center relative overflow-hidden">
-                  {/* Night Mode Stars */}
-                  {nightModeStars && (
-                    <div className="absolute inset-0">
-                      {[...Array(20)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className="absolute text-yellow-400 w-4 h-4 blink-star"
-                          style={{
-                            left: `${Math.random() * 90 + 5}%`,
-                            top: `${Math.random() * 90 + 5}%`,
-                            animationDelay: `${Math.random() * 2}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Virtual Pet */}
-                  <div className="absolute top-4 left-4">
-                    <div className="bg-white/10 rounded-full p-3">
-                      <TreePine className="w-8 h-8 text-green-400" />
-                    </div>
-                    <p className="text-xs text-center mt-1 text-lovers-primary">Growing!</p>
-                  </div>
-                  
-                  {/* Magical Connection Center */}
-                  <div className="text-center z-10">
-                    <div className="relative mb-4">
-                      <div className="absolute inset-0 animate-pulse">
-                        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-lovers-primary/30 to-lovers-secondary/30 blur-xl"></div>
-                      </div>
-                      <div className="relative flex items-center justify-center space-x-4">
-                        <Heart className="w-16 h-16 text-lovers-primary animate-heart-beat" />
-                        <div className="text-4xl animate-float">
-                          💞
-                        </div>
-                        <Heart className="w-16 h-16 text-lovers-secondary animate-heart-beat" style={{ animationDelay: '0.5s' }} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-lovers-primary font-medium text-lg">Connected Hearts</p>
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-2 h-2 bg-lovers-primary rounded-full animate-pulse"></div>
-                        <p className="text-sm text-muted-foreground">Your souls are synchronized</p>
-                        <div className="w-2 h-2 bg-lovers-secondary rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {currentMusic !== 'None' ? `🎵 Playing: ${currentMusic}` : 'Add music to enhance your connection'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Floating hearts */}
-                  <div className="absolute inset-0">
-                    {[...Array(12)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute text-2xl opacity-20 animate-float"
-                        style={{
-                          left: `${Math.random() * 80 + 10}%`,
-                          top: `${Math.random() * 80 + 10}%`,
-                          animationDelay: `${Math.random() * 3}s`,
-                        }}
-                      >
-                        💕
-                      </div>
-                    ))}
-                  </div>
+            {/* Heart Wall Frame - Glowing */}
+            <div className="absolute top-8 md:top-6 right-6 md:right-10">
+              <div className="relative animate-heart-beat">
+                <Heart className="w-10 h-10 md:w-14 md:h-14 text-[hsl(var(--lovers-primary))]" fill="hsl(var(--lovers-primary))" />
+                <div className="absolute inset-0 blur-md">
+                  <Heart className="w-10 h-10 md:w-14 md:h-14 text-[hsl(var(--lovers-primary))]" fill="hsl(var(--lovers-primary))" />
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Dream Features */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-lovers-primary" />
-                  <span>Dream Features</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {dreamFeatures.map((feature, idx) => (
-                    <div 
-                      key={idx} 
-                      className="text-center p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all hover:scale-105 cursor-pointer"
-                      onClick={() => {
-                        if (feature.name === 'Couple Calendar') setCurrentView('calendar');
-                        else if (feature.name === 'Love Vault') setCurrentView('vault');
-                        else if (feature.name === 'Mini-Games') setCurrentView('games');
-                      }}
-                    >
-                      <div className="text-3xl mb-2">{feature.icon}</div>
-                      <h4 className="font-medium text-sm">{feature.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">{feature.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </div>
 
-          {/* Customization Panel */}
-          <div className="space-y-6">
-            {/* Themes */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Palette className="w-5 h-5 text-lovers-primary" />
-                  <span>Room Themes</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {themes.map((theme, idx) => (
-                  <div key={idx} className="p-3 rounded-xl border border-white/20 hover:bg-white/5 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{theme.name}</p>
-                        <div className="flex space-x-1 mt-1">
-                          {theme.colors.map((color, i) => (
-                            <div
-                              key={i}
-                              className="w-4 h-4 rounded-full border border-white/20"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-lovers-primary border-lovers-primary/50">
-                        {theme.price} 💕
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            {/* Small framed photo on wall */}
+            <div className="absolute top-10 left-6 md:left-10 w-8 h-10 md:w-10 md:h-12 rounded-sm border border-[hsl(var(--lovers-primary)/0.4)]"
+              style={{ background: 'linear-gradient(135deg, hsla(320, 60%, 50%, 0.3), hsla(270, 50%, 40%, 0.3))' }}
+            >
+              <div className="flex items-center justify-center h-full text-sm md:text-base">💑</div>
+            </div>
 
-            {/* Decorations */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-lovers-primary" />
-                  <span>Decorations</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {decorationItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg">{item.icon}</span>
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs border-lovers-primary/50 text-lovers-primary hover:bg-lovers-primary/10"
-                    >
-                      {item.price} 💕
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            {/* Cozy Couch - Centerpiece */}
+            <div className="absolute bottom-[18%] left-1/2 -translate-x-1/2 flex flex-col items-center">
+              <div className="text-4xl md:text-6xl" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))' }}>
+                🛋️
+              </div>
+              {/* Cushion glow */}
+              <div className="absolute -bottom-2 w-20 h-4 rounded-full blur-lg" style={{
+                background: 'hsla(340, 60%, 40%, 0.3)',
+              }} />
+            </div>
 
-            {/* Dream Tools */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle>Dream Tools</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  className="w-full btn-lovers"
-                  onClick={() => setCurrentMusic('Romantic Vibes')}
-                >
-                  <Music className="w-4 h-4 mr-2" />
-                  Shared Playlist
-                </Button>
-                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <StickyNote className="w-4 h-4 mr-2" />
-                  Shared Notes
-                </Button>
-                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Dream Dates
-                </Button>
-                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <Camera className="w-4 h-4 mr-2" />
-                  Memory Board
-                </Button>
-                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <Gamepad2 className="w-4 h-4 mr-2" />
-                  Mini-Games
-                </Button>
-              </CardContent>
-            </Card>
-            
-            {/* Mood & Settings */}
-            <Card className="glass border-white/20">
-              <CardHeader>
-                <CardTitle>Room Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Night Mode Stars</h4>
-                    <p className="text-sm text-muted-foreground">Constellation ambiance</p>
-                  </div>
-                  <Switch 
-                    checked={nightModeStars}
-                    onCheckedChange={setNightModeStars}
+            {/* Candles with flicker glow */}
+            {roomDecorations.candles.map((candle) => (
+              <div key={candle.id} className={`absolute ${candle.size}`} style={{ left: candle.x, top: candle.y }}>
+                <div className="relative">
+                  <span>🕯️</span>
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full blur-sm animate-pulse"
+                    style={{
+                      background: 'hsla(35, 100%, 60%, 0.6)',
+                      animationDelay: candle.delay,
+                    }}
                   />
                 </div>
-                
-                <div>
-                  <Label className="text-sm font-medium">Pet Mood</Label>
-                  <div className="flex space-x-2 mt-2">
-                    {['happy', 'love', 'excited'].map((mood) => (
-                      <Button
-                        key={mood}
-                        size="sm"
-                        variant={petMood === mood ? "default" : "outline"}
-                        onClick={() => setPetMood(mood)}
-                        className={petMood === mood ? "btn-lovers" : "border-lovers-primary/50 text-lovers-primary"}
-                      >
-                        <Smile className="w-4 h-4 mr-1" />
-                        {mood}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                
-                <Button variant="outline" className="w-full border-lovers-primary/50 text-lovers-primary">
-                  <Pin className="w-4 h-4 mr-2" />
-                  Change PIN
-                </Button>
-              </CardContent>
-            </Card>
+              </div>
+            ))}
+
+            {/* Plants */}
+            {roomDecorations.plants.map((plant) => (
+              <div key={plant.id} className={`absolute ${plant.size}`} style={{ left: plant.x, top: plant.y }}>
+                {plant.emoji}
+              </div>
+            ))}
+
+            {/* Rose petals scattered */}
+            {['🌹', '🥀', '🌸'].map((rose, i) => (
+              <div key={i} className="absolute text-lg opacity-60 animate-float"
+                style={{
+                  left: `${25 + i * 25}%`,
+                  top: `${75 + Math.random() * 10}%`,
+                  animationDelay: `${i * 1.2}s`,
+                }}
+              >
+                {rose}
+              </div>
+            ))}
+
+            {/* Fairy lights string across top */}
+            <div className="absolute top-1 left-0 right-0 flex justify-around px-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full blink-star"
+                  style={{
+                    background: i % 2 === 0
+                      ? 'hsla(320, 100%, 70%, 0.8)'
+                      : 'hsla(45, 100%, 80%, 0.8)',
+                    boxShadow: `0 0 6px 2px ${i % 2 === 0 ? 'hsla(320, 100%, 70%, 0.4)' : 'hsla(45, 100%, 80%, 0.4)'}`,
+                    animationDelay: `${i * 0.3}s`,
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Partner presence indicator */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+              {partnerOnline ? (
+                <Badge className="bg-[hsl(var(--lovers-primary)/0.3)] text-white border-[hsl(var(--lovers-primary)/0.5)] backdrop-blur-sm text-xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse" />
+                  {partnerName} is here 💕
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-black/30 text-white/70 border-white/20 backdrop-blur-sm text-xs">
+                  {partnerName} is away 💭
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Together Since & Love Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            {/* Together Since */}
+            <div className="col-span-2 md:col-span-1 rounded-2xl p-4 text-center border border-[hsl(var(--lovers-primary)/0.2)]"
+              style={{ background: 'linear-gradient(135deg, hsla(320, 50%, 20%, 0.6), hsla(270, 40%, 18%, 0.6))' }}
+            >
+              <Heart className="w-5 h-5 text-[hsl(var(--lovers-primary))] mx-auto mb-1 animate-heart-beat" />
+              <p className="text-xs text-white/60">Together Since</p>
+              <p className="text-lg font-bold text-white">
+                {togetherSince ? new Date(togetherSince).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Today 💕'}
+              </p>
+              <p className="text-xs text-[hsl(var(--lovers-primary))]">{daysTogether} days of love</p>
+            </div>
+
+            {/* Love Streak */}
+            <div className="rounded-2xl p-4 text-center border border-[hsl(var(--lovers-primary)/0.2)]"
+              style={{ background: 'linear-gradient(135deg, hsla(340, 50%, 20%, 0.6), hsla(20, 40%, 18%, 0.6))' }}
+            >
+              <Flame className="w-5 h-5 text-orange-400 mx-auto mb-1 animate-pulse" />
+              <p className="text-xs text-white/60">Love Streak</p>
+              <p className="text-lg font-bold text-white">{loveStreak} 🔥</p>
+              <p className="text-xs text-orange-400">days</p>
+            </div>
+
+            {/* Love Level */}
+            <div className="rounded-2xl p-4 text-center border border-[hsl(var(--lovers-primary)/0.2)]"
+              style={{ background: 'linear-gradient(135deg, hsla(280, 50%, 20%, 0.6), hsla(320, 40%, 18%, 0.6))' }}
+            >
+              <Sparkles className="w-5 h-5 text-[hsl(var(--lovers-secondary))] mx-auto mb-1" />
+              <p className="text-xs text-white/60">Love Level</p>
+              <p className="text-lg font-bold text-white">Lv.{loveLevel}</p>
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-1 overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))]"
+                  style={{ width: '73%' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Feature Navigation */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { icon: Calendar, label: 'Calendar', emoji: '📅', view: 'calendar' as const },
+              { icon: Lock, label: 'Love Vault', emoji: '🔐', view: 'vault' as const },
+              { icon: Gamepad2, label: 'Games', emoji: '🎮', view: 'games' as const },
+              { icon: Music, label: 'Playlist', emoji: '🎵', view: 'main' as const },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={() => setCurrentView(item.view)}
+                className="rounded-2xl p-4 text-center border border-[hsl(var(--lovers-primary)/0.15)] hover:border-[hsl(var(--lovers-primary)/0.4)] transition-all hover:scale-105 active:scale-95"
+                style={{ background: 'linear-gradient(135deg, hsla(320, 40%, 15%, 0.5), hsla(270, 30%, 12%, 0.5))' }}
+              >
+                <div className="text-2xl mb-1">{item.emoji}</div>
+                <p className="text-xs font-medium text-white/80">{item.label}</p>
+              </button>
+            ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+/** Ambient background with warm pink/purple lighting and floating particles */
+const DreamRoomBackground: React.FC = () => {
+  const particles = useMemo(() =>
+    Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 15,
+      duration: 12 + Math.random() * 10,
+      size: 0.4 + Math.random() * 0.6,
+      emoji: i % 3 === 0 ? '✨' : '💕',
+    })), []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-0">
+      {/* Base warm dark gradient */}
+      <div className="absolute inset-0" style={{
+        background: 'linear-gradient(180deg, hsl(280 45% 8%) 0%, hsl(320 35% 12%) 40%, hsl(340 30% 16%) 70%, hsl(20 25% 10%) 100%)',
+      }} />
+      {/* Warm ambient light pools */}
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse 60% 50% at 30% 80%, hsla(320, 70%, 45%, 0.12) 0%, transparent 60%)',
+      }} />
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse 50% 40% at 70% 75%, hsla(30, 80%, 50%, 0.08) 0%, transparent 50%)',
+      }} />
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse 80% 40% at 50% 20%, hsla(270, 50%, 30%, 0.15) 0%, transparent 60%)',
+      }} />
+      {/* Floating particles */}
+      {particles.map((p) => (
+        <div key={p.id} className="absolute dream-floating-heart"
+          style={{
+            left: `${p.x}%`,
+            bottom: '-5%',
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            fontSize: `${p.size * 1.2}rem`,
+            opacity: 0.12,
+          }}
+        >
+          {p.emoji}
+        </div>
+      ))}
+      {/* Soft vignette */}
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse 70% 70% at 50% 50%, transparent 0%, hsla(280, 40%, 5%, 0.5) 100%)',
+      }} />
     </div>
   );
 };
