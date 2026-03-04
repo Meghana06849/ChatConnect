@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Heart, Video, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
+import { HeartWeatherEffects } from './HeartWeatherEffects';
+import { RoomDecorations } from './RoomDecorations';
 
 interface DreamRoomSceneProps {
   partnerOnline: boolean;
