@@ -305,7 +305,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
                         </span>
                         {isMe && (
                           <span className="text-[8px]">
-                            {msg.read_at ? '💜' : msg.delivered_at ? '💕' : '🤍'}
+                            {msg.read_at ? '💜' : '🤍'}
                           </span>
                         )}
                       </div>
