@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { Heart, Video, Phone, PhoneOff, Mic, MicOff } from 'lucide-react';
+import { HeartWeatherEffects } from './HeartWeatherEffects';
+import { RoomDecorations } from './RoomDecorations';
 
 interface DreamRoomSceneProps {
   partnerOnline: boolean;
@@ -80,6 +82,9 @@ export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({
     <div className="relative w-full max-w-lg mx-auto px-3 flex-1 flex flex-col items-center justify-center"
       style={{ minHeight: 'clamp(280px, 50vh, 420px)' }}>
 
+      {/* Room decorations system */}
+      <RoomDecorations />
+
       {/* Fairy lights across top */}
       <div className="absolute top-0 left-4 right-4 z-20">
         <svg viewBox="0 0 400 30" className="w-full h-8" preserveAspectRatio="none">
@@ -116,10 +121,8 @@ export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({
         <div className="absolute inset-0 overflow-hidden" style={{
           clipPath: 'path("M 160 30 C 200 -10, 280 10, 280 70 C 280 140, 160 220, 160 220 C 160 220, 40 140, 40 70 C 40 10, 120 -10, 160 30 Z")',
         }}>
-          {/* Night sky inside heart */}
-          <div className="absolute inset-0" style={{
-            background: 'linear-gradient(180deg, hsl(250 55% 12%) 0%, hsl(270 45% 18%) 40%, hsl(300 40% 25%) 80%, hsl(320 35% 22%) 100%)',
-          }} />
+          {/* Dynamic weather-based sky */}
+          <HeartWeatherEffects />
 
           {/* Clouds at bottom of heart */}
           <div className="absolute bottom-0 left-0 right-0 h-[40%]" style={{
@@ -127,9 +130,6 @@ export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({
           }} />
           <div className="absolute bottom-0 left-0 right-0 h-[30%]" style={{
             background: 'radial-gradient(ellipse 80% 50% at 30% 100%, hsla(310 45% 35% / 0.5) 0%, transparent 60%)',
-          }} />
-          <div className="absolute bottom-0 left-0 right-0 h-[30%]" style={{
-            background: 'radial-gradient(ellipse 80% 50% at 70% 100%, hsla(290 40% 30% / 0.5) 0%, transparent 60%)',
           }} />
 
           {/* Stars inside heart */}

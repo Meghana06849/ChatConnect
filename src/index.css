@@ -997,3 +997,25 @@
 .dream-heart-pulse-small {
   animation: dream-heart-pulse-small 1.2s ease-in-out infinite;
 }
+
+/* Rain animation */
+@keyframes dream-rain-fall {
+  0% { transform: translateY(-10px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(300px); opacity: 0; }
+}
+
+.dream-raindrop {
+  animation: dream-rain-fall linear infinite;
+}
+
+/* Sunrise glow pulse */
+@keyframes dream-sunrise-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.dream-sunrise-pulse {
+  animation: dream-sunrise-pulse 4s ease-in-out infinite;
+}
