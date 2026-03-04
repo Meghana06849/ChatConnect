@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Home } from 'lucide-react';
+import { Home, Volume2, VolumeX } from 'lucide-react';
 import { DreamRoomWelcome } from './DreamRoomWelcome';
 import { DreamRoomScene } from './DreamRoomScene';
 import { DreamRoomChatBar } from './DreamRoomChatBar';
@@ -14,6 +14,7 @@ import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
 import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
+import { useAmbientSounds } from '@/hooks/useAmbientSounds';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DreamRoomProps {
@@ -30,27 +31,19 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   const [chatMessage, setChatMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [dreamConversationId, setDreamConversationId] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
   const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
   const { conversations, createConversation } = useRealTimeChat(true);
+  const { muted: ambientMuted, toggleMute: toggleAmbient, activate: activateAmbient, currentType: ambientType } = useAmbientSounds(partnerOnline);
 
   // WebRTC call integration
   const {
-    localStream,
-    remoteStream,
-    isCallActive,
-    isIncomingCall,
-    incomingCallData,
-    isMuted,
-    isVideoEnabled,
-    callDuration,
-    startCall,
-    acceptCall,
-    rejectCall,
-    endCall,
-    toggleMute,
-    toggleVideo,
+    localStream, remoteStream, isCallActive, isIncomingCall, incomingCallData,
+    isMuted, isVideoEnabled, callDuration,
+    startCall, acceptCall, rejectCall, endCall, toggleMute, toggleVideo,
   } = useWebRTCCall(currentUserId);
 
   // Load current user
@@ -86,11 +79,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, [profile, conversations, createConversation]);
 
   const {
-    messages,
-    typingUsers,
-    loading: chatLoading,
-    sendMessage,
-    setTyping,
+    messages, typingUsers, loading: chatLoading, sendMessage, setTyping,
   } = useEnhancedRealTimeChat(dreamConversationId);
 
   useEffect(() => {
@@ -121,6 +110,13 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadData();
   }, [profile, presencePartnerName]);
 
+  // Auto-scroll chat
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [messages, showChat]);
+
   const daysTogether = useMemo(() => {
     if (!togetherSince) return 0;
     return Math.floor((Date.now() - new Date(togetherSince).getTime()) / 86400000);
@@ -145,6 +141,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     if (!profile?.lovers_partner_id) return;
     await startCall(profile.lovers_partner_id, partnerName, false);
   }, [profile, partnerName, startCall]);
+
+  const handleEnterRoom = useCallback(() => {
+    setShowWelcome(false);
+    activateAmbient();
+  }, [activateAmbient]);
 
   // Show incoming call overlay
   if (isIncomingCall && incomingCallData) {
@@ -173,7 +174,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }
 
   if (showWelcome) {
-    return <DreamRoomWelcome onEnter={() => setShowWelcome(false)} />;
+    return <DreamRoomWelcome onEnter={handleEnterRoom} />;
   }
 
   if (currentView !== 'main') {
@@ -199,6 +200,10 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     );
   }
 
+  const ambientLabels: Record<string, string> = {
+    rain: '🌧️', birds: '🐦', fireplace: '🔥', night: '🌙',
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden" style={{
       background: partnerOnline
@@ -212,6 +217,22 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
 
       {/* Floating hearts background */}
       <DreamRoomFloatingHearts partnerOnline={partnerOnline} />
+
+      {/* Ambient sound toggle */}
+      <button onClick={() => { activateAmbient(); toggleAmbient(); }}
+        className="fixed top-4 right-4 z-30 w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+        style={{
+          background: 'hsla(280 40% 18% / 0.8)',
+          border: '1px solid hsla(320 60% 50% / 0.2)',
+          backdropFilter: 'blur(12px)',
+        }}>
+        <span className="text-xs mr-0.5">{ambientLabels[ambientType]}</span>
+        {ambientMuted ? (
+          <VolumeX className="w-3 h-3 text-white/50" />
+        ) : (
+          <Volume2 className="w-3 h-3 text-white/70" />
+        )}
+      </button>
 
       {/* Main scene */}
       <div className="relative z-10 flex flex-col items-center min-h-screen">
@@ -238,45 +259,97 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           profile={profile}
         />
 
-        {/* Last message bubble */}
-        {messages.length > 0 && !isCallActive && (
-          <div className="relative z-10 -mt-2 mb-2 max-w-xs mx-auto">
-            <div className="px-4 py-2 rounded-2xl text-sm text-white/90 dream-bubble-appear" style={{
-              background: 'linear-gradient(135deg, hsla(270 50% 30% / 0.85), hsla(280 40% 25% / 0.85))',
-              border: '1px solid hsla(320 60% 50% / 0.2)',
-              backdropFilter: 'blur(12px)',
+        {/* Chat panel - expandable */}
+        <div className="w-full max-w-lg mx-auto px-3 flex-1 flex flex-col" style={{ minHeight: 0 }}>
+          {/* Toggle chat */}
+          <button onClick={() => setShowChat(!showChat)}
+            className="mx-auto mb-1 px-4 py-1 rounded-full text-[11px] text-white/70 transition-all hover:text-white/90"
+            style={{
+              background: 'hsla(280 35% 18% / 0.7)',
+              border: '1px solid hsla(320 60% 50% / 0.15)',
+              backdropFilter: 'blur(8px)',
             }}>
-              {messages[messages.length - 1].content.slice(0, 60)}
-              {messages[messages.length - 1].content.length > 60 ? '…' : ''}
-              {' '}
-              <span className="text-[10px] text-white/40">
-                {messages[messages.length - 1].sender_id === currentUserId ? '💜' : '💕'}
-              </span>
-            </div>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{
-              background: 'hsla(275 45% 28% / 0.85)',
-            }} />
-          </div>
-        )}
+            {showChat ? '▼ Hide Chat' : `▲ Chat ${messages.length > 0 ? `(${messages.length})` : ''}`}
+          </button>
 
-        {/* Typing indicator */}
-        {typingUsers.filter(u => u.user_id !== currentUserId).length > 0 && (
-          <div className="flex items-center gap-1.5 mb-2">
-            <div className="flex gap-0.5">
-              {[0, 1, 2].map(i => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--lovers-primary))] dream-typing-heart"
-                  style={{ animationDelay: `${i * 0.2}s` }} />
-              ))}
+          {/* Scrollable messages */}
+          {showChat && (
+            <div ref={chatScrollRef}
+              className="flex-1 overflow-y-auto space-y-2 px-1 pb-2 max-h-[35vh] scrollbar-thin"
+              style={{
+                maskImage: 'linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)',
+              }}>
+              {messages.length === 0 && (
+                <div className="text-center text-white/30 text-xs py-6">
+                  Send your first message to {partnerName} 💕
+                </div>
+              )}
+              {messages.map(msg => {
+                const isMe = msg.sender_id === currentUserId;
+                return (
+                  <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className="max-w-[75%] px-3 py-2 rounded-2xl text-sm dream-bubble-appear" style={{
+                      background: isMe
+                        ? 'linear-gradient(135deg, hsla(320 60% 40% / 0.85), hsla(280 50% 35% / 0.85))'
+                        : 'linear-gradient(135deg, hsla(270 40% 25% / 0.85), hsla(260 35% 20% / 0.85))',
+                      border: isMe
+                        ? '1px solid hsla(320 80% 60% / 0.25)'
+                        : '1px solid hsla(270 50% 40% / 0.2)',
+                      color: 'hsla(0 0% 100% / 0.9)',
+                      backdropFilter: 'blur(8px)',
+                    }}>
+                      {msg.content}
+                      <div className="flex items-center justify-end gap-1 mt-0.5">
+                        <span className="text-[9px] text-white/30">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isMe && (
+                          <span className="text-[8px]">
+                            {msg.read_at ? '💜' : msg.delivered_at ? '💕' : '🤍'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <span className="text-[11px] text-[hsl(var(--lovers-primary))] italic">typing…</span>
-          </div>
-        )}
+          )}
+
+          {/* Typing indicator */}
+          {typingUsers.filter(u => u.user_id !== currentUserId).length > 0 && (
+            <div className="flex items-center gap-1.5 mb-1 px-1">
+              <div className="flex gap-0.5">
+                {[0, 1, 2].map(i => (
+                  <span key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--lovers-primary))] dream-typing-heart"
+                    style={{ animationDelay: `${i * 0.2}s` }} />
+                ))}
+              </div>
+              <span className="text-[11px] text-[hsl(var(--lovers-primary))] italic">typing…</span>
+            </div>
+          )}
+
+          {/* Last message preview when chat is collapsed */}
+          {!showChat && messages.length > 0 && !isCallActive && (
+            <div className="mx-auto mb-1 max-w-xs">
+              <div className="px-3 py-1.5 rounded-2xl text-xs text-white/70 text-center truncate"
+                style={{
+                  background: 'hsla(270 40% 22% / 0.7)',
+                  border: '1px solid hsla(320 50% 45% / 0.15)',
+                  backdropFilter: 'blur(8px)',
+                }}>
+                {messages[messages.length - 1].content.slice(0, 50)}
+                {messages[messages.length - 1].content.length > 50 ? '…' : ''}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Bottom chat bar */}
         <DreamRoomChatBar
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
-          onSend={handleSendChat}
+          onSend={() => { handleSendChat(); if (!showChat) setShowChat(true); }}
           onTyping={handleTyping}
           partnerName={partnerName}
           onNavigate={setCurrentView}
