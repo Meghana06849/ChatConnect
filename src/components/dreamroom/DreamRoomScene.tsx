@@ -326,15 +326,15 @@ export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({
         </button>
       </div>
 
-      {/* Side furniture - Games controller */}
+      {/* Side furniture - Calendar */}
       <div className="absolute right-2 md:right-6 bottom-[22%] z-10">
-        <button onClick={() => onNavigate('games')}
+        <button onClick={() => onNavigate('calendar')}
           className="w-12 h-10 md:w-14 md:h-12 rounded-lg flex items-center justify-center transition-all hover:scale-105"
           style={{
             background: 'linear-gradient(135deg, hsla(280 35% 15% / 0.6), hsla(320 40% 18% / 0.6))',
             border: '1px solid hsla(280 50% 40% / 0.2)',
           }}>
-          <div className="text-lg">🎮</div>
+          <div className="text-lg">📅</div>
         </button>
       </div>
 
