@@ -82,6 +82,9 @@ export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({
     <div className="relative w-full max-w-lg mx-auto px-3 flex-1 flex flex-col items-center justify-center"
       style={{ minHeight: 'clamp(280px, 50vh, 420px)' }}>
 
+      {/* Room decorations system */}
+      <RoomDecorations />
+
       {/* Fairy lights across top */}
       <div className="absolute top-0 left-4 right-4 z-20">
         <svg viewBox="0 0 400 30" className="w-full h-8" preserveAspectRatio="none">
