@@ -333,13 +333,26 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           )}
         </div>
 
+        {!isPartnerLinked && (
+          <div className="mb-2 text-[11px] text-center text-white/60 px-3">
+            Dream Room chat and calls are locked until both accounts are linked with the same love-code.
+          </div>
+        )}
+
         {/* Bottom chat bar */}
         <DreamRoomChatBar
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
-          onSend={() => { handleSendChat(); if (!showChat) setShowChat(true); }}
-          onTyping={handleTyping}
-          partnerName={partnerName}
+          onSend={() => {
+            if (!isPartnerLinked) return;
+            handleSendChat();
+            if (!showChat) setShowChat(true);
+          }}
+          onTyping={() => {
+            if (!isPartnerLinked) return;
+            handleTyping();
+          }}
+          partnerName={isPartnerLinked ? partnerName : 'Linked Partner'}
           onNavigate={setCurrentView}
         />
       </div>
