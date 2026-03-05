@@ -34,7 +34,6 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
 
   const { profile } = useProfile();
   const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
-  const { conversations, createConversation } = useRealTimeChat(true);
   const { muted: ambientMuted, toggleMute: toggleAmbient, activate: activateAmbient, currentType: ambientType } = useAmbientSounds(partnerOnline);
 
   // WebRTC call integration
