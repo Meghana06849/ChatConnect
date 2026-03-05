@@ -29,7 +29,6 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   const [partnerName, setPartnerName] = useState('Your Love');
   const [chatMessage, setChatMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [dreamConversationId, setDreamConversationId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
