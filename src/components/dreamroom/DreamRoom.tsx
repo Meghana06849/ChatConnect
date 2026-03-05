@@ -267,7 +267,9 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
               }}>
               {messages.length === 0 && (
                 <div className="text-center text-white/30 text-xs py-6">
-                  Send your first message to {partnerName} 💕
+                  {isPartnerLinked
+                    ? `Send your first message to ${partnerName} 💕`
+                    : 'Connect to your partner with the love-code to unlock Dream Room chat'}
                 </div>
               )}
               {messages.map(msg => {
