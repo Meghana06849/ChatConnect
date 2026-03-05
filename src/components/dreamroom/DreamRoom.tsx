@@ -52,9 +52,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadUser();
   }, []);
 
+  const isPartnerLinked = Boolean(profile?.lovers_partner_id);
+
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
-    messages, typingUsers, loading: chatLoading, sendMessage, setTyping,
+    messages, typingUsers, sendMessage, setTyping,
   } = useDreamChat(profile?.lovers_partner_id || null);
 
   useEffect(() => {
