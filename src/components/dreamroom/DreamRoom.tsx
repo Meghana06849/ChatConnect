@@ -133,8 +133,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     }
   }, [isIncomingCall, incomingCallData, profile?.lovers_partner_id, rejectCall]);
 
-  // Show incoming call overlay
-  if (isIncomingCall && incomingCallData) {
+  // Show incoming call overlay (linked lover only)
+  if (isIncomingCall && incomingCallData && incomingCallData.from === profile?.lovers_partner_id) {
     return (
       <DreamIncomingCall
         callerName={incomingCallData.callerName || 'Your Love'}
