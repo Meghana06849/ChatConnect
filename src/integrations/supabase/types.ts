@@ -322,6 +322,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          dream_room_id: string
           id: string
           message_type: string
           metadata: Json | null
@@ -332,6 +333,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          dream_room_id: string
           id?: string
           message_type?: string
           metadata?: Json | null
@@ -342,6 +344,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          dream_room_id?: string
           id?: string
           message_type?: string
           metadata?: Json | null
@@ -1006,7 +1009,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      are_linked_lovers: {
+        Args: { _user_a: string; _user_b: string }
+        Returns: boolean
+      }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      generate_dream_room_id: {
+        Args: { _user_a: string; _user_b: string }
+        Returns: string
+      }
       get_friend_suggestions: {
         Args: { requesting_user_id: string; suggestion_limit?: number }
         Returns: {

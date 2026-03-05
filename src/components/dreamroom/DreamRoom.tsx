@@ -52,9 +52,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadUser();
   }, []);
 
+  const isPartnerLinked = Boolean(profile?.lovers_partner_id);
+
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
-    messages, typingUsers, loading: chatLoading, sendMessage, setTyping,
+    messages, typingUsers, sendMessage, setTyping,
   } = useDreamChat(profile?.lovers_partner_id || null);
 
   useEffect(() => {
@@ -98,14 +100,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, [togetherSince]);
 
   const handleSendChat = useCallback(() => {
-    if (!chatMessage.trim()) return;
+    if (!isPartnerLinked || !chatMessage.trim()) return;
     sendMessage(chatMessage.trim());
     setChatMessage('');
-  }, [chatMessage, sendMessage]);
+  }, [isPartnerLinked, chatMessage, sendMessage]);
 
   const handleTyping = useCallback(() => {
+    if (!isPartnerLinked) return;
     setTyping(true);
-  }, [setTyping]);
+  }, [isPartnerLinked, setTyping]);
 
   const handleStartVideoCall = useCallback(async () => {
     if (!profile?.lovers_partner_id) return;
@@ -122,8 +125,16 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     activateAmbient();
   }, [activateAmbient]);
 
-  // Show incoming call overlay
-  if (isIncomingCall && incomingCallData) {
+  // Reject/ignore calls from users other than linked lover in Dream Room
+  useEffect(() => {
+    if (!isIncomingCall || !incomingCallData) return;
+    if (!profile?.lovers_partner_id || incomingCallData.from !== profile.lovers_partner_id) {
+      rejectCall();
+    }
+  }, [isIncomingCall, incomingCallData, profile?.lovers_partner_id, rejectCall]);
+
+  // Show incoming call overlay (linked lover only)
+  if (isIncomingCall && incomingCallData && incomingCallData.from === profile?.lovers_partner_id) {
     return (
       <DreamIncomingCall
         callerName={incomingCallData.callerName || 'Your Love'}
@@ -256,7 +267,9 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
               }}>
               {messages.length === 0 && (
                 <div className="text-center text-white/30 text-xs py-6">
-                  Send your first message to {partnerName} 💕
+                  {isPartnerLinked
+                    ? `Send your first message to ${partnerName} 💕`
+                    : 'Connect to your partner with the love-code to unlock Dream Room chat'}
                 </div>
               )}
               {messages.map(msg => {
@@ -320,13 +333,26 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           )}
         </div>
 
+        {!isPartnerLinked && (
+          <div className="mb-2 text-[11px] text-center text-white/60 px-3">
+            Dream Room chat and calls are locked until both accounts are linked with the same love-code.
+          </div>
+        )}
+
         {/* Bottom chat bar */}
         <DreamRoomChatBar
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
-          onSend={() => { handleSendChat(); if (!showChat) setShowChat(true); }}
-          onTyping={handleTyping}
-          partnerName={partnerName}
+          onSend={() => {
+            if (!isPartnerLinked) return;
+            handleSendChat();
+            if (!showChat) setShowChat(true);
+          }}
+          onTyping={() => {
+            if (!isPartnerLinked) return;
+            handleTyping();
+          }}
+          partnerName={isPartnerLinked ? partnerName : 'Linked Partner'}
           onNavigate={setCurrentView}
         />
       </div>
