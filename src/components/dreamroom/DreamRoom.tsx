@@ -100,14 +100,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, [togetherSince]);
 
   const handleSendChat = useCallback(() => {
-    if (!chatMessage.trim()) return;
+    if (!isPartnerLinked || !chatMessage.trim()) return;
     sendMessage(chatMessage.trim());
     setChatMessage('');
-  }, [chatMessage, sendMessage]);
+  }, [isPartnerLinked, chatMessage, sendMessage]);
 
   const handleTyping = useCallback(() => {
+    if (!isPartnerLinked) return;
     setTyping(true);
-  }, [setTyping]);
+  }, [isPartnerLinked, setTyping]);
 
   const handleStartVideoCall = useCallback(async () => {
     if (!profile?.lovers_partner_id) return;
@@ -123,6 +124,14 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     setShowWelcome(false);
     activateAmbient();
   }, [activateAmbient]);
+
+  // Reject/ignore calls from users other than linked lover in Dream Room
+  useEffect(() => {
+    if (!isIncomingCall || !incomingCallData) return;
+    if (!profile?.lovers_partner_id || incomingCallData.from !== profile.lovers_partner_id) {
+      rejectCall();
+    }
+  }, [isIncomingCall, incomingCallData, profile?.lovers_partner_id, rejectCall]);
 
   // Show incoming call overlay
   if (isIncomingCall && incomingCallData) {
