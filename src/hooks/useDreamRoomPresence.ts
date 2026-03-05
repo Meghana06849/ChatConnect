@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from './useProfile';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { getDreamRoomId } from '@/lib/dreamRoom';
 
 interface PresenceState {
   partnerOnline: boolean;
