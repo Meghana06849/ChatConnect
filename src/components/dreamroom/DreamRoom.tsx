@@ -11,8 +11,7 @@ import { DreamCallUI } from '@/components/dreamcall/DreamCallUI';
 import { DreamIncomingCall } from '@/components/dreamcall/DreamIncomingCall';
 import { useProfile } from '@/hooks/useProfile';
 import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
-import { useRealTimeChat } from '@/hooks/useRealTimeChat';
-import { useEnhancedRealTimeChat } from '@/hooks/useEnhancedRealTimeChat';
+import { useDreamChat } from '@/hooks/useDreamChat';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { useAmbientSounds } from '@/hooks/useAmbientSounds';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,13 +29,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   const [partnerName, setPartnerName] = useState('Your Love');
   const [chatMessage, setChatMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [dreamConversationId, setDreamConversationId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
   const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
-  const { conversations, createConversation } = useRealTimeChat(true);
   const { muted: ambientMuted, toggleMute: toggleAmbient, activate: activateAmbient, currentType: ambientType } = useAmbientSounds(partnerOnline);
 
   // WebRTC call integration
@@ -55,32 +52,10 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadUser();
   }, []);
 
-  // Find or create the lovers conversation
-  useEffect(() => {
-    if (!profile?.user_id || !profile?.lovers_partner_id) return;
-    const existingConv = conversations.find(c => {
-      if (!c.is_lovers_conversation) return false;
-      const participantIds = c.conversation_participants.map(p => p.user_id);
-      return participantIds.includes(profile.lovers_partner_id!);
-    });
-    if (existingConv) {
-      setDreamConversationId(existingConv.id);
-    } else if (conversations.length === 0) {
-      const create = async () => {
-        try {
-          const conv = await createConversation([profile.lovers_partner_id!], true);
-          if (conv) setDreamConversationId(conv.id);
-        } catch (e) {
-          console.error('Failed to create dream conversation:', e);
-        }
-      };
-      create();
-    }
-  }, [profile, conversations, createConversation]);
-
+  // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
     messages, typingUsers, loading: chatLoading, sendMessage, setTyping,
-  } = useEnhancedRealTimeChat(dreamConversationId);
+  } = useDreamChat(profile?.lovers_partner_id || null);
 
   useEffect(() => {
     if (presencePartnerName) setPartnerName(presencePartnerName);

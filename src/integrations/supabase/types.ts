@@ -318,6 +318,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dream_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_type: string
+          metadata: Json | null
+          partner_id: string
+          read_at: string | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          partner_id: string
+          read_at?: string | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          partner_id?: string
+          read_at?: string | null
+          sender_id?: string
+        }
+        Relationships: []
+      }
       group_call_messages: {
         Row: {
           created_at: string
