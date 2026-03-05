@@ -28,9 +28,8 @@ export const useDreamRoomPresence = () => {
   useEffect(() => {
     if (!profile?.user_id || !profile?.lovers_partner_id) return;
 
-    // Create a unique room ID for the couple (sorted to be consistent)
-    const coupleIds = [profile.user_id, profile.lovers_partner_id].sort();
-    const roomId = `dreamroom_${coupleIds.join('_')}`;
+    // Shared dream_room_id for this linked couple
+    const roomId = getDreamRoomId(profile.user_id, profile.lovers_partner_id);
 
     const dreamRoomChannel = supabase.channel(roomId, {
       config: {
