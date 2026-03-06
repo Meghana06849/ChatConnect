@@ -1045,6 +1045,7 @@ export type Database = {
         Args: { checker_id: string; target_id: string }
         Returns: boolean
       }
+      link_lovers_partner: { Args: { _partner_id: string }; Returns: boolean }
       search_messages: {
         Args: { result_limit?: number; search_query: string }
         Returns: {
