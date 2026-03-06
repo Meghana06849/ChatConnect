@@ -195,6 +195,7 @@ export const useProfile = () => {
     loading,
     updateProfile,
     toggleLoversMode,
+    linkLoversPartner,
     loadProfile
   };
 };

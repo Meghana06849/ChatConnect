@@ -387,6 +387,9 @@ export const FriendsManager: React.FC = () => {
                 const profile = friend.userId === currentUserId ? friend.receiverProfile : friend.senderProfile;
                 if (!profile) return null;
 
+                const friendUserId = friend.userId === currentUserId ? friend.contactUserId : friend.userId;
+                const isLinkedDreamPartner = linkedPartnerId === friendUserId;
+
                 return (
                   <Card key={friend.id} className="glass border-white/20 animate-slide-in-right">
                     <CardContent className="p-4">
@@ -420,19 +423,40 @@ export const FriendsManager: React.FC = () => {
                                 >
                                   {profile.isOnline ? 'Online' : 'Offline'}
                                 </Badge>
+                                {isLoversMode && isLinkedDreamPartner && (
+                                  <Badge className="bg-lovers-primary/20 text-lovers-primary border-lovers-primary/40">
+                                    <Heart className="w-3 h-3 mr-1" />
+                                    Dream Partner
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">@{profile.username}</p>
                             </div>
                           </div>
                           <div className="flex gap-2">
+                            {isLoversMode && (
+                              <Button
+                                size="sm"
+                                variant={isLinkedDreamPartner ? 'secondary' : 'outline'}
+                                title={isLinkedDreamPartner ? 'Linked as Dream Room partner' : 'Link as Dream Room partner'}
+                                onClick={() => handleLinkPartner(friendUserId, profile.displayName)}
+                                disabled={
+                                  linkingPartnerId === friendUserId ||
+                                  (Boolean(linkedPartnerId) && !isLinkedDreamPartner)
+                                }
+                              >
+                                {linkingPartnerId === friendUserId ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Heart className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
                             <Button 
                               size="sm" 
                               variant="outline" 
                               title="Voice Call"
-                              onClick={() => handleVoiceCall(
-                                friend.userId === currentUserId ? friend.contactUserId : friend.userId,
-                                profile.displayName
-                              )}
+                              onClick={() => handleVoiceCall(friendUserId, profile.displayName)}
                               disabled={isCallActive}
                             >
                               <Phone className="w-4 h-4" />
@@ -441,10 +465,7 @@ export const FriendsManager: React.FC = () => {
                               size="sm" 
                               variant="outline" 
                               title="Video Call"
-                              onClick={() => handleVideoCall(
-                                friend.userId === currentUserId ? friend.contactUserId : friend.userId,
-                                profile.displayName
-                              )}
+                              onClick={() => handleVideoCall(friendUserId, profile.displayName)}
                               disabled={isCallActive}
                             >
                               <Video className="w-4 h-4" />
@@ -453,10 +474,10 @@ export const FriendsManager: React.FC = () => {
                               size="sm" 
                               variant="outline" 
                               title="Message"
-                              onClick={() => handleStartConversation(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
-                              disabled={startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId)}
+                              onClick={() => handleStartConversation(friendUserId)}
+                              disabled={startingChat === friendUserId}
                             >
-                              {startingChat === (friend.userId === currentUserId ? friend.contactUserId : friend.userId) ? (
+                              {startingChat === friendUserId ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <MessageSquare className="w-4 h-4" />
@@ -473,11 +494,11 @@ export const FriendsManager: React.FC = () => {
                                 <UserX className="w-4 h-4 mr-2" />
                                 Remove Friend
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => blockUser(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}>
+                              <DropdownMenuItem onClick={() => blockUser(friendUserId)}>
                                 <ShieldOff className="w-4 h-4 mr-2" />
                                 Block User
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => muteUser(friend.userId === currentUserId ? friend.contactUserId : friend.userId)}>
+                              <DropdownMenuItem onClick={() => muteUser(friendUserId)}>
                                 <VolumeX className="w-4 h-4 mr-2" />
                                 Mute User
                               </DropdownMenuItem>

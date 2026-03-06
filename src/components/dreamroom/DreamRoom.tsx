@@ -61,6 +61,29 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   } = useDreamChat(isPartnerLinked ? profile?.lovers_partner_id || null : null);
 
   useEffect(() => {
+    const verifyMutualLink = async () => {
+      if (!currentUserId || !profile?.lovers_partner_id) {
+        setIsMutuallyLinked(false);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('are_linked_lovers', {
+        _user_a: currentUserId,
+        _user_b: profile.lovers_partner_id,
+      });
+
+      if (error) {
+        setIsMutuallyLinked(false);
+        return;
+      }
+
+      setIsMutuallyLinked(Boolean(data));
+    };
+
+    verifyMutualLink();
+  }, [currentUserId, profile?.lovers_partner_id]);
+
+  useEffect(() => {
     if (presencePartnerName) setPartnerName(presencePartnerName);
   }, [presencePartnerName]);
 
