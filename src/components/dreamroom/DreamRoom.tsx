@@ -29,7 +29,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   const [partnerName, setPartnerName] = useState('Your Love');
   const [chatMessage, setChatMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [showChat, setShowChat] = useState(false);
+  const [showChat, setShowChat] = useState(true);
+  const [isMutuallyLinked, setIsMutuallyLinked] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
@@ -52,12 +53,35 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadUser();
   }, []);
 
-  const isPartnerLinked = Boolean(profile?.lovers_partner_id);
+  const isPartnerLinked = Boolean(profile?.lovers_partner_id && isMutuallyLinked);
 
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
     messages, typingUsers, sendMessage, setTyping,
-  } = useDreamChat(profile?.lovers_partner_id || null);
+  } = useDreamChat(isPartnerLinked ? profile?.lovers_partner_id || null : null);
+
+  useEffect(() => {
+    const verifyMutualLink = async () => {
+      if (!currentUserId || !profile?.lovers_partner_id) {
+        setIsMutuallyLinked(false);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('are_linked_lovers', {
+        _user_a: currentUserId,
+        _user_b: profile.lovers_partner_id,
+      });
+
+      if (error) {
+        setIsMutuallyLinked(false);
+        return;
+      }
+
+      setIsMutuallyLinked(Boolean(data));
+    };
+
+    verifyMutualLink();
+  }, [currentUserId, profile?.lovers_partner_id]);
 
   useEffect(() => {
     if (presencePartnerName) setPartnerName(presencePartnerName);
