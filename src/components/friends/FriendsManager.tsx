@@ -160,6 +160,23 @@ export const FriendsManager: React.FC = () => {
     }
   };
 
+  const handleLinkPartner = useCallback(async (friendUserId: string, friendName: string) => {
+    if (!isLoversMode) return;
+
+    setLinkingPartnerId(friendUserId);
+    try {
+      const linked = await linkLoversPartner(friendUserId);
+      if (linked) {
+        toast({
+          title: 'Dream partner linked 💞',
+          description: `${friendName} is now linked for Dream Room chat and calls.`,
+        });
+      }
+    } finally {
+      setLinkingPartnerId(null);
+    }
+  }, [isLoversMode, linkLoversPartner, toast]);
+
   const handleSendRequest = async () => {
     if (!addFriendQuery.trim()) return;
     setSending(true);
