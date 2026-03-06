@@ -5,6 +5,7 @@ import { useFriendRequests } from '@/hooks/useFriendRequests';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
 import { useCall } from '@/components/features/CallProvider';
+import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,11 +22,11 @@ import { NotificationSettings } from './NotificationSettings';
 import { VerificationBadge } from '@/components/profile/VerificationBadge';
 import { UserSearchAutocomplete } from '@/components/features/UserSearchAutocomplete';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Search, 
-  UserPlus, 
-  Users, 
-  Phone, 
+import {
+  Search,
+  UserPlus,
+  Users,
+  Phone,
   Video,
   MessageSquare,
   Check,
@@ -36,19 +37,23 @@ import {
   MoreVertical,
   ShieldOff,
   VolumeX,
-  Sparkles
+  Sparkles,
+  Heart,
 } from 'lucide-react';
 
 export const FriendsManager: React.FC = () => {
   const { mode } = useChat();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { profile: currentProfile, linkLoversPartner } = useProfile();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [addFriendQuery, setAddFriendQuery] = useState('');
   const [sending, setSending] = useState(false);
   const [startingChat, setStartingChat] = useState<string | null>(null);
+  const [linkingPartnerId, setLinkingPartnerId] = useState<string | null>(null);
   const isLoversMode = mode === 'lovers';
+  const linkedPartnerId = currentProfile?.lovers_partner_id || null;
 
   const {
     currentUserId,

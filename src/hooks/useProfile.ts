@@ -128,6 +128,31 @@ export const useProfile = () => {
     }
   };
 
+  const linkLoversPartner = async (partnerId: string) => {
+    try {
+      const { data, error } = await supabase.rpc('link_lovers_partner', {
+        _partner_id: partnerId,
+      });
+
+      if (error) throw error;
+
+      await loadProfile();
+      toast({
+        title: 'Partner linked 💕',
+        description: 'Dream Room chat and calls are now available for your linked partner.',
+      });
+
+      return Boolean(data);
+    } catch (error: any) {
+      toast({
+        title: 'Could not link partner',
+        description: error.message || 'Please make sure both users enabled Lovers Mode and are accepted friends.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   const setOnlineStatus = async (isOnline: boolean) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
