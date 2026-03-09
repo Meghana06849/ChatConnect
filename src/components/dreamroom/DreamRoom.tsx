@@ -275,7 +275,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
         />
 
         {/* Chat panel - expandable */}
-        <div className="w-full max-w-lg mx-auto px-3 flex-1 flex flex-col pb-28 md:pb-24 pb-28 md:pb-24" style={{ minHeight: 0 }}>
+        <div className="w-full max-w-lg mx-auto px-3 flex-1 flex flex-col pb-28 md:pb-24" style={{ minHeight: 0 }}>
           {/* Toggle chat */}
           <button onClick={() => setShowChat(!showChat)}
             className="mx-auto mb-1 px-4 py-1 rounded-full text-[11px] text-white/70 transition-all hover:text-white/90"
