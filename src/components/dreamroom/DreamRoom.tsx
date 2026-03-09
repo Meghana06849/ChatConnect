@@ -54,6 +54,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, []);
 
   const isPartnerLinked = Boolean(profile?.lovers_partner_id && isMutuallyLinked);
+  const chatLockMessage = !profile?.lovers_partner_id
+    ? 'No Dream partner linked yet. Link a Lovers Mode friend first to unlock chat and calls.'
+    : !isMutuallyLinked
+      ? `Partner linking is pending. Ask ${partnerName} to complete Lovers Mode linking from Friends.`
+      : null;
 
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
