@@ -37,6 +37,7 @@ interface ChatInterfaceProps {
   };
   conversationId?: string;
   onBack?: () => void;
+  onDreamRoom?: () => void;
 }
 
 interface ReplyInfo {
