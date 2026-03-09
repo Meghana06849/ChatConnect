@@ -157,6 +157,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 glass border-white/20">
+              {isLoversMode && onDreamRoom && (
+                <DropdownMenuItem onClick={onDreamRoom} className="gap-3 text-lovers-primary">
+                  <Moon className="w-4 h-4" />
+                  Open Dream Room 💜
+                </DropdownMenuItem>
+              )}
+
+              {isLoversMode && onDreamRoom && <DropdownMenuSeparator className="bg-white/10" />}
+
               {onSearch && (
                 <DropdownMenuItem onClick={onSearch} className="gap-3">
                   <Search className="w-4 h-4" />
