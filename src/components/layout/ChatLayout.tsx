@@ -99,6 +99,7 @@ export const ChatLayout = () => {
                 } : undefined}
                 conversationId={selectedContact?.conversationId || selectedContact?.id}
                 onBack={() => setSelectedContact(undefined)}
+                onDreamRoom={isLoversMode ? () => setActiveSection('dreamroom') : undefined}
               />
             </div>
           </div>
