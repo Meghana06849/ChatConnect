@@ -70,16 +70,28 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
     checkPartnerLinkStatus();
   }, [profile?.user_id, profile?.lovers_partner_id]);
 
+  useEffect(() => {
+    // Set romantic greeting based on time
+    if (currentHour >= 5 && currentHour < 12) {
+      setGreeting('Good morning, my love');
+    } else if (currentHour >= 12 && currentHour < 17) {
+      setGreeting('Thinking of you');
+    } else if (currentHour >= 17 && currentHour < 21) {
+      setGreeting('Good evening, sweetheart');
+    } else {
+      setGreeting('Sweet dreams await');
+    }
+
     // Load love streak and partner info
     const loadData = async () => {
       if (!profile?.user_id) return;
-      
+
       const { data: streakData } = await supabase
         .from('love_streaks')
         .select('current_streak')
         .eq('user_id', profile.user_id)
         .maybeSingle();
-      
+
       if (streakData) {
         setLoveStreak(streakData.current_streak || 0);
       }
@@ -91,7 +103,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           .select('display_name')
           .eq('user_id', profile.lovers_partner_id)
           .maybeSingle();
-        
+
         if (partnerData?.display_name) {
           setPartnerName(partnerData.display_name);
         }
