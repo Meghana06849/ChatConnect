@@ -50,7 +50,8 @@ interface ReplyInfo {
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   selectedContact, 
   conversationId,
-  onBack 
+  onBack,
+  onDreamRoom,
 }) => {
   const { mode } = useChat();
   const { startCall } = useCall();
