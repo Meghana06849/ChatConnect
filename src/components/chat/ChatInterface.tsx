@@ -304,6 +304,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onBlock={() => setShowBlockConfirm(true)}
         onClearChat={() => setShowClearChatConfirm(true)}
         onBack={onBack}
+        onDreamRoom={onDreamRoom}
       />
 
       {/* Disappearing Message Indicator */}
