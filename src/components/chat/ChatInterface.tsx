@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Send, Mic, Heart, Loader2, ChevronDown, Settings } from 'lucide-react';
+import { Send, Mic, Heart, Loader2, ChevronDown, Settings, Moon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +37,7 @@ interface ChatInterfaceProps {
   };
   conversationId?: string;
   onBack?: () => void;
+  onDreamRoom?: () => void;
 }
 
 interface ReplyInfo {
@@ -49,7 +50,8 @@ interface ReplyInfo {
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   selectedContact, 
   conversationId,
-  onBack 
+  onBack,
+  onDreamRoom,
 }) => {
   const { mode } = useChat();
   const { startCall } = useCall();
@@ -276,6 +278,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               ? 'Choose a contact to share your heart with'
               : 'Pick a contact from your list to start chatting'}
           </p>
+          {isLoversMode && onDreamRoom && (
+            <Button
+              onClick={onDreamRoom}
+              className="mt-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary text-white border-0 hover:opacity-90"
+            >
+              <Moon className="w-4 h-4 mr-2" />
+              Open Dream Room 💜
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -302,6 +313,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onBlock={() => setShowBlockConfirm(true)}
         onClearChat={() => setShowClearChatConfirm(true)}
         onBack={onBack}
+        onDreamRoom={onDreamRoom}
       />
 
       {/* Disappearing Message Indicator */}

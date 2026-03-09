@@ -23,6 +23,7 @@ import {
   Star,
   Users,
   ArrowLeft,
+  Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -49,6 +50,7 @@ interface ChatHeaderProps {
   onBlock?: () => void;
   onClearChat?: () => void;
   onBack?: () => void;
+  onDreamRoom?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
@@ -66,6 +68,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onBlock,
   onClearChat,
   onBack,
+  onDreamRoom,
 }) => {
   return (
     <div className="p-3 border-b border-white/20 glass">
@@ -154,6 +157,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 glass border-white/20">
+              {isLoversMode && onDreamRoom && (
+                <DropdownMenuItem onClick={onDreamRoom} className="gap-3 text-lovers-primary">
+                  <Moon className="w-4 h-4" />
+                  Open Dream Room 💜
+                </DropdownMenuItem>
+              )}
+
+              {isLoversMode && onDreamRoom && <DropdownMenuSeparator className="bg-white/10" />}
+
               {onSearch && (
                 <DropdownMenuItem onClick={onSearch} className="gap-3">
                   <Search className="w-4 h-4" />
