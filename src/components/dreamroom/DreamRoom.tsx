@@ -362,9 +362,9 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           )}
         </div>
 
-        {!isPartnerLinked && (
+        {!isPartnerLinked && chatLockMessage && (
           <div className="mb-2 text-[11px] text-center text-white/60 px-3">
-            Dream Room chat and calls are locked until both accounts are linked with the same love-code.
+            {chatLockMessage}
           </div>
         )}
 
