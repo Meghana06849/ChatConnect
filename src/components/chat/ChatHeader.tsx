@@ -23,6 +23,7 @@ import {
   Star,
   Users,
   ArrowLeft,
+  Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
