@@ -68,6 +68,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onBlock,
   onClearChat,
   onBack,
+  onDreamRoom,
 }) => {
   return (
     <div className="p-3 border-b border-white/20 glass">
