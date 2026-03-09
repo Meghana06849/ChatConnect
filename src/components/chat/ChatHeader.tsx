@@ -50,6 +50,7 @@ interface ChatHeaderProps {
   onBlock?: () => void;
   onClearChat?: () => void;
   onBack?: () => void;
+  onDreamRoom?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
