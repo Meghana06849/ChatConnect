@@ -123,7 +123,22 @@ export const useDreamChat = (partnerId: string | null) => {
   }, [currentUserId, partnerId, dreamRoomId]);
 
   const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, any>) => {
-    if (!dreamRoomId || !currentUserId || !partnerId || !content.trim()) return;
+    if (!dreamRoomId || !currentUserId || !partnerId || !content.trim()) return false;
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage: DreamMessage = {
+      id: tempId,
+      dream_room_id: dreamRoomId,
+      content: content.trim(),
+      sender_id: currentUserId,
+      partner_id: partnerId,
+      message_type: messageType,
+      created_at: new Date().toISOString(),
+      read_at: null,
+      metadata: metadata || null,
+    };
+
+    setMessages(prev => [...prev, tempMessage]);
 
     try {
       const insertData: any = {
@@ -138,19 +153,28 @@ export const useDreamChat = (partnerId: string | null) => {
         insertData.metadata = metadata;
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('dream_messages')
-        .insert([insertData]);
+        .insert([insertData])
+        .select('*')
+        .single();
 
       if (error) throw error;
 
+      if (data) {
+        setMessages(prev => prev.map(msg => (msg.id === tempId ? (data as DreamMessage) : msg)));
+      }
+
       setTyping(false);
+      return true;
     } catch (error: any) {
+      setMessages(prev => prev.filter(msg => msg.id !== tempId));
       toast({
         title: 'Error sending dream message',
         description: error.message,
         variant: 'destructive',
       });
+      return false;
     }
   }, [dreamRoomId, currentUserId, partnerId, setTyping, toast]);
 

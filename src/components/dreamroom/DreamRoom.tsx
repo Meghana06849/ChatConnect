@@ -128,10 +128,10 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     return Math.floor((Date.now() - new Date(togetherSince).getTime()) / 86400000);
   }, [togetherSince]);
 
-  const handleSendChat = useCallback(() => {
+  const handleSendChat = useCallback(async () => {
     if (!isPartnerLinked || !chatMessage.trim()) return;
-    sendMessage(chatMessage.trim());
-    setChatMessage('');
+    const sent = await sendMessage(chatMessage.trim());
+    if (sent) setChatMessage('');
   }, [isPartnerLinked, chatMessage, sendMessage]);
 
   const handleTyping = useCallback(() => {
