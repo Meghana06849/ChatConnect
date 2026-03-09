@@ -278,6 +278,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               ? 'Choose a contact to share your heart with'
               : 'Pick a contact from your list to start chatting'}
           </p>
+          {isLoversMode && onDreamRoom && (
+            <Button
+              onClick={onDreamRoom}
+              className="mt-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary text-white border-0 hover:opacity-90"
+            >
+              <Moon className="w-4 h-4 mr-2" />
+              Open Dream Room 💜
+            </Button>
+          )}
         </div>
       </div>
     );
