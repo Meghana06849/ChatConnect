@@ -35,6 +35,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
   const [loveStreak, setLoveStreak] = useState(0);
   const [partnerName, setPartnerName] = useState('Your Love');
   const [greeting, setGreeting] = useState('');
+  const [partnerLinkStatus, setPartnerLinkStatus] = useState<'linked' | 'pending' | 'not_linked'>('not_linked');
   
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 18 || currentHour <= 6;
@@ -47,16 +48,27 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
   }, [presencePartnerName]);
 
   useEffect(() => {
-    // Set romantic greeting based on time
-    if (currentHour >= 5 && currentHour < 12) {
-      setGreeting('Good morning, my love');
-    } else if (currentHour >= 12 && currentHour < 17) {
-      setGreeting('Thinking of you');
-    } else if (currentHour >= 17 && currentHour < 21) {
-      setGreeting('Good evening, sweetheart');
-    } else {
-      setGreeting('Sweet dreams await');
-    }
+    const checkPartnerLinkStatus = async () => {
+      if (!profile?.user_id || !profile?.lovers_partner_id) {
+        setPartnerLinkStatus('not_linked');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('are_linked_lovers', {
+        _user_a: profile.user_id,
+        _user_b: profile.lovers_partner_id,
+      });
+
+      if (error) {
+        setPartnerLinkStatus('pending');
+        return;
+      }
+
+      setPartnerLinkStatus(data ? 'linked' : 'pending');
+    };
+
+    checkPartnerLinkStatus();
+  }, [profile?.user_id, profile?.lovers_partner_id]);
 
     // Load love streak and partner info
     const loadData = async () => {
