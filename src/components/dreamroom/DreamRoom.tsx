@@ -54,6 +54,11 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, []);
 
   const isPartnerLinked = Boolean(profile?.lovers_partner_id && isMutuallyLinked);
+  const chatLockMessage = !profile?.lovers_partner_id
+    ? 'No Dream partner linked yet. Link a Lovers Mode friend first to unlock chat and calls.'
+    : !isMutuallyLinked
+      ? `Partner linking is pending. Ask ${partnerName} to complete Lovers Mode linking from Friends.`
+      : null;
 
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
@@ -123,10 +128,10 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     return Math.floor((Date.now() - new Date(togetherSince).getTime()) / 86400000);
   }, [togetherSince]);
 
-  const handleSendChat = useCallback(() => {
+  const handleSendChat = useCallback(async () => {
     if (!isPartnerLinked || !chatMessage.trim()) return;
-    sendMessage(chatMessage.trim());
-    setChatMessage('');
+    const sent = await sendMessage(chatMessage.trim());
+    if (sent) setChatMessage('');
   }, [isPartnerLinked, chatMessage, sendMessage]);
 
   const handleTyping = useCallback(() => {
@@ -270,7 +275,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
         />
 
         {/* Chat panel - expandable */}
-        <div className="w-full max-w-lg mx-auto px-3 flex-1 flex flex-col" style={{ minHeight: 0 }}>
+        <div className="w-full max-w-lg mx-auto px-3 flex-1 flex flex-col pb-28 md:pb-24" style={{ minHeight: 0 }}>
           {/* Toggle chat */}
           <button onClick={() => setShowChat(!showChat)}
             className="mx-auto mb-1 px-4 py-1 rounded-full text-[11px] text-white/70 transition-all hover:text-white/90"
@@ -285,7 +290,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           {/* Scrollable messages */}
           {showChat && (
             <div ref={chatScrollRef}
-              className="flex-1 overflow-y-auto space-y-2 px-1 pb-2 max-h-[35vh] scrollbar-thin"
+              className="flex-1 overflow-y-auto space-y-2 px-1 pb-20 max-h-[35vh] scrollbar-thin"
               style={{
                 maskImage: 'linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)',
               }}>
@@ -357,9 +362,9 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           )}
         </div>
 
-        {!isPartnerLinked && (
+        {!isPartnerLinked && chatLockMessage && (
           <div className="mb-2 text-[11px] text-center text-white/60 px-3">
-            Dream Room chat and calls are locked until both accounts are linked with the same love-code.
+            {chatLockMessage}
           </div>
         )}
 

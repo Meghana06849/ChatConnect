@@ -35,6 +35,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
   const [loveStreak, setLoveStreak] = useState(0);
   const [partnerName, setPartnerName] = useState('Your Love');
   const [greeting, setGreeting] = useState('');
+  const [partnerLinkStatus, setPartnerLinkStatus] = useState<'linked' | 'pending' | 'not_linked'>('not_linked');
   
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 18 || currentHour <= 6;
@@ -45,6 +46,29 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
       setPartnerName(presencePartnerName);
     }
   }, [presencePartnerName]);
+
+  useEffect(() => {
+    const checkPartnerLinkStatus = async () => {
+      if (!profile?.user_id || !profile?.lovers_partner_id) {
+        setPartnerLinkStatus('not_linked');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('are_linked_lovers', {
+        _user_a: profile.user_id,
+        _user_b: profile.lovers_partner_id,
+      });
+
+      if (error) {
+        setPartnerLinkStatus('pending');
+        return;
+      }
+
+      setPartnerLinkStatus(data ? 'linked' : 'pending');
+    };
+
+    checkPartnerLinkStatus();
+  }, [profile?.user_id, profile?.lovers_partner_id]);
 
   useEffect(() => {
     // Set romantic greeting based on time
@@ -61,13 +85,13 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
     // Load love streak and partner info
     const loadData = async () => {
       if (!profile?.user_id) return;
-      
+
       const { data: streakData } = await supabase
         .from('love_streaks')
         .select('current_streak')
         .eq('user_id', profile.user_id)
         .maybeSingle();
-      
+
       if (streakData) {
         setLoveStreak(streakData.current_streak || 0);
       }
@@ -79,7 +103,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           .select('display_name')
           .eq('user_id', profile.lovers_partner_id)
           .maybeSingle();
-        
+
         if (partnerData?.display_name) {
           setPartnerName(partnerData.display_name);
         }
@@ -197,6 +221,54 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             </div>
           )}
         </div>
+
+        <Card className="glass border-lovers-primary/20 mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  partnerLinkStatus === 'linked'
+                    ? 'bg-lovers-primary/15 text-lovers-primary'
+                    : partnerLinkStatus === 'pending'
+                      ? 'bg-lovers-secondary/15 text-lovers-secondary'
+                      : 'bg-muted text-muted-foreground'
+                }`}>
+                  {partnerLinkStatus === 'linked' ? (
+                    <Heart className="w-5 h-5" />
+                  ) : partnerLinkStatus === 'pending' ? (
+                    <Moon className="w-5 h-5" />
+                  ) : (
+                    <Lock className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold">
+                    {partnerLinkStatus === 'linked'
+                      ? `Linked with ${partnerName}`
+                      : partnerLinkStatus === 'pending'
+                        ? 'Partner link pending'
+                        : 'No Dream partner linked'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {partnerLinkStatus === 'linked'
+                      ? 'Dream Room chat and calls are unlocked for both of you.'
+                      : partnerLinkStatus === 'pending'
+                        ? `Ask ${partnerName} to complete Lovers Mode linking so chat sync works.`
+                        : 'Go to Friends and link your Lovers Mode partner to unlock Dream Room chat/calls.'}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                variant={partnerLinkStatus === 'linked' ? 'default' : 'outline'}
+                className={partnerLinkStatus === 'linked' ? 'btn-lovers' : ''}
+                onClick={() => onNavigate(partnerLinkStatus === 'linked' ? 'dreamroom' : 'friends')}
+              >
+                {partnerLinkStatus === 'linked' ? 'Open Dream Room' : 'Go to Friends'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Main Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
