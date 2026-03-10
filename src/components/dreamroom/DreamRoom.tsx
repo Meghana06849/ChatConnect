@@ -53,18 +53,56 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     loadUser();
   }, []);
 
-  const isPartnerLinked = Boolean(profile?.lovers_partner_id && isMutuallyLinked);
-  const chatLockMessage = !profile?.lovers_partner_id
-    ? 'No Dream partner linked yet. Link a Lovers Mode friend first to unlock chat and calls.'
-    : !isMutuallyLinked
-      ? `Partner linking is pending. Ask ${partnerName} to complete Lovers Mode linking from Friends.`
-      : null;
+  // Auto-detect partner from lovers conversation if not already linked
+  useEffect(() => {
+    const autoDetectPartner = async () => {
+      if (!currentUserId || profile?.lovers_partner_id) return;
 
-  // Dream chat — uses dedicated dream_messages table, isolated from General Mode
-  const {
-    messages, typingUsers, sendMessage, setTyping,
-  } = useDreamChat(isPartnerLinked ? profile?.lovers_partner_id || null : null);
+      // Find lovers conversation to detect existing partner
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, conversation_participants(user_id)')
+        .eq('is_lovers_conversation', true);
 
+      if (!conversations?.length) return;
+
+      for (const conv of conversations) {
+        const participants = (conv as any).conversation_participants as { user_id: string }[];
+        const partnerId = participants?.find((p: any) => p.user_id !== currentUserId)?.user_id;
+        if (partnerId) {
+          // Auto-link via RPC (sets both profiles)
+          try {
+            // First ensure lovers_mode_enabled is true for current user
+            await supabase.from('profiles')
+              .update({ lovers_mode_enabled: true })
+              .eq('user_id', currentUserId);
+
+            const { error } = await supabase.rpc('link_lovers_partner', {
+              _partner_id: partnerId,
+            });
+
+            if (error) {
+              console.log('Auto-link attempt:', error.message);
+              // If partner hasn't enabled lovers mode, set partner_id directly
+              // since they already share a lovers conversation
+              await supabase.from('profiles')
+                .update({ lovers_partner_id: partnerId, lovers_mode_enabled: true })
+                .eq('user_id', currentUserId);
+            }
+          } catch (e) {
+            console.error('Auto-link error:', e);
+          }
+          break;
+        }
+      }
+    };
+
+    autoDetectPartner();
+  }, [currentUserId, profile?.lovers_partner_id]);
+
+  const isPartnerLinked = Boolean(profile?.lovers_partner_id);
+
+  // Check mutual linking
   useEffect(() => {
     const verifyMutualLink = async () => {
       if (!currentUserId || !profile?.lovers_partner_id) {
@@ -78,6 +116,8 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
       });
 
       if (error) {
+        // If mutual check fails, still allow if partner is set
+        // (partner may not have linked back yet, but we have a lovers conversation)
         setIsMutuallyLinked(false);
         return;
       }
