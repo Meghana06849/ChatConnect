@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
 import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Heart, 
   Moon, 
@@ -16,37 +17,49 @@ import {
   Lock,
   Flame,
   Wifi,
-  WifiOff
+  WifiOff,
+  Phone,
+  Video,
+  UserPlus,
+  LinkIcon,
 } from 'lucide-react';
 
 interface DreamRoomHomeProps {
   onNavigate: (section: string) => void;
 }
 
+interface LoversFriend {
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_online: boolean | null;
+}
+
 export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
-  const { profile } = useProfile();
+  const { profile, linkLoversPartner } = useProfile();
   const { 
     partnerOnline, 
     partnerName: presencePartnerName, 
     partnerMood,
     isConnected 
   } = useDreamRoomPresence();
+  const { toast } = useToast();
   
   const [loveStreak, setLoveStreak] = useState(0);
   const [partnerName, setPartnerName] = useState('Your Love');
   const [greeting, setGreeting] = useState('');
   const [partnerLinkStatus, setPartnerLinkStatus] = useState<'linked' | 'pending' | 'not_linked'>('not_linked');
+  const [availableLovers, setAvailableLovers] = useState<LoversFriend[]>([]);
+  const [linking, setLinking] = useState(false);
   
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 18 || currentHour <= 6;
 
   useEffect(() => {
-    // Update partner name from presence if available
-    if (presencePartnerName) {
-      setPartnerName(presencePartnerName);
-    }
+    if (presencePartnerName) setPartnerName(presencePartnerName);
   }, [presencePartnerName]);
 
+  // Check partner link status
   useEffect(() => {
     const checkPartnerLinkStatus = async () => {
       if (!profile?.user_id || !profile?.lovers_partner_id) {
@@ -70,8 +83,61 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
     checkPartnerLinkStatus();
   }, [profile?.user_id, profile?.lovers_partner_id]);
 
+  // Auto-detect available Lovers Mode friends when not linked
   useEffect(() => {
-    // Set romantic greeting based on time
+    const loadAvailableLovers = async () => {
+      if (!profile?.user_id || profile?.lovers_partner_id) {
+        setAvailableLovers([]);
+        return;
+      }
+
+      // Find accepted friends who have lovers_mode_enabled
+      const { data: contacts } = await supabase
+        .from('contacts')
+        .select('user_id, contact_user_id')
+        .or(`user_id.eq.${profile.user_id},contact_user_id.eq.${profile.user_id}`)
+        .eq('status', 'accepted');
+
+      if (!contacts?.length) return;
+
+      const friendIds = contacts.map(c =>
+        c.user_id === profile.user_id ? c.contact_user_id : c.user_id
+      );
+
+      const { data: loversProfiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url, is_online')
+        .in('user_id', friendIds)
+        .eq('lovers_mode_enabled', true)
+        .is('lovers_partner_id', null);
+
+      setAvailableLovers(loversProfiles || []);
+    };
+
+    loadAvailableLovers();
+  }, [profile?.user_id, profile?.lovers_partner_id]);
+
+  // Handle one-tap partner linking
+  const handleLinkPartner = async (partnerId: string, name: string) => {
+    setLinking(true);
+    try {
+      await linkLoversPartner(partnerId);
+      toast({
+        title: '💜 Dream Partner Linked!',
+        description: `You and ${name} are now connected in the Dream Room.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Linking failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  useEffect(() => {
     if (currentHour >= 5 && currentHour < 12) {
       setGreeting('Good morning, my love');
     } else if (currentHour >= 12 && currentHour < 17) {
@@ -82,7 +148,6 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
       setGreeting('Sweet dreams await');
     }
 
-    // Load love streak and partner info
     const loadData = async () => {
       if (!profile?.user_id) return;
 
@@ -96,7 +161,6 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
         setLoveStreak(streakData.current_streak || 0);
       }
 
-      // Get partner profile if connected
       if (profile.lovers_partner_id && !presencePartnerName) {
         const { data: partnerData } = await supabase
           .from('profiles')
@@ -118,7 +182,6 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
       <div className="max-w-4xl mx-auto">
         {/* Romantic Header */}
         <div className="text-center mb-8 relative">
-          {/* Floating hearts background */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             {[...Array(8)].map((_, i) => (
               <Heart
@@ -135,7 +198,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             ))}
           </div>
 
-          {/* Connection Hearts with Partner Status */}
+          {/* Connection Hearts */}
           <div className="relative mb-6">
             <div className="inline-flex items-center justify-center">
               <div className="relative">
@@ -145,7 +208,6 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                     : 'bg-gradient-to-r from-lovers-primary/20 to-lovers-secondary/20'
                 }`} />
                 <div className="relative flex items-center gap-4">
-                  {/* Your Heart */}
                   <div className="relative">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-lovers-primary to-lovers-secondary flex items-center justify-center shadow-lg shadow-lovers-primary/30">
                       <Heart className="w-10 h-10 text-white animate-heart-beat" />
@@ -155,14 +217,12 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                     </div>
                   </div>
                   
-                  {/* Connection Indicator */}
                   <div className="flex flex-col items-center">
                     <Sparkles className={`w-6 h-6 animate-pulse ${partnerOnline ? 'text-lovers-secondary' : 'text-muted-foreground/50'}`} />
                     <div className="text-2xl my-1">{partnerOnline ? '💞' : '💭'}</div>
                     <Sparkles className={`w-6 h-6 animate-pulse ${partnerOnline ? 'text-lovers-primary' : 'text-muted-foreground/50'}`} style={{ animationDelay: '0.5s' }} />
                   </div>
                   
-                  {/* Partner Heart */}
                   <div className="relative">
                     <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-500 ${
                       partnerOnline 
@@ -174,45 +234,40 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                     <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center ${
                       partnerOnline ? 'bg-green-500' : 'bg-muted-foreground/50'
                     }`}>
-                      {partnerOnline ? (
-                        <Wifi className="w-3 h-3 text-white" />
-                      ) : (
-                        <WifiOff className="w-3 h-3 text-white" />
-                      )}
+                      {partnerOnline ? <Wifi className="w-3 h-3 text-white" /> : <WifiOff className="w-3 h-3 text-white" />}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Partner Status Text */}
             <div className="mt-4">
-              {partnerOnline ? (
+              {partnerLinkStatus === 'linked' && partnerOnline ? (
                 <Badge className="bg-green-500/20 text-green-400 border-green-500/30 animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-green-400 mr-2 animate-ping" />
                   {partnerName} is here with you {partnerMood || '💕'}
                 </Badge>
-              ) : (
+              ) : partnerLinkStatus === 'linked' ? (
                 <Badge variant="outline" className="text-muted-foreground border-muted-foreground/30">
                   <span className="w-2 h-2 rounded-full bg-muted-foreground mr-2" />
                   {partnerName} is away
                 </Badge>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {/* Greeting */}
           <h1 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-lovers-primary via-lovers-secondary to-lovers-primary bg-clip-text text-transparent">
             {greeting} ✨
           </h1>
           <p className="text-lg text-muted-foreground">
-            {partnerOnline 
+            {partnerLinkStatus === 'linked' && partnerOnline 
               ? `You and ${partnerName} are connected` 
-              : 'Welcome to your Dream Room'
+              : partnerLinkStatus === 'linked'
+                ? 'Welcome to your Dream Room'
+                : 'Link your partner to unlock the Dream Room'
             }
           </p>
 
-          {/* Love Streak Badge */}
           {loveStreak > 0 && (
             <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-lovers-primary/20 to-lovers-secondary/20 border border-lovers-primary/30">
               <Flame className="w-5 h-5 text-orange-400 animate-pulse" />
@@ -222,6 +277,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           )}
         </div>
 
+        {/* Partner Link Status Card */}
         <Card className="glass border-lovers-primary/20 mb-6">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -254,25 +310,84 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                       ? 'Dream Room chat and calls are unlocked for both of you.'
                       : partnerLinkStatus === 'pending'
                         ? `Ask ${partnerName} to complete Lovers Mode linking so chat sync works.`
-                        : 'Go to Friends and link your Lovers Mode partner to unlock Dream Room chat/calls.'}
+                        : 'Link a Lovers Mode friend below or from Friends to unlock Dream Room.'}
                   </p>
                 </div>
               </div>
 
-              <Button
-                variant={partnerLinkStatus === 'linked' ? 'default' : 'outline'}
-                className={partnerLinkStatus === 'linked' ? 'btn-lovers' : ''}
-                onClick={() => onNavigate(partnerLinkStatus === 'linked' ? 'dreamroom' : 'friends')}
-              >
-                {partnerLinkStatus === 'linked' ? 'Open Dream Room' : 'Go to Friends'}
-              </Button>
+              {partnerLinkStatus === 'linked' ? (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="btn-lovers gap-2"
+                    onClick={() => onNavigate('dreamroom')}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Chat
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-lovers-primary/30 hover:bg-lovers-primary/10 gap-2"
+                    onClick={() => onNavigate('dreamroom')}
+                  >
+                    <Video className="w-4 h-4" />
+                    Call
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => onNavigate('friends')}
+                >
+                  Go to Friends
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* Available Lovers Mode Friends - one-tap linking */}
+        {partnerLinkStatus === 'not_linked' && availableLovers.length > 0 && (
+          <Card className="glass border-lovers-secondary/20 mb-6 animate-fade-in">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="w-4 h-4 text-lovers-secondary" />
+                <p className="font-semibold text-sm">Available Lovers Mode Friends</p>
+              </div>
+              <div className="space-y-2">
+                {availableLovers.map(friend => (
+                  <div key={friend.user_id} className="flex items-center justify-between p-3 rounded-xl bg-lovers-primary/5 border border-lovers-primary/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lovers-primary to-lovers-secondary flex items-center justify-center text-white font-bold text-sm">
+                        {(friend.display_name || '?')[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{friend.display_name || 'Friend'}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className={`w-1.5 h-1.5 rounded-full ${friend.is_online ? 'bg-green-400' : 'bg-muted-foreground/50'}`} />
+                          {friend.is_online ? 'Online' : 'Offline'} · Lovers Mode enabled
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="btn-lovers gap-1.5"
+                      disabled={linking}
+                      onClick={() => handleLinkPartner(friend.user_id, friend.display_name || 'Partner')}
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" />
+                      Link
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Love Chat */}
           <Card 
             className="glass border-lovers-primary/20 hover:border-lovers-primary/40 cursor-pointer group transition-all hover:shadow-lg hover:shadow-lovers-primary/10"
             onClick={() => onNavigate('chats')}
@@ -291,7 +406,6 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             </CardContent>
           </Card>
 
-          {/* Dream Room */}
           <Card 
             className="glass border-lovers-primary/20 hover:border-lovers-primary/40 cursor-pointer group transition-all hover:shadow-lg hover:shadow-lovers-primary/10"
             onClick={() => onNavigate('dreamroom')}
@@ -371,10 +485,10 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           <Button 
             variant="outline" 
             className="h-auto py-4 flex-col gap-2 border-lovers-primary/30 hover:bg-lovers-primary/10"
-            onClick={() => onNavigate('calls')}
+            onClick={() => onNavigate('dreamroom')}
           >
             <span className="text-xl">📞</span>
-            <span className="text-xs">Voice Call</span>
+            <span className="text-xs">Dream Call</span>
           </Button>
           <Button 
             variant="outline" 
