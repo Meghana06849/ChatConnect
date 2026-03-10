@@ -66,6 +66,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMode('lovers');
         setHasLoversAccess(true);
         localStorage.setItem('chatconnect_mode', 'lovers');
+        // Sync lovers_mode_enabled to database
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            supabase.from('profiles')
+              .update({ lovers_mode_enabled: true })
+              .eq('user_id', user.id)
+              .then();
+          }
+        });
         return true;
       }
       return false; // Invalid PIN
@@ -73,6 +82,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setMode('general');
       setHasLoversAccess(false);
       localStorage.setItem('chatconnect_mode', 'general');
+      // Sync lovers_mode_enabled to database
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          supabase.from('profiles')
+            .update({ lovers_mode_enabled: false })
+            .eq('user_id', user.id)
+            .then();
+        }
+      });
       return true;
     }
   };
