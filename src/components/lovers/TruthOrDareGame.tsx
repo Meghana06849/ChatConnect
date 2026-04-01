@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, CheckCircle2 } from 'lucide-react';
+import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, CheckCircle2, Wand2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
@@ -71,6 +71,8 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   const [loading, setLoading] = useState(true);
   const [questionInput, setQuestionInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const currentUserId = profile?.user_id;
   const isMyTurn = game?.current_turn === currentUserId;
@@ -277,6 +279,25 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
     setQuestionInput(text);
   };
 
+  const fetchAiSuggestions = async () => {
+    if (!currentRound?.choice_type) return;
+    setAiLoading(true);
+    setAiSuggestions([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-question', {
+        body: { type: currentRound.choice_type },
+      });
+      if (error) throw error;
+      if (data?.questions) {
+        setAiSuggestions(data.questions);
+      }
+    } catch (e: any) {
+      toast({ title: 'AI Error', description: e.message || 'Failed to generate', variant: 'destructive' });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const endGame = async () => {
     if (!game) return;
     await supabase
@@ -433,17 +454,52 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
                 />
                 <p className="text-[10px] text-white/30 text-right">{questionInput.length}/200</p>
 
-                <Button
-                  onClick={sendQuestion}
-                  disabled={!questionInput.trim()}
-                  className="w-full bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90"
-                >
-                  <Send className="w-4 h-4 mr-2" /> Send Question
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={sendQuestion}
+                    disabled={!questionInput.trim()}
+                    className="flex-1 bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90"
+                  >
+                    <Send className="w-4 h-4 mr-2" /> Send Question
+                  </Button>
+                  <Button
+                    onClick={fetchAiSuggestions}
+                    disabled={aiLoading}
+                    variant="outline"
+                    className="border-[hsl(var(--lovers-primary))]/30 text-[hsl(var(--lovers-primary))] hover:bg-[hsl(var(--lovers-primary))]/10"
+                  >
+                    {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                    <span className="ml-1 text-xs">AI</span>
+                  </Button>
+                </div>
 
-                {/* Suggestions */}
+                {/* AI Suggestions */}
+                {aiSuggestions.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-[hsl(var(--lovers-primary))] uppercase tracking-wider flex items-center gap-1">
+                      <Wand2 className="w-3 h-3" /> AI Suggestions
+                    </p>
+                    <div className="space-y-1.5">
+                      {aiSuggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => useSuggestion(s)}
+                          className="block w-full text-left text-[11px] px-3 py-2 rounded-lg text-white/70 hover:text-white/90 transition-colors"
+                          style={{
+                            background: 'linear-gradient(135deg, hsla(280 40% 20% / 0.5), hsla(320 40% 25% / 0.5))',
+                            border: '1px solid hsla(320 60% 50% / 0.2)',
+                          }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Manual Suggestions */}
                 <div className="space-y-1">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Suggestions</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider">Quick picks</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(currentRound.choice_type === 'truth' ? TRUTH_SUGGESTIONS : DARE_SUGGESTIONS)
                       .slice(0, 4)
