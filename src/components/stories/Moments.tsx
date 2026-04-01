@@ -47,8 +47,49 @@ export const Moments: React.FC = () => {
   
   const isLoversMode = mode === 'lovers';
 
+  // Initial load
   useEffect(() => {
     loadMoments();
+  }, []);
+
+  // Refetch when tab regains focus (prevents stale data)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadMoments();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Real-time subscription for new moments from friends
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-moments')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'moments',
+      }, () => {
+        // Reload all moments when any new one is inserted
+        loadMoments();
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'moments',
+      }, (payload) => {
+        // Remove deleted/expired moments from state
+        const deletedId = payload.old?.id;
+        if (deletedId) {
+          setMoments(prev => prev.filter(m => m.id !== deletedId));
+          setMyMoments(prev => prev.filter(m => m.id !== deletedId));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadMoments = async () => {
