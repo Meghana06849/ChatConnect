@@ -166,7 +166,7 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
           )}
 
           {/* Controls */}
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
             <Button
               variant="outline"
               size="lg"
