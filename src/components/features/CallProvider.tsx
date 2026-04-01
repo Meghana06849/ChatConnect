@@ -17,7 +17,11 @@ const CallContext = createContext<CallContextType | null>(null);
 export const useCall = () => {
   const context = useContext(CallContext);
   if (!context) {
-    throw new Error('useCall must be used within a CallProvider');
+    // Return a safe fallback during HMR or if rendered outside provider
+    return {
+      startCall: async () => { console.warn('CallProvider not available'); },
+      isCallActive: false,
+    } as CallContextType;
   }
   return context;
 };
