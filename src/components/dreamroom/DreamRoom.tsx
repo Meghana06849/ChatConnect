@@ -247,20 +247,30 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
     const viewMap: Record<string, React.ReactNode> = {
       calendar: <CoupleCalendar />,
       vault: <LoveVault />,
-      games: <div className="pt-16 px-4 md:px-6"><GamesHub /></div>,
+      games: profile?.lovers_partner_id ? (
+        <TruthOrDareGame
+          partnerId={profile.lovers_partner_id}
+          partnerName={partnerName}
+          onBack={() => setCurrentView('main')}
+        />
+      ) : (
+        <div className="pt-16 px-4 md:px-6"><GamesHub /></div>
+      ),
     };
     return (
       <div className="relative min-h-screen" style={{
         background: 'linear-gradient(180deg, hsl(270 50% 8%) 0%, hsl(300 40% 12%) 50%, hsl(0 0% 5%) 100%)',
       }}>
-        <Button
-          onClick={() => setCurrentView('main')}
-          className="absolute top-4 left-4 z-20 bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] text-white shadow-lg"
-          size="sm"
-        >
-          <Home className="w-4 h-4 mr-2" />
-          Dream Room
-        </Button>
+        {currentView !== 'games' && (
+          <Button
+            onClick={() => setCurrentView('main')}
+            className="absolute top-4 left-4 z-20 bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] text-white shadow-lg"
+            size="sm"
+          >
+            <Home className="w-4 h-4 mr-2" />
+            Dream Room
+          </Button>
+        )}
         <div className="relative z-10">{viewMap[currentView]}</div>
       </div>
     );
