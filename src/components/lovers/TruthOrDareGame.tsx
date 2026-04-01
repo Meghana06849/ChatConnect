@@ -279,6 +279,25 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
     setQuestionInput(text);
   };
 
+  const fetchAiSuggestions = async () => {
+    if (!currentRound?.choice_type) return;
+    setAiLoading(true);
+    setAiSuggestions([]);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-question', {
+        body: { type: currentRound.choice_type },
+      });
+      if (error) throw error;
+      if (data?.questions) {
+        setAiSuggestions(data.questions);
+      }
+    } catch (e: any) {
+      toast({ title: 'AI Error', description: e.message || 'Failed to generate', variant: 'destructive' });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const endGame = async () => {
     if (!game) return;
     await supabase
