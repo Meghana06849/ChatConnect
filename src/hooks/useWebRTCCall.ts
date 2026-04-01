@@ -49,6 +49,13 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const currentCallData = useRef<{ contactId: string; contactName: string; isVideo: boolean } | null>(null);
   const screenSender = useRef<RTCRtpSender | null>(null);
+  // Use refs to avoid stale closures in cleanup
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  
+  // Keep refs in sync with state
+  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
+  useEffect(() => { screenStreamRef.current = screenStream; }, [screenStream]);
   
   const { toast } = useToast();
 
