@@ -21,7 +21,7 @@ import { SecretVault } from '@/components/unique/SecretVault';
 import { DreamRoomInvite } from '@/components/unique/DreamRoomInvite';
 import { VirtualPet } from '@/components/unique/VirtualPet';
 import { MusicNotes } from '@/components/media/MusicNotes';
-import { Stories } from '@/components/stories/Stories';
+import { Moments } from '@/components/stories/Moments';
 import { FriendsManager } from '@/components/friends/FriendsManager';
 import { GroupManager } from '@/components/groups/GroupManager';
 import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
