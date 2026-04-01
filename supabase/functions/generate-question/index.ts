@@ -1,5 +1,9 @@
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.56.0/cors";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.56.0";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 const AI_GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
