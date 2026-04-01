@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, CheckCircle2 } from 'lucide-react';
+import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, CheckCircle2, Wand2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
