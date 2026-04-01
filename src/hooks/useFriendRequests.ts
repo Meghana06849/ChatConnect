@@ -34,13 +34,17 @@ export const useFriendRequests = () => {
   const [onlineUsers, setOnlineUsers] = useState<Map<string, boolean>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  // Get current user
+  // Get current user — wait for auth to be fully ready
   useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setCurrentUserId(data?.user?.id || null);
-    };
-    getUser();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUserId(session?.user?.id || null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setCurrentUserId(session?.user?.id || null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Load all friend requests
