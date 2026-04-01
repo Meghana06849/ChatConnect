@@ -212,7 +212,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   };
 
   const sendQuestion = async () => {
-    if (!currentRound || isMyTurn || currentRound.status !== 'asking') return;
+    if (!currentRound || !isMyTurn || currentRound.status !== 'asking') return;
     const q = questionInput.trim();
     if (!q || q.length > 200) {
       toast({ title: 'Invalid', description: 'Question must be 1-200 characters', variant: 'destructive' });
