@@ -7,6 +7,7 @@ import { DreamRoomChatBar } from './DreamRoomChatBar';
 import { CoupleCalendar } from './CoupleCalendar';
 import { LoveVault } from './LoveVault';
 import { GamesHub } from '@/components/features/GamesHub';
+import { TruthOrDareGame } from '@/components/lovers/TruthOrDareGame';
 import { DreamCallUI } from '@/components/dreamcall/DreamCallUI';
 import { DreamIncomingCall } from '@/components/dreamcall/DreamIncomingCall';
 import { useProfile } from '@/hooks/useProfile';
