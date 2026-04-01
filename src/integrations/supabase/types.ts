@@ -777,6 +777,86 @@ export type Database = {
           },
         ]
       }
+      truth_dare_games: {
+        Row: {
+          created_at: string
+          current_turn: string
+          id: string
+          player1_id: string
+          player2_id: string
+          round: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_turn: string
+          id?: string
+          player1_id: string
+          player2_id: string
+          round?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_turn?: string
+          id?: string
+          player1_id?: string
+          player2_id?: string
+          round?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      truth_dare_rounds: {
+        Row: {
+          answer: string | null
+          asker_id: string
+          choice_type: string | null
+          chooser_id: string
+          created_at: string
+          game_id: string
+          id: string
+          question: string | null
+          round_number: number
+          status: string
+        }
+        Insert: {
+          answer?: string | null
+          asker_id: string
+          choice_type?: string | null
+          chooser_id: string
+          created_at?: string
+          game_id: string
+          id?: string
+          question?: string | null
+          round_number: number
+          status?: string
+        }
+        Update: {
+          answer?: string | null
+          asker_id?: string
+          choice_type?: string | null
+          chooser_id?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          question?: string | null
+          round_number?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "truth_dare_rounds_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "truth_dare_games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       typing_indicators: {
         Row: {
           conversation_id: string
