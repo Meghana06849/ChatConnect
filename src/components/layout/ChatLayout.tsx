@@ -118,7 +118,7 @@ export const ChatLayout = () => {
         return <DreamRoom isTimeRestricted={true} />;
 
       case 'stories':
-        return <Stories />;
+        return <Moments />;
 
       case 'calls':
         return <CallHistory />;
