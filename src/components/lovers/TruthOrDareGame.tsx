@@ -71,6 +71,8 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   const [loading, setLoading] = useState(true);
   const [questionInput, setQuestionInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const currentUserId = profile?.user_id;
   const isMyTurn = game?.current_turn === currentUserId;
