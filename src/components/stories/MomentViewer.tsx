@@ -100,10 +100,16 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
 
   const toggleReaction = async (emoji: string) => {
     if (!currentUserId) return;
-    const existing = reactions.find(r => r.user_id === currentUserId && r.emoji === emoji);
-    if (existing) {
-      await supabase.from('moment_reactions').delete().eq('id', existing.id);
+    const myReaction = reactions.find(r => r.user_id === currentUserId);
+    
+    if (myReaction && myReaction.emoji === emoji) {
+      // Same emoji → remove reaction
+      await supabase.from('moment_reactions').delete().eq('id', myReaction.id);
+    } else if (myReaction) {
+      // Different emoji → update existing reaction
+      await supabase.from('moment_reactions').update({ emoji }).eq('id', myReaction.id);
     } else {
+      // No existing reaction → insert
       await supabase.from('moment_reactions').insert({
         moment_id: moment.id,
         user_id: currentUserId,
