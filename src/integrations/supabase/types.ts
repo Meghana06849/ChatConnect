@@ -777,6 +777,27 @@ export type Database = {
         }
         Relationships: []
       }
+      romantic_prompts: {
+        Row: {
+          created_at: string
+          id: string
+          text: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          text: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          text?: string
+          type?: string
+        }
+        Relationships: []
+      }
       screenshot_notifications: {
         Row: {
           conversation_id: string
@@ -805,6 +826,44 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spin_games: {
+        Row: {
+          created_at: string
+          id: string
+          player1_id: string
+          player2_id: string
+          result_player_id: string | null
+          result_prompt_id: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          player1_id: string
+          player2_id: string
+          result_player_id?: string | null
+          result_prompt_id?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          player1_id?: string
+          player2_id?: string
+          result_player_id?: string | null
+          result_prompt_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spin_games_result_prompt_id_fkey"
+            columns: ["result_prompt_id"]
+            isOneToOne: false
+            referencedRelation: "romantic_prompts"
             referencedColumns: ["id"]
           },
         ]
@@ -1181,6 +1240,15 @@ export type Database = {
           user_id: string
           username: string
           verification_type: string
+        }[]
+      }
+      spin_bottle: {
+        Args: { _partner_id: string }
+        Returns: {
+          chosen_player_id: string
+          game_id: string
+          prompt_text: string
+          prompt_type: string
         }[]
       }
       update_user_presence: {

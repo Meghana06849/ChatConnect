@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,10 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
+import { TruthOrDareGame as LoversToD } from '@/components/lovers/TruthOrDareGame';
+import { SpinTheBottle } from '@/components/lovers/SpinTheBottle';
 
 // ─── Love Quiz Game ───
 const loveQuizQuestions = [
@@ -474,9 +478,25 @@ const loversGames: GameDef[] = [
 
 export const GamesHub: React.FC = () => {
   const { mode } = useChat();
+  const { profile } = useProfile();
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState('Your Love');
   const isLoversMode = mode === 'lovers';
   const games = isLoversMode ? loversGames : generalGames;
+  const partnerId = profile?.lovers_partner_id;
+
+  // Load partner name
+  useEffect(() => {
+    if (!partnerId) return;
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', partnerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.display_name) setPartnerName(data.display_name);
+      });
+  }, [partnerId]);
 
   const getDifficultyBadge = (d: string) => {
     const c: Record<string, string> = { easy: 'bg-green-500/20 text-green-500', medium: 'bg-yellow-500/20 text-yellow-500', hard: 'bg-red-500/20 text-red-500' };
@@ -485,6 +505,15 @@ export const GamesHub: React.FC = () => {
 
   const renderGame = () => {
     const onBack = () => setActiveGame(null);
+    // Lovers mode: use DB-backed components
+    if (isLoversMode && partnerId) {
+      switch (activeGame) {
+        case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
+        case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+        case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+        default: return null;
+      }
+    }
     switch (activeGame) {
       case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
       case 'truthdare': return <TruthOrDareGame onBack={onBack} />;
@@ -497,6 +526,22 @@ export const GamesHub: React.FC = () => {
   };
 
   if (activeGame) {
+    // Block lovers games if no partner linked
+    if (isLoversMode && !partnerId && ['truthdare', 'spin'].includes(activeGame)) {
+      return (
+        <div className="flex-1 p-4 overflow-y-auto">
+          <div className="max-w-md mx-auto text-center space-y-4 pt-20">
+            <div className="text-5xl">💔</div>
+            <h2 className="text-xl font-bold text-white/80">No Partner Linked</h2>
+            <p className="text-white/50 text-sm">Link a Lovers Mode partner from Friends to play together.</p>
+            <Button variant="outline" onClick={() => setActiveGame(null)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Games
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
