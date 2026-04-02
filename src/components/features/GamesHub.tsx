@@ -478,9 +478,25 @@ const loversGames: GameDef[] = [
 
 export const GamesHub: React.FC = () => {
   const { mode } = useChat();
+  const { profile } = useProfile();
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState('Your Love');
   const isLoversMode = mode === 'lovers';
   const games = isLoversMode ? loversGames : generalGames;
+  const partnerId = profile?.lovers_partner_id;
+
+  // Load partner name
+  useEffect(() => {
+    if (!partnerId) return;
+    supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', partnerId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.display_name) setPartnerName(data.display_name);
+      });
+  }, [partnerId]);
 
   const getDifficultyBadge = (d: string) => {
     const c: Record<string, string> = { easy: 'bg-green-500/20 text-green-500', medium: 'bg-yellow-500/20 text-yellow-500', hard: 'bg-red-500/20 text-red-500' };
@@ -489,6 +505,15 @@ export const GamesHub: React.FC = () => {
 
   const renderGame = () => {
     const onBack = () => setActiveGame(null);
+    // Lovers mode: use DB-backed components
+    if (isLoversMode && partnerId) {
+      switch (activeGame) {
+        case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
+        case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+        case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+        default: return null;
+      }
+    }
     switch (activeGame) {
       case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
       case 'truthdare': return <TruthOrDareGame onBack={onBack} />;
