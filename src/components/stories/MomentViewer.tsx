@@ -67,6 +67,10 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
   const reactionEmojis = ['❤️', '🔥', '😍', '😂', '😮', '👏', '💯', '🥺'];
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+    loadReactions();
     if (isOwner) {
       loadViewers();
     }
@@ -74,6 +78,41 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
       loadSong();
     }
   }, [moment.id, isOwner]);
+
+  const loadReactions = async () => {
+    const { data } = await supabase
+      .from('moment_reactions')
+      .select('id, emoji, user_id')
+      .eq('moment_id', moment.id);
+    
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', userIds);
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      setReactions(data.map(r => ({ ...r, profile: profileMap.get(r.user_id) })));
+    } else {
+      setReactions([]);
+    }
+  };
+
+  const toggleReaction = async (emoji: string) => {
+    if (!currentUserId) return;
+    const existing = reactions.find(r => r.user_id === currentUserId && r.emoji === emoji);
+    if (existing) {
+      await supabase.from('moment_reactions').delete().eq('id', existing.id);
+    } else {
+      await supabase.from('moment_reactions').insert({
+        moment_id: moment.id,
+        user_id: currentUserId,
+        emoji,
+      });
+    }
+    loadReactions();
+    setShowEmojiPicker(false);
+  };
 
   const loadViewers = async () => {
     try {
