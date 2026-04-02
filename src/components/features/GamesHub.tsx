@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,10 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
+import { TruthOrDareGame as LoversToD } from '@/components/lovers/TruthOrDareGame';
+import { SpinTheBottle } from '@/components/lovers/SpinTheBottle';
 
 // ─── Love Quiz Game ───
 const loveQuizQuestions = [
