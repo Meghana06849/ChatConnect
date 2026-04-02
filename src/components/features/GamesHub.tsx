@@ -526,6 +526,22 @@ export const GamesHub: React.FC = () => {
   };
 
   if (activeGame) {
+    // Block lovers games if no partner linked
+    if (isLoversMode && !partnerId && ['truthdare', 'spin'].includes(activeGame)) {
+      return (
+        <div className="flex-1 p-4 overflow-y-auto">
+          <div className="max-w-md mx-auto text-center space-y-4 pt-20">
+            <div className="text-5xl">💔</div>
+            <h2 className="text-xl font-bold text-white/80">No Partner Linked</h2>
+            <p className="text-white/50 text-sm">Link a Lovers Mode partner from Friends to play together.</p>
+            <Button variant="outline" onClick={() => setActiveGame(null)}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Games
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
