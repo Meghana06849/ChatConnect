@@ -12,6 +12,13 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 
+interface MomentReaction {
+  id: string;
+  emoji: string;
+  user_id: string;
+  profile?: { display_name: string | null; avatar_url: string | null };
+}
+
 interface MomentViewerProps {
   moment: {
     id: string;
