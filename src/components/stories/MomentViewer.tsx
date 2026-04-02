@@ -12,6 +12,13 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 
+interface MomentReaction {
+  id: string;
+  emoji: string;
+  user_id: string;
+  profile?: { display_name: string | null; avatar_url: string | null };
+}
+
 interface MomentViewerProps {
   moment: {
     id: string;
@@ -53,8 +60,17 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
   const [showViewers, setShowViewers] = useState(false);
   const [song, setSong] = useState<{ title: string; artist: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [reactions, setReactions] = useState<MomentReaction[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const reactionEmojis = ['❤️', '🔥', '😍', '😂', '😮', '👏', '💯', '🥺'];
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+    loadReactions();
     if (isOwner) {
       loadViewers();
     }
@@ -62,6 +78,41 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
       loadSong();
     }
   }, [moment.id, isOwner]);
+
+  const loadReactions = async () => {
+    const { data } = await supabase
+      .from('moment_reactions')
+      .select('id, emoji, user_id')
+      .eq('moment_id', moment.id);
+    
+    if (data && data.length > 0) {
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name, avatar_url')
+        .in('user_id', userIds);
+      const profileMap = new Map((profiles || []).map(p => [p.user_id, p]));
+      setReactions(data.map(r => ({ ...r, profile: profileMap.get(r.user_id) })));
+    } else {
+      setReactions([]);
+    }
+  };
+
+  const toggleReaction = async (emoji: string) => {
+    if (!currentUserId) return;
+    const existing = reactions.find(r => r.user_id === currentUserId && r.emoji === emoji);
+    if (existing) {
+      await supabase.from('moment_reactions').delete().eq('id', existing.id);
+    } else {
+      await supabase.from('moment_reactions').insert({
+        moment_id: moment.id,
+        user_id: currentUserId,
+        emoji,
+      });
+    }
+    loadReactions();
+    setShowEmojiPicker(false);
+  };
 
   const loadViewers = async () => {
     try {
@@ -270,6 +321,23 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
               </Button>
             </div>
 
+            {/* Reactions summary for owner */}
+            {reactions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(reactions.reduce<Record<string, { count: number; names: string[] }>>((acc, r) => {
+                  if (!acc[r.emoji]) acc[r.emoji] = { count: 0, names: [] };
+                  acc[r.emoji].count++;
+                  acc[r.emoji].names.push(r.profile?.display_name || 'Someone');
+                  return acc;
+                }, {})).map(([emoji, { count, names }]) => (
+                  <div key={emoji} className="glass rounded-full px-3 py-1 text-sm flex items-center gap-1" title={names.join(', ')}>
+                    <span>{emoji}</span>
+                    <span className="text-white/70 text-xs">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Viewers List */}
             {showViewers && viewers.length > 0 && (
               <ScrollArea className="mt-4 max-h-48">
@@ -303,10 +371,38 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
 
         {/* Reactions (for non-owners) */}
         {!isOwner && (
-          <div className="absolute bottom-4 right-4">
+          <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+            {/* Emoji picker */}
+            {showEmojiPicker && (
+              <div className="glass rounded-2xl p-2 flex gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {reactionEmojis.map(emoji => {
+                  const hasReacted = reactions.some(r => r.user_id === currentUserId && r.emoji === emoji);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => toggleReaction(emoji)}
+                      className={`text-xl p-1.5 rounded-full transition-all hover:scale-125 ${hasReacted ? 'bg-white/20 ring-2 ring-white/40' : 'hover:bg-white/10'}`}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {/* My reactions shown */}
+            {reactions.filter(r => r.user_id === currentUserId).length > 0 && (
+              <div className="flex gap-1">
+                {reactions.filter(r => r.user_id === currentUserId).map(r => (
+                  <span key={r.id} className="glass rounded-full px-2 py-0.5 text-sm cursor-pointer hover:bg-white/20" onClick={() => toggleReaction(r.emoji)}>
+                    {r.emoji}
+                  </span>
+                ))}
+              </div>
+            )}
             <Button 
               size="icon"
               className={`rounded-full ${isLoversMode ? 'bg-lovers-primary hover:bg-lovers-primary/90' : 'bg-general-primary hover:bg-general-primary/90'}`}
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             >
               <Heart className="w-5 h-5 text-white" />
             </Button>
