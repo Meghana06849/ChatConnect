@@ -60,6 +60,11 @@ export const MomentViewer: React.FC<MomentViewerProps> = ({
   const [showViewers, setShowViewers] = useState(false);
   const [song, setSong] = useState<{ title: string; artist: string } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [reactions, setReactions] = useState<MomentReaction[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const reactionEmojis = ['❤️', '🔥', '😍', '😂', '😮', '👏', '💯', '🥺'];
 
   useEffect(() => {
     if (isOwner) {
