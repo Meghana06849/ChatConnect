@@ -509,7 +509,7 @@ export const GamesHub: React.FC = () => {
     // Lovers mode: use DB-backed components
     if (isLoversMode && partnerId) {
       switch (activeGame) {
-        case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
+        case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         default: return null;
