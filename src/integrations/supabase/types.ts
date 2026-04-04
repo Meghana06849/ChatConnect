@@ -467,6 +467,105 @@ export type Database = {
         }
         Relationships: []
       }
+      love_quiz_answers: {
+        Row: {
+          answer: string
+          created_at: string
+          game_id: string
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          game_id: string
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "love_quiz_answers_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "love_quiz_games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "love_quiz_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "love_quiz_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      love_quiz_games: {
+        Row: {
+          compatibility_score: number | null
+          created_at: string
+          id: string
+          player1_id: string
+          player2_id: string
+          status: string
+          total_questions: number
+          updated_at: string
+        }
+        Insert: {
+          compatibility_score?: number | null
+          created_at?: string
+          id?: string
+          player1_id: string
+          player2_id: string
+          status?: string
+          total_questions?: number
+          updated_at?: string
+        }
+        Update: {
+          compatibility_score?: number | null
+          created_at?: string
+          id?: string
+          player1_id?: string
+          player2_id?: string
+          status?: string
+          total_questions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      love_quiz_questions: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          options: Json
+          question_text: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          options?: Json
+          question_text: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          options?: Json
+          question_text?: string
+        }
+        Relationships: []
+      }
       love_streaks: {
         Row: {
           created_at: string
