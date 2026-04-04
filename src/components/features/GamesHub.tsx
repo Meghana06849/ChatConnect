@@ -465,12 +465,6 @@ interface GameDef {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
-const generalGames: GameDef[] = [
-  { id: 'wordchain', title: 'Word Chain', description: 'Create words from the last letter', icon: '🔤', category: 'puzzle', difficulty: 'easy' },
-  { id: 'quickmath', title: 'Quick Math', description: 'Fast calculation challenges', icon: '🧮', category: 'arcade', difficulty: 'medium' },
-  { id: 'tictactoe', title: 'Tic Tac Toe', description: 'Classic strategy game', icon: '⭕', category: 'strategy', difficulty: 'easy' },
-];
-
 const loversGames: GameDef[] = [
   { id: 'lovequiz', title: 'Love Quiz', description: 'How well do you know each other?', icon: '❤️', category: 'romance', difficulty: 'medium' },
   { id: 'truthdare', title: 'Truth or Dare', description: 'Romantic edition for couples', icon: '🎭', category: 'couples', difficulty: 'easy' },
