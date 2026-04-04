@@ -528,7 +528,7 @@ export const GamesHub: React.FC = () => {
 
   if (activeGame) {
     // Block lovers games if no partner linked
-    if (isLoversMode && !partnerId && ['truthdare', 'spin'].includes(activeGame)) {
+    if (isLoversMode && !partnerId && ['truthdare', 'spin', 'lovequiz'].includes(activeGame)) {
       return (
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto text-center space-y-4 pt-20">
