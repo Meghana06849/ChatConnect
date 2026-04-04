@@ -562,7 +562,7 @@ export const GamesHub: React.FC = () => {
                 <div className="flex justify-between items-center mb-3">
                   <Badge className={getDifficultyBadge(game.difficulty)}>{game.difficulty}</Badge>
                 </div>
-                <Button className={cn("w-full", isLoversMode ? "btn-lovers" : "btn-general")}>
+                <Button className="w-full btn-lovers">
                   <Play className="w-4 h-4 mr-2" />Play Now
                 </Button>
               </CardContent>
