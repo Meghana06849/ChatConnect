@@ -477,7 +477,7 @@ export const GamesHub: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [partnerName, setPartnerName] = useState('Your Love');
   const isLoversMode = mode === 'lovers';
-  const games = isLoversMode ? loversGames : generalGames;
+  const games = loversGames;
   const partnerId = profile?.lovers_partner_id;
 
   // Load partner name
