@@ -500,22 +500,11 @@ export const GamesHub: React.FC = () => {
 
   const renderGame = () => {
     const onBack = () => setActiveGame(null);
-    // Lovers mode: use DB-backed components
-    if (isLoversMode && partnerId) {
-      switch (activeGame) {
-        case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        default: return null;
-      }
-    }
+    if (!partnerId) return null;
     switch (activeGame) {
-      case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
-      case 'truthdare': return <TruthOrDareGame onBack={onBack} />;
-      case 'spin': return <SpinGame onBack={onBack} />;
-      case 'quickmath': return <QuickMathGame onBack={onBack} />;
-      case 'tictactoe': return <TicTacToeGame onBack={onBack} />;
-      case 'wordchain': return <WordChainGame onBack={onBack} />;
+      case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+      case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+      case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
       default: return null;
     }
   };
