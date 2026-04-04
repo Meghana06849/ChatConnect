@@ -16,6 +16,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { TruthOrDareGame as LoversToD } from '@/components/lovers/TruthOrDareGame';
 import { SpinTheBottle } from '@/components/lovers/SpinTheBottle';
+import { LoveQuizGame as LoversQuiz } from '@/components/lovers/LoveQuizGame';
 
 // ─── Love Quiz Game ───
 const loveQuizQuestions = [
