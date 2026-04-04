@@ -465,12 +465,6 @@ interface GameDef {
   difficulty: 'easy' | 'medium' | 'hard';
 }
 
-const generalGames: GameDef[] = [
-  { id: 'wordchain', title: 'Word Chain', description: 'Create words from the last letter', icon: '🔤', category: 'puzzle', difficulty: 'easy' },
-  { id: 'quickmath', title: 'Quick Math', description: 'Fast calculation challenges', icon: '🧮', category: 'arcade', difficulty: 'medium' },
-  { id: 'tictactoe', title: 'Tic Tac Toe', description: 'Classic strategy game', icon: '⭕', category: 'strategy', difficulty: 'easy' },
-];
-
 const loversGames: GameDef[] = [
   { id: 'lovequiz', title: 'Love Quiz', description: 'How well do you know each other?', icon: '❤️', category: 'romance', difficulty: 'medium' },
   { id: 'truthdare', title: 'Truth or Dare', description: 'Romantic edition for couples', icon: '🎭', category: 'couples', difficulty: 'easy' },
@@ -483,7 +477,7 @@ export const GamesHub: React.FC = () => {
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [partnerName, setPartnerName] = useState('Your Love');
   const isLoversMode = mode === 'lovers';
-  const games = isLoversMode ? loversGames : generalGames;
+  const games = loversGames;
   const partnerId = profile?.lovers_partner_id;
 
   // Load partner name
@@ -506,29 +500,18 @@ export const GamesHub: React.FC = () => {
 
   const renderGame = () => {
     const onBack = () => setActiveGame(null);
-    // Lovers mode: use DB-backed components
-    if (isLoversMode && partnerId) {
-      switch (activeGame) {
-        case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
-        default: return null;
-      }
-    }
+    if (!partnerId) return null;
     switch (activeGame) {
-      case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
-      case 'truthdare': return <TruthOrDareGame onBack={onBack} />;
-      case 'spin': return <SpinGame onBack={onBack} />;
-      case 'quickmath': return <QuickMathGame onBack={onBack} />;
-      case 'tictactoe': return <TicTacToeGame onBack={onBack} />;
-      case 'wordchain': return <WordChainGame onBack={onBack} />;
+      case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+      case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
+      case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
       default: return null;
     }
   };
 
   if (activeGame) {
     // Block lovers games if no partner linked
-    if (isLoversMode && !partnerId && ['truthdare', 'spin', 'lovequiz'].includes(activeGame)) {
+    if (!partnerId) {
       return (
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto text-center space-y-4 pt-20">
@@ -560,14 +543,11 @@ export const GamesHub: React.FC = () => {
     <div className="flex-1 p-4 md:p-6 overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center mb-6">
-          <div className={cn(
-            "inline-flex items-center justify-center w-20 h-20 rounded-full mb-4",
-            isLoversMode ? "bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20" : "bg-gradient-to-br from-general-primary/20 to-general-secondary/20"
-          )}>
-            <Gamepad2 className={cn("w-10 h-10", isLoversMode ? "text-lovers-primary" : "text-general-primary")} />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20">
+            <Gamepad2 className="w-10 h-10 text-lovers-primary" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold">{isLoversMode ? 'Love Games' : 'Games Hub'}</h1>
-          <p className="text-muted-foreground text-sm">{isLoversMode ? 'Play romantic games together' : 'Fun games to play with friends'}</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Love Games</h1>
+          <p className="text-muted-foreground text-sm">Play romantic games with your partner</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -582,7 +562,7 @@ export const GamesHub: React.FC = () => {
                 <div className="flex justify-between items-center mb-3">
                   <Badge className={getDifficultyBadge(game.difficulty)}>{game.difficulty}</Badge>
                 </div>
-                <Button className={cn("w-full", isLoversMode ? "btn-lovers" : "btn-general")}>
+                <Button className="w-full btn-lovers">
                   <Play className="w-4 h-4 mr-2" />Play Now
                 </Button>
               </CardContent>
