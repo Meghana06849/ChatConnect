@@ -543,14 +543,11 @@ export const GamesHub: React.FC = () => {
     <div className="flex-1 p-4 md:p-6 overflow-y-auto">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center mb-6">
-          <div className={cn(
-            "inline-flex items-center justify-center w-20 h-20 rounded-full mb-4",
-            isLoversMode ? "bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20" : "bg-gradient-to-br from-general-primary/20 to-general-secondary/20"
-          )}>
-            <Gamepad2 className={cn("w-10 h-10", isLoversMode ? "text-lovers-primary" : "text-general-primary")} />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 bg-gradient-to-br from-lovers-primary/20 to-lovers-secondary/20">
+            <Gamepad2 className="w-10 h-10 text-lovers-primary" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold">{isLoversMode ? 'Love Games' : 'Games Hub'}</h1>
-          <p className="text-muted-foreground text-sm">{isLoversMode ? 'Play romantic games together' : 'Fun games to play with friends'}</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Love Games</h1>
+          <p className="text-muted-foreground text-sm">Play romantic games with your partner</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
