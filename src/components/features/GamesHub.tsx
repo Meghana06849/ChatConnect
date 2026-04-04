@@ -16,6 +16,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { TruthOrDareGame as LoversToD } from '@/components/lovers/TruthOrDareGame';
 import { SpinTheBottle } from '@/components/lovers/SpinTheBottle';
+import { LoveQuizGame as LoversQuiz } from '@/components/lovers/LoveQuizGame';
 
 // ─── Love Quiz Game ───
 const loveQuizQuestions = [
@@ -508,7 +509,7 @@ export const GamesHub: React.FC = () => {
     // Lovers mode: use DB-backed components
     if (isLoversMode && partnerId) {
       switch (activeGame) {
-        case 'lovequiz': return <LoveQuizGame onBack={onBack} />;
+        case 'lovequiz': return <LoversQuiz partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         case 'truthdare': return <LoversToD partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         case 'spin': return <SpinTheBottle partnerId={partnerId} partnerName={partnerName} onBack={onBack} />;
         default: return null;
@@ -527,7 +528,7 @@ export const GamesHub: React.FC = () => {
 
   if (activeGame) {
     // Block lovers games if no partner linked
-    if (isLoversMode && !partnerId && ['truthdare', 'spin'].includes(activeGame)) {
+    if (isLoversMode && !partnerId && ['truthdare', 'spin', 'lovequiz'].includes(activeGame)) {
       return (
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="max-w-md mx-auto text-center space-y-4 pt-20">
