@@ -599,6 +599,36 @@ export type Database = {
         }
         Relationships: []
       }
+      lovers_mode_secrets: {
+        Row: {
+          created_at: string
+          id: string
+          pin_hash: string
+          pin_updated_at: string
+          pin_version: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pin_hash: string
+          pin_updated_at?: string
+          pin_version?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pin_hash?: string
+          pin_updated_at?: string
+          pin_version?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -1284,6 +1314,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limits: { Args: never; Returns: undefined }
+      clear_lovers_pin: { Args: never; Returns: boolean }
       generate_dream_room_id: {
         Args: { _user_a: string; _user_b: string }
         Returns: string
@@ -1299,6 +1330,7 @@ export type Database = {
           username: string
         }[]
       }
+      has_lovers_pin: { Args: never; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
@@ -1354,6 +1386,8 @@ export type Database = {
         Args: { is_online_status: boolean }
         Returns: undefined
       }
+      upsert_lovers_pin: { Args: { _pin: string }; Returns: number }
+      verify_lovers_pin: { Args: { _pin: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
