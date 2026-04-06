@@ -43,6 +43,7 @@ export const ForgotPinDialog: React.FC<ForgotPinDialogProps> = ({ open, onOpenCh
 
     setLoading(true);
     try {
+      // Step 1: Verify password via edge function
       const { data, error } = await supabase.functions.invoke('reset-lovers-pin', {
         body: { action: 'password', password, new_pin: newPin },
       });
@@ -53,6 +54,12 @@ export const ForgotPinDialog: React.FC<ForgotPinDialogProps> = ({ open, onOpenCh
         if (data.error === 'Incorrect password') setStep('verify');
         setLoading(false);
         return;
+      }
+
+      // Step 2: Also update the hashed PIN in lovers_mode_secrets
+      const { error: hashError } = await supabase.rpc('upsert_lovers_pin', { _pin: newPin });
+      if (hashError) {
+        console.error('Failed to update hashed PIN:', hashError);
       }
 
       setStep('done');
