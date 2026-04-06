@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,18 +28,35 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
   const { toast } = useToast();
   const [showCreatePin, setShowCreatePin] = useState(false);
   const [showVerifyPin, setShowVerifyPin] = useState(false);
-  
-  // Determine what to show based on profile state
+  const [pinLoading, setPinLoading] = useState(false);
+
+  // Check if user has a hashed PIN in lovers_mode_secrets
   React.useEffect(() => {
-    if (profile) {
-      if (!profile.dream_room_pin) {
-        setShowCreatePin(true);
-        setShowVerifyPin(false);
-      } else {
-        setShowCreatePin(false);
-        setShowVerifyPin(true);
+    const checkPin = async () => {
+      try {
+        const { data, error } = await supabase.rpc('has_lovers_pin');
+        if (error) throw error;
+        if (data) {
+          setShowCreatePin(false);
+          setShowVerifyPin(true);
+        } else {
+          setShowCreatePin(true);
+          setShowVerifyPin(false);
+        }
+      } catch (e) {
+        // Fallback to profile check
+        if (profile) {
+          if (!profile.dream_room_pin) {
+            setShowCreatePin(true);
+            setShowVerifyPin(false);
+          } else {
+            setShowCreatePin(false);
+            setShowVerifyPin(true);
+          }
+        }
       }
-    }
+    };
+    if (profile) checkPin();
   }, [profile]);
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -65,31 +83,63 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
       return;
     }
 
-    const success = await updateProfile({ dream_room_pin: pin });
-    if (success) {
+    setPinLoading(true);
+    try {
+      const { error } = await supabase.rpc('upsert_lovers_pin', { _pin: pin });
+      if (error) throw error;
+      // Also store in profile for backward compat
+      await updateProfile({ dream_room_pin: pin });
       switchMode('lovers', pin);
       onSectionChange('dreamroom');
       toast({
         title: "Welcome to Lovers Mode! 💕",
         description: "Your private space has been created"
       });
+    } catch (e: any) {
+      toast({
+        title: "Error creating PIN",
+        description: e.message,
+        variant: "destructive"
+      });
+    } finally {
+      setPinLoading(false);
     }
   };
 
   const handleVerifyPin = async () => {
-    if (pin === profile?.dream_room_pin) {
-      switchMode('lovers', pin);
-      onSectionChange('dreamroom');
+    setPinLoading(true);
+    try {
+      const { data: valid, error } = await supabase.rpc('verify_lovers_pin', { _pin: pin });
+      if (error) throw error;
+
+      // Fallback: also accept plain-text match from profile for existing users
+      const isValid = valid || (pin === profile?.dream_room_pin);
+      if (isValid) {
+        // If verified via plain-text fallback, migrate to hashed
+        if (!valid && pin === profile?.dream_room_pin) {
+          await supabase.rpc('upsert_lovers_pin', { _pin: pin });
+        }
+        switchMode('lovers', pin);
+        onSectionChange('dreamroom');
+        toast({
+          title: "Welcome back! 💕",
+          description: "Entering your private lovers space"
+        });
+      } else {
+        toast({
+          title: "Incorrect PIN",
+          description: "Please try again",
+          variant: "destructive"
+        });
+      }
+    } catch (e: any) {
       toast({
-        title: "Welcome back! 💕",
-        description: "Entering your private lovers space"
-      });
-    } else {
-      toast({
-        title: "Incorrect PIN",
-        description: "Please try again",
+        title: "Error verifying PIN",
+        description: e.message,
         variant: "destructive"
       });
+    } finally {
+      setPinLoading(false);
     }
   };
 
@@ -171,10 +221,16 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
               <Button 
                 onClick={handleCreatePin}
                 className="w-full btn-lovers"
-                disabled={pin.length < 4 || pin !== confirmPin}
+                disabled={pin.length < 4 || pin !== confirmPin || pinLoading}
               >
+                {pinLoading ? (
+                  <span className="animate-pulse">Creating...</span>
+                ) : (
+                  <>
                 <Heart className="w-4 h-4 mr-2" />
                 Create Lovers Space
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -219,10 +275,16 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
               <Button 
                 onClick={handleVerifyPin}
                 className="w-full btn-lovers"
-                disabled={pin.length < 4}
+                disabled={pin.length < 4 || pinLoading}
               >
+                {pinLoading ? (
+                  <span className="animate-pulse">Verifying...</span>
+                ) : (
+                  <>
                 <Heart className="w-4 h-4 mr-2" />
                 Enter Lovers Mode
+                  </>
+                )}
               </Button>
 
               <div className="text-center mt-4">
