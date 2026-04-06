@@ -80,13 +80,21 @@ export const LoveVault: React.FC = () => {
   }, []);
 
   const verifyPin = async () => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('dream_room_pin')
-      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-      .single();
+    try {
+      const { data: valid, error } = await supabase.rpc('verify_lovers_pin', { _pin: pin });
+      
+      // Fallback to plain-text check for unmigrated users
+      let isValid = !error && valid;
+      if (!isValid) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('dream_room_pin')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .single();
+        isValid = profile?.dream_room_pin === pin;
+      }
 
-    if (profile?.dream_room_pin === pin) {
+      if (isValid) {
       setIsPinVerified(true);
       sessionStorage.setItem('vault_pin', pin);
       fetchItems();
@@ -94,10 +102,17 @@ export const LoveVault: React.FC = () => {
         title: "Vault Unlocked 🔓",
         description: "Your private vault is now accessible"
       });
-    } else {
+      } else {
       toast({
         title: "Wrong PIN",
         description: "Please enter your Dream Room PIN",
+        variant: "destructive"
+      });
+      }
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Could not verify PIN",
         variant: "destructive"
       });
     }
