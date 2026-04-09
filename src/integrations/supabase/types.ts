@@ -1320,6 +1320,10 @@ export type Database = {
         Args: { _user_a: string; _user_b: string }
         Returns: boolean
       }
+      authorize_realtime_channel: {
+        Args: { _channel: string }
+        Returns: boolean
+      }
       cleanup_rate_limits: { Args: never; Returns: undefined }
       clear_lovers_pin: { Args: never; Returns: boolean }
       generate_dream_room_id: {

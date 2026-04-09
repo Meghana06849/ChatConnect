@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, CheckCircle2, Wand2, Loader2 } from 'lucide-react';
+import { Heart, Sparkles, ArrowLeft, Send, Zap, Shield, Clock, Wand2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +34,6 @@ interface Round {
   status: string;
 }
 
-// Romantic truth/dare suggestions
 const TRUTH_SUGGESTIONS = [
   "What's the most romantic dream you've had about us?",
   "What's something you've always wanted to tell me but haven't?",
@@ -73,6 +71,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   const [answerInput, setAnswerInput] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const currentUserId = profile?.user_id;
   const isMyTurn = game?.current_turn === currentUserId;
@@ -87,7 +86,6 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
     if (!currentUserId) return;
     setLoading(true);
 
-    // Find active game between these two players
     const { data: games } = await supabase
       .from('truth_dare_games')
       .select('*')
@@ -117,7 +115,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
     }
   };
 
-  // Real-time subscriptions
+  // Real-time subscriptions — reload full state on any change for consistency
   useEffect(() => {
     if (!game?.id) return;
 
@@ -130,7 +128,12 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
         filter: `id=eq.${game.id}`,
       }, (payload) => {
         if (payload.new) {
-          setGame(payload.new as unknown as Game);
+          const updated = payload.new as unknown as Game;
+          setGame(updated);
+          // If game was completed externally, clear state
+          if (updated.status === 'completed') {
+            setCurrentRound(null);
+          }
         }
       })
       .on('postgres_changes', {
@@ -139,19 +142,8 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
         table: 'truth_dare_rounds',
         filter: `game_id=eq.${game.id}`,
       }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newRound = payload.new as unknown as Round;
-          setRounds(prev => [...prev, newRound]);
-          if (newRound.status !== 'completed') setCurrentRound(newRound);
-        } else if (payload.eventType === 'UPDATE') {
-          const updated = payload.new as unknown as Round;
-          setRounds(prev => prev.map(r => r.id === updated.id ? updated : r));
-          if (updated.status !== 'completed') {
-            setCurrentRound(updated);
-          } else {
-            setCurrentRound(null);
-          }
-        }
+        // Always reload rounds for consistency
+        loadRounds(game.id);
       })
       .subscribe();
 
@@ -159,85 +151,116 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   }, [game?.id]);
 
   const startNewGame = async () => {
-    if (!currentUserId) return;
-    setLoading(true);
+    if (!currentUserId || actionLoading) return;
+    setActionLoading(true);
 
-    const { data, error } = await supabase
-      .from('truth_dare_games')
-      .insert({
-        player1_id: currentUserId,
-        player2_id: partnerId,
-        current_turn: currentUserId,
-        status: 'active',
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('truth_dare_games')
+        .insert({
+          player1_id: currentUserId,
+          player2_id: partnerId,
+          current_turn: currentUserId,
+          status: 'active',
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+
+      const g = data as unknown as Game;
+      setGame(g);
+
+      // Create first round
+      const { error: roundError } = await supabase.from('truth_dare_rounds').insert({
+        game_id: g.id,
+        round_number: 1,
+        chooser_id: currentUserId,
+        asker_id: partnerId,
+        status: 'choosing',
+      });
+
+      if (roundError) throw roundError;
+
+      await loadRounds(g.id);
+      toast({ title: 'Game Started! 🎮', description: `It's your turn to choose Truth or Dare!` });
+    } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      setLoading(false);
-      return;
+    } finally {
+      setActionLoading(false);
     }
-
-    const g = data as unknown as Game;
-    setGame(g);
-
-    // Create first round
-    await supabase.from('truth_dare_rounds').insert({
-      game_id: g.id,
-      round_number: 1,
-      chooser_id: currentUserId,
-      asker_id: partnerId,
-      status: 'choosing',
-    });
-
-    await loadRounds(g.id);
-    setLoading(false);
-    toast({ title: 'Game Started! 🎮', description: `It's your turn to choose Truth or Dare!` });
   };
 
   const chooseType = async (type: 'truth' | 'dare') => {
-    if (!currentRound || !isMyTurn || currentRound.status !== 'choosing') return;
+    if (!currentRound || !isMyTurn || currentRound.status !== 'choosing' || actionLoading) return;
+    // Validate: only the chooser can choose
+    if (currentRound.chooser_id !== currentUserId) return;
 
-    await supabase
-      .from('truth_dare_rounds')
-      .update({ choice_type: type, status: 'asking' })
-      .eq('id', currentRound.id);
+    setActionLoading(true);
+    try {
+      const { error: roundErr } = await supabase
+        .from('truth_dare_rounds')
+        .update({ choice_type: type, status: 'asking' })
+        .eq('id', currentRound.id);
 
-    // Turn passes to the asker (opponent)
-    await supabase
-      .from('truth_dare_games')
-      .update({ current_turn: currentRound.asker_id })
-      .eq('id', game!.id);
+      if (roundErr) throw roundErr;
+
+      // Turn passes to the asker (opponent)
+      const { error: gameErr } = await supabase
+        .from('truth_dare_games')
+        .update({ current_turn: currentRound.asker_id })
+        .eq('id', game!.id);
+
+      if (gameErr) throw gameErr;
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const sendQuestion = async () => {
-    if (!currentRound || !isMyTurn || currentRound.status !== 'asking') return;
+    if (!currentRound || !isMyTurn || currentRound.status !== 'asking' || actionLoading) return;
     const q = questionInput.trim();
-    if (!q || q.length > 200) {
-      toast({ title: 'Invalid', description: 'Question must be 1-200 characters', variant: 'destructive' });
+    if (!q) {
+      toast({ title: 'Question required', description: 'Please type a question', variant: 'destructive' });
+      return;
+    }
+    if (q.length > 200) {
+      toast({ title: 'Too long', description: 'Question must be under 200 characters', variant: 'destructive' });
       return;
     }
 
     // Validate: only opponent (asker) can send question
     if (currentRound.asker_id !== currentUserId) return;
 
-    await supabase
-      .from('truth_dare_rounds')
-      .update({ question: q, status: 'answering' })
-      .eq('id', currentRound.id);
+    setActionLoading(true);
+    try {
+      const { error: roundErr } = await supabase
+        .from('truth_dare_rounds')
+        .update({ question: q, status: 'answering' })
+        .eq('id', currentRound.id);
 
-    // Turn passes back to chooser to answer
-    await supabase
-      .from('truth_dare_games')
-      .update({ current_turn: currentRound.chooser_id })
-      .eq('id', game!.id);
+      if (roundErr) throw roundErr;
 
-    setQuestionInput('');
+      // Turn passes back to chooser to answer
+      const { error: gameErr } = await supabase
+        .from('truth_dare_games')
+        .update({ current_turn: currentRound.chooser_id })
+        .eq('id', game!.id);
+
+      if (gameErr) throw gameErr;
+
+      setQuestionInput('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const submitAnswer = async () => {
-    if (!currentRound || !isMyTurn || currentRound.status !== 'answering') return;
+    if (!currentRound || !isMyTurn || currentRound.status !== 'answering' || actionLoading) return;
     const a = answerInput.trim();
     if (!a) {
       toast({ title: 'Answer required', variant: 'destructive' });
@@ -247,32 +270,45 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
     // Validate: only chooser can answer
     if (currentRound.chooser_id !== currentUserId) return;
 
-    // Complete round
-    await supabase
-      .from('truth_dare_rounds')
-      .update({ answer: a, status: 'completed' })
-      .eq('id', currentRound.id);
+    setActionLoading(true);
+    try {
+      // Complete round
+      const { error: roundErr } = await supabase
+        .from('truth_dare_rounds')
+        .update({ answer: a, status: 'completed' })
+        .eq('id', currentRound.id);
 
-    // Next round: swap roles
-    const nextRound = (game?.round || 1) + 1;
-    const nextChooser = currentRound.asker_id;
-    const nextAsker = currentRound.chooser_id;
+      if (roundErr) throw roundErr;
 
-    await supabase
-      .from('truth_dare_games')
-      .update({ round: nextRound, current_turn: nextChooser })
-      .eq('id', game!.id);
+      // Next round: swap roles
+      const nextRound = (game?.round || 1) + 1;
+      const nextChooser = currentRound.asker_id;
+      const nextAsker = currentRound.chooser_id;
 
-    // Create next round
-    await supabase.from('truth_dare_rounds').insert({
-      game_id: game!.id,
-      round_number: nextRound,
-      chooser_id: nextChooser,
-      asker_id: nextAsker,
-      status: 'choosing',
-    });
+      const { error: gameErr } = await supabase
+        .from('truth_dare_games')
+        .update({ round: nextRound, current_turn: nextChooser })
+        .eq('id', game!.id);
 
-    setAnswerInput('');
+      if (gameErr) throw gameErr;
+
+      // Create next round
+      const { error: nextRoundErr } = await supabase.from('truth_dare_rounds').insert({
+        game_id: game!.id,
+        round_number: nextRound,
+        chooser_id: nextChooser,
+        asker_id: nextAsker,
+        status: 'choosing',
+      });
+
+      if (nextRoundErr) throw nextRoundErr;
+
+      setAnswerInput('');
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const useSuggestion = (text: string) => {
@@ -360,9 +396,10 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
 
             <Button
               onClick={startNewGame}
+              disabled={actionLoading}
               className="w-full bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90 text-white"
             >
-              <Heart className="w-4 h-4 mr-2" />
+              {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Heart className="w-4 h-4 mr-2" />}
               Start Game
             </Button>
           </CardContent>
@@ -416,12 +453,14 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
               <div className="flex gap-3">
                 <Button
                   onClick={() => chooseType('truth')}
+                  disabled={actionLoading}
                   className="flex-1 h-20 text-lg bg-gradient-to-br from-blue-500/80 to-blue-700/80 hover:from-blue-500 hover:to-blue-700 border border-blue-400/30"
                 >
                   💭 Truth
                 </Button>
                 <Button
                   onClick={() => chooseType('dare')}
+                  disabled={actionLoading}
                   className="flex-1 h-20 text-lg bg-gradient-to-br from-[hsl(var(--lovers-primary))]/80 to-[hsl(var(--lovers-secondary))]/80 hover:opacity-90 border border-[hsl(var(--lovers-primary))]/30"
                 >
                   🔥 Dare
@@ -457,10 +496,11 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
                 <div className="flex gap-2">
                   <Button
                     onClick={sendQuestion}
-                    disabled={!questionInput.trim()}
+                    disabled={!questionInput.trim() || actionLoading}
                     className="flex-1 bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90"
                   >
-                    <Send className="w-4 h-4 mr-2" /> Send Question
+                    {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                    Send Question
                   </Button>
                   <Button
                     onClick={fetchAiSuggestions}
@@ -555,10 +595,11 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
                     />
                     <Button
                       onClick={submitAnswer}
-                      disabled={!answerInput.trim()}
+                      disabled={!answerInput.trim() || actionLoading}
                       className="w-full bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90"
                     >
-                      <Heart className="w-4 h-4 mr-2" /> Submit Answer
+                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Heart className="w-4 h-4 mr-2" />}
+                      Submit Answer
                     </Button>
                   </>
                 ) : (

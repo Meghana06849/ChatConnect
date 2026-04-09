@@ -20,12 +20,6 @@ interface TypingUser {
   display_name: string;
 }
 
-/**
- * Dedicated Dream Room chat hook.
- * - Uses separate dream_messages table
- * - Filters by shared dream_room_id
- * - Fully isolated from General Mode
- */
 export const useDreamChat = (partnerId: string | null) => {
   const [messages, setMessages] = useState<DreamMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -46,7 +40,7 @@ export const useDreamChat = (partnerId: string | null) => {
     loadUser();
   }, []);
 
-  // Compute shared dream room id (must match on both users)
+  // Compute shared dream room id
   useEffect(() => {
     if (!currentUserId || !partnerId) {
       setDreamRoomId(null);
@@ -54,7 +48,6 @@ export const useDreamChat = (partnerId: string | null) => {
       setTypingUsers([]);
       return;
     }
-
     setDreamRoomId(getDreamRoomId(currentUserId, partnerId));
   }, [currentUserId, partnerId]);
 
@@ -138,6 +131,7 @@ export const useDreamChat = (partnerId: string | null) => {
       metadata: metadata || null,
     };
 
+    // Optimistic insert
     setMessages(prev => [...prev, tempMessage]);
 
     try {
@@ -162,12 +156,14 @@ export const useDreamChat = (partnerId: string | null) => {
       if (error) throw error;
 
       if (data) {
+        // Replace temp message with real one
         setMessages(prev => prev.map(msg => (msg.id === tempId ? (data as DreamMessage) : msg)));
       }
 
       setTyping(false);
       return true;
     } catch (error: any) {
+      // Remove temp message on failure
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       toast({
         title: 'Error sending dream message',
@@ -196,12 +192,17 @@ export const useDreamChat = (partnerId: string | null) => {
         const msg = payload.new as DreamMessage;
 
         setMessages(prev => {
-          if (prev.some(existing => existing.id === msg.id)) {
-            return prev;
-          }
-          return [...prev, msg];
+          // Skip if already exists (including temp messages replaced by real ones)
+          if (prev.some(existing => existing.id === msg.id)) return prev;
+          // Also remove any temp message from same sender at ~same time
+          const filtered = prev.filter(existing => {
+            if (!existing.id.startsWith('temp-')) return true;
+            return existing.sender_id !== msg.sender_id;
+          });
+          return [...filtered, msg];
         });
 
+        // Auto mark as read if from partner
         if (msg.sender_id === partnerId) {
           supabase
             .from('dream_messages')
@@ -231,6 +232,8 @@ export const useDreamChat = (partnerId: string | null) => {
 
         if (data.typing) {
           setTypingUsers([{ user_id: partnerId, display_name: 'Partner' }]);
+          // Auto-clear after 4s
+          setTimeout(() => setTypingUsers([]), 4000);
         } else {
           setTypingUsers([]);
         }

@@ -38,12 +38,18 @@ export const useChatSettings = (conversationId: string | null) => {
       if (data) {
         setSettings(data as ChatSettings);
       } else {
-        // Return default settings
+        // Return default settings, check localStorage for wallpaper
+        let cachedWallpaper: string | null = null;
+        try {
+          cachedWallpaper = localStorage.getItem(`wallpaper_${conversationId}`);
+        } catch (e) {}
+        
         setSettings({
           user_id: user.id,
           conversation_id: conversationId,
           is_muted: false,
-          disappearing_mode: 'off'
+          disappearing_mode: 'off',
+          wallpaper_url: cachedWallpaper,
         });
       }
     } catch (error: any) {
@@ -104,10 +110,22 @@ export const useChatSettings = (conversationId: string | null) => {
     await updateSettings({ disappearing_mode: mode });
   }, [updateSettings]);
 
-  // Set wallpaper
+  // Set wallpaper (persist to both DB and localStorage)
   const setWallpaper = useCallback(async (url: string | null) => {
+    // Persist to localStorage for instant recovery after refresh
+    if (conversationId) {
+      try {
+        if (url) {
+          localStorage.setItem(`wallpaper_${conversationId}`, url);
+        } else {
+          localStorage.removeItem(`wallpaper_${conversationId}`);
+        }
+      } catch (e) {
+        // localStorage may be full or blocked
+      }
+    }
     await updateSettings({ wallpaper_url: url });
-  }, [updateSettings]);
+  }, [conversationId, updateSettings]);
 
   return {
     settings,
