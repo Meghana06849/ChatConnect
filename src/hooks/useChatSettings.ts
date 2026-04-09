@@ -38,12 +38,18 @@ export const useChatSettings = (conversationId: string | null) => {
       if (data) {
         setSettings(data as ChatSettings);
       } else {
-        // Return default settings
+        // Return default settings, check localStorage for wallpaper
+        let cachedWallpaper: string | null = null;
+        try {
+          cachedWallpaper = localStorage.getItem(`wallpaper_${conversationId}`);
+        } catch (e) {}
+        
         setSettings({
           user_id: user.id,
           conversation_id: conversationId,
           is_muted: false,
-          disappearing_mode: 'off'
+          disappearing_mode: 'off',
+          wallpaper_url: cachedWallpaper,
         });
       }
     } catch (error: any) {
