@@ -104,10 +104,22 @@ export const useChatSettings = (conversationId: string | null) => {
     await updateSettings({ disappearing_mode: mode });
   }, [updateSettings]);
 
-  // Set wallpaper
+  // Set wallpaper (persist to both DB and localStorage)
   const setWallpaper = useCallback(async (url: string | null) => {
+    // Persist to localStorage for instant recovery after refresh
+    if (conversationId) {
+      try {
+        if (url) {
+          localStorage.setItem(`wallpaper_${conversationId}`, url);
+        } else {
+          localStorage.removeItem(`wallpaper_${conversationId}`);
+        }
+      } catch (e) {
+        // localStorage may be full or blocked
+      }
+    }
     await updateSettings({ wallpaper_url: url });
-  }, [updateSettings]);
+  }, [conversationId, updateSettings]);
 
   return {
     settings,
