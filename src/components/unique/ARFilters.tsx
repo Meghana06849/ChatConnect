@@ -91,8 +91,8 @@ export const ARFilters: React.FC<ARFiltersProps> = ({ onSendImage }) => {
       onSendImage(file);
       toast({ title: '📸 Image sent!', description: `Sent with ${filters.find(f => f.id === selectedFilter)?.name} filter` });
       resetState();
-    } catch (err: any) {
-      toast({ title: 'Failed to send', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Failed to send', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
     } finally {
       setSending(false);
     }

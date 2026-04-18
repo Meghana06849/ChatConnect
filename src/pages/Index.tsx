@@ -9,22 +9,46 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStorageKey, setOnboardingStorageKey] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const getOnboardingStorageKey = (userId: string) => `chatconnect_onboarding_completed_${userId}`;
+  const legacyOnboardingKey = 'chatconnect_onboarding_completed';
+
+  const hasCompletedOnboarding = (storageKey: string) => {
+    const userSpecificCompletion = localStorage.getItem(storageKey);
+
+    if (userSpecificCompletion) {
+      return true;
+    }
+
+    const legacyCompletion = localStorage.getItem(legacyOnboardingKey);
+    if (legacyCompletion) {
+      localStorage.setItem(storageKey, legacyCompletion);
+      return true;
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
+      const nextUser = session?.user ?? null;
+      const nextStorageKey = nextUser ? getOnboardingStorageKey(nextUser.id) : null;
+
+      setUser(nextUser);
+      setOnboardingStorageKey(nextStorageKey);
+
+      if (nextUser && nextStorageKey) {
         // Check if user has completed onboarding
-        const hasCompletedOnboarding = localStorage.getItem('chatconnect_onboarding_completed');
-        
-        if (!hasCompletedOnboarding) {
+        if (!hasCompletedOnboarding(nextStorageKey)) {
           setShowOnboarding(true);
         } else {
           navigate('/dashboard');
         }
+      } else {
+        setShowOnboarding(false);
       }
       setLoading(false);
     });
@@ -32,17 +56,21 @@ const Index = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setUser(session?.user ?? null);
+        const nextUser = session?.user ?? null;
+        const nextStorageKey = nextUser ? getOnboardingStorageKey(nextUser.id) : null;
+
+        setUser(nextUser);
+        setOnboardingStorageKey(nextStorageKey);
         
-        if (session?.user && event === 'SIGNED_IN') {
+        if (nextUser && event === 'SIGNED_IN' && nextStorageKey) {
           // For new signups, show onboarding
-          const hasCompletedOnboarding = localStorage.getItem('chatconnect_onboarding_completed');
-          
-          if (!hasCompletedOnboarding) {
+          if (!hasCompletedOnboarding(nextStorageKey)) {
             setShowOnboarding(true);
           } else {
             navigate('/dashboard');
           }
+        } else if (!nextUser) {
+          setShowOnboarding(false);
         }
         setLoading(false);
       }
@@ -64,8 +92,8 @@ const Index = () => {
     );
   }
 
-  if (showOnboarding && user) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  if (showOnboarding && user && onboardingStorageKey) {
+    return <OnboardingFlow storageKey={onboardingStorageKey} onComplete={handleOnboardingComplete} />;
   }
 
   if (user) {

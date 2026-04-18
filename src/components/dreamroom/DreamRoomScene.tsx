@@ -16,7 +16,9 @@ interface DreamRoomSceneProps {
   onToggleMute: () => void;
   callDuration: number;
   onNavigate: (view: 'calendar' | 'vault' | 'games' | 'main') => void;
-  profile: any;
+  profile: {
+    avatar_url?: string | null;
+  } | null;
 }
 
 export const DreamRoomScene: React.FC<DreamRoomSceneProps> = ({

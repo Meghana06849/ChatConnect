@@ -343,6 +343,10 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
         onMuteToggle={toggleMute}
         onDisappearingModeChange={setDisappearingMode}
         onWallpaperChange={() => setShowWallpaperDialog(true)}
+        onWallpaperReset={async () => {
+          await setWallpaper(null);
+          refreshSettings();
+        }}
         onBlock={() => setShowBlockConfirm(true)}
         onRemoveFriend={() => setShowRemoveFriendConfirm(true)}
         onClearChat={() => setShowClearChatConfirm(true)}
@@ -377,7 +381,7 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
-              await blockUser(selectedContact.id);
+              await blockUser(selectedContact.id, { isLoversMode: true });
               setShowBlockConfirm(false);
               setShowSettings(false);
               onBack?.();
@@ -396,7 +400,7 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
-              await removeFriend(selectedContact.id);
+              await removeFriend(selectedContact.id, { isLoversMode: true });
               setShowRemoveFriendConfirm(false);
               setShowSettings(false);
               onBack?.();
@@ -415,7 +419,7 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={async () => {
-              if (conversationId) await clearChat(conversationId);
+              if (conversationId) await clearChat(conversationId, { isLoversMode: true });
               setShowClearChatConfirm(false);
               setShowSettings(false);
             }}>Clear</AlertDialogAction>

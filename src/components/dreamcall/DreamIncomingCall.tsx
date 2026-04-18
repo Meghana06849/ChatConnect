@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Heart, X } from 'lucide-react';
@@ -29,6 +29,67 @@ export const DreamIncomingCall: React.FC<DreamIncomingCallProps> = ({
   onReject
 }) => {
   const stars = useMemo(() => generateStars(40), []);
+
+  useEffect(() => {
+    let intervalId: number | null = null;
+    let audioContext: AudioContext | null = null;
+
+    const playRingTone = () => {
+      try {
+        const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!Ctx) return;
+        if (!audioContext) {
+          audioContext = new Ctx();
+        }
+        if (audioContext.state === 'suspended') {
+          void audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(760, now);
+        osc.frequency.linearRampToValueAtTime(620, now + 0.18);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } catch {
+        // Ignore browser audio restrictions.
+      }
+    };
+
+    playRingTone();
+    intervalId = window.setInterval(playRingTone, 1600);
+
+    if ('vibrate' in navigator) {
+      const vibrateId = window.setInterval(() => {
+        navigator.vibrate([180, 90, 180]);
+      }, 1800);
+
+      return () => {
+        if (intervalId) window.clearInterval(intervalId);
+        window.clearInterval(vibrateId);
+        navigator.vibrate(0);
+        if (audioContext) {
+          void audioContext.close();
+        }
+      };
+    }
+
+    return () => {
+      if (intervalId) window.clearInterval(intervalId);
+      if (audioContext) {
+        void audioContext.close();
+      }
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">

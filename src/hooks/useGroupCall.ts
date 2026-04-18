@@ -30,7 +30,15 @@ interface GroupCallSignal {
   fromName?: string;
   to?: string;
   roomId: string;
-  data?: any;
+  data?: unknown;
+}
+
+interface GroupCallMessageRow {
+  id: string;
+  user_id: string;
+  from_name: string | null;
+  text: string;
+  created_at: string;
 }
 
 interface UseGroupCallReturn {
@@ -57,13 +65,30 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
 };
 
-const toChatMessage = (row: any): GroupCallChatMessage => ({
+const toChatMessage = (row: GroupCallMessageRow): GroupCallChatMessage => ({
   id: row.id,
   from: row.user_id,
   fromName: row.from_name || 'Unknown',
   text: row.text,
   sentAt: row.created_at,
 });
+
+const isSessionDescriptionInit = (value: unknown): value is RTCSessionDescriptionInit => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const type = (value as { type?: unknown }).type;
+  return type === 'offer' || type === 'answer' || type === 'pranswer' || type === 'rollback';
+};
+
+const isIceCandidateInit = (value: unknown): value is RTCIceCandidateInit => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = (value as { candidate?: unknown }).candidate;
+  return typeof candidate === 'string';
+};
+
+const isScreenStatusPayload = (value: unknown): value is { isSharing: boolean } => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return typeof (value as { isSharing?: unknown }).isSharing === 'boolean';
+};
 
 export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -79,6 +104,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const handleSignalRef = useRef<(signal: GroupCallSignal) => Promise<void>>(async () => {});
   const durationInterval = useRef<number | null>(null);
   const userNameRef = useRef<string>('');
 
@@ -288,7 +314,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
     (channel: ReturnType<typeof supabase.channel>, targetRoomId: string) => {
       channel
         .on('broadcast', { event: 'group-call-signal' }, async ({ payload }) => {
-          await handleSignal(payload as GroupCallSignal);
+          await handleSignalRef.current(payload as GroupCallSignal);
         })
         .on('postgres_changes', {
           event: 'INSERT',
@@ -296,10 +322,26 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
           table: 'group_call_messages',
           filter: `room_id=eq.${targetRoomId}`,
         }, (payload) => {
-          const row: any = (payload as any).new;
-          if (!row?.id) return;
+          const payloadRecord = payload as { new?: unknown };
+          if (!payloadRecord.new || typeof payloadRecord.new !== 'object') return;
 
-          const msg = toChatMessage(row);
+          const row = payloadRecord.new as Partial<GroupCallMessageRow>;
+          if (
+            typeof row.id !== 'string' ||
+            typeof row.user_id !== 'string' ||
+            typeof row.text !== 'string' ||
+            typeof row.created_at !== 'string'
+          ) {
+            return;
+          }
+
+          const msg = toChatMessage({
+            id: row.id,
+            user_id: row.user_id,
+            from_name: typeof row.from_name === 'string' ? row.from_name : null,
+            text: row.text,
+            created_at: row.created_at,
+          });
           setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
         });
     },
@@ -406,6 +448,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
         case 'offer': {
           if (signal.to !== userId) return;
+          if (!isSessionDescriptionInit(signal.data)) return;
 
           const answerPc = await createPeerConnection(signal.from, signal.fromName || 'Unknown');
           await answerPc.setRemoteDescription(new RTCSessionDescription(signal.data));
@@ -424,6 +467,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
         case 'answer': {
           if (signal.to !== userId) return;
+          if (!isSessionDescriptionInit(signal.data)) return;
           const existingPc = peerConnections.current.get(signal.from);
           if (existingPc) {
             await existingPc.setRemoteDescription(new RTCSessionDescription(signal.data));
@@ -434,7 +478,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
         case 'ice-candidate': {
           if (signal.to !== userId) return;
           const icePc = peerConnections.current.get(signal.from);
-          if (icePc && signal.data) {
+          if (icePc && isIceCandidateInit(signal.data)) {
             try {
               await icePc.addIceCandidate(new RTCIceCandidate(signal.data));
             } catch (error) {
@@ -446,7 +490,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
         case 'screen-status': {
           if (signal.to !== userId) return;
-          const sharing = Boolean(signal.data?.isSharing);
+          const sharing = isScreenStatusPayload(signal.data) ? signal.data.isSharing : false;
           setParticipantScreenStatus(signal.from, sharing);
           break;
         }
@@ -481,6 +525,10 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
       setParticipantScreenStatus,
     ]
   );
+
+  useEffect(() => {
+    handleSignalRef.current = handleSignal;
+  }, [handleSignal]);
 
   const leaveRoom = useCallback(() => {
     const currentRoomId = roomId;

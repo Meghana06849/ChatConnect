@@ -64,8 +64,9 @@ export const ForgotPinDialog: React.FC<ForgotPinDialogProps> = ({ open, onOpenCh
 
       setStep('done');
       toast({ title: 'PIN Reset! 💕', description: 'Your new PIN is active' });
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message || 'Something went wrong', variant: 'destructive' });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Something went wrong';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }

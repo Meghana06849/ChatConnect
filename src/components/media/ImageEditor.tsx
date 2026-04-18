@@ -119,40 +119,45 @@ export const ImageEditor: React.FC<ImageEditorProps> = ({ isOpen, onClose, onSav
     setSaving(true);
     
     try {
-      // Convert canvas to blob
-      canvas.toBlob(async (blob) => {
-        if (!blob) throw new Error('Failed to create image blob');
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((createdBlob) => {
+          if (!createdBlob) {
+            reject(new Error('Failed to create image blob'));
+            return;
+          }
+          resolve(createdBlob);
+        }, 'image/png');
+      });
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-        // Upload to Supabase storage
-        const fileName = `${user.id}/edited_${Date.now()}.png`;
-        const { error: uploadError } = await supabase.storage
-          .from('media')
-          .upload(fileName, blob);
+      // Upload to Supabase storage
+      const fileName = `${user.id}/edited_${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(fileName, blob);
 
-        if (uploadError) throw uploadError;
+      if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage
-          .from('media')
-          .getPublicUrl(fileName);
+      const { data } = supabase.storage
+        .from('media')
+        .getPublicUrl(fileName);
 
-        if (onSave) {
-          onSave(data.publicUrl);
-        }
+      if (onSave) {
+        onSave(data.publicUrl);
+      }
 
-        toast({
-          title: "Image saved!",
-          description: "Your edited image has been saved to your media.",
-        });
+      toast({
+        title: "Image saved!",
+        description: "Your edited image has been saved to your media.",
+      });
 
-        onClose();
-      }, 'image/png');
-    } catch (error: any) {
+      onClose();
+    } catch (error: unknown) {
       toast({
         title: "Save failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

@@ -8,6 +8,7 @@ import { LoveCoinsProvider } from "@/contexts/LoveCoinsContext";
 import { CallProvider } from "@/components/features/CallProvider";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import MomentsPage from "./pages/MomentsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/moments" element={<MomentsPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

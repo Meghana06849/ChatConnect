@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,19 +32,24 @@ export const WebRTCCall: React.FC<WebRTCCallProps> = ({
   
   const { toast } = useToast();
 
-  useEffect(() => {
-    setupCall();
-    const interval = setInterval(() => {
-      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
-    }, 1000);
+  const saveCallHistory = useCallback(async (status: string, duration: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    return () => {
-      clearInterval(interval);
-      cleanup();
-    };
-  }, []);
+      await supabase.from('call_history').insert({
+        caller_id: user.id,
+        callee_id: contactId,
+        call_type: isVideoCall ? 'video' : 'voice',
+        duration_seconds: duration,
+        status
+      });
+    } catch (error) {
+      console.error('Error saving call history:', error);
+    }
+  }, [contactId, isVideoCall]);
 
-  const setupCall = async () => {
+  const setupCall = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -86,32 +91,27 @@ export const WebRTCCall: React.FC<WebRTCCallProps> = ({
         variant: "destructive"
       });
     }
-  };
+  }, [isVideoCall, toast, saveCallHistory]);
 
-  const cleanup = async () => {
+  const cleanup = useCallback(async () => {
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     peerConnectionRef.current?.close();
     
     // Update call history with duration
     await saveCallHistory('completed', callDuration);
-  };
+  }, [callDuration, saveCallHistory]);
 
-  const saveCallHistory = async (status: string, duration: number) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  useEffect(() => {
+    setupCall();
+    const interval = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTime) / 1000));
+    }, 1000);
 
-      await supabase.from('call_history').insert({
-        caller_id: user.id,
-        callee_id: contactId,
-        call_type: isVideoCall ? 'video' : 'voice',
-        duration_seconds: duration,
-        status
-      });
-    } catch (error) {
-      console.error('Error saving call history:', error);
-    }
-  };
+    return () => {
+      clearInterval(interval);
+      cleanup();
+    };
+  }, [callStartTime, cleanup, setupCall]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {

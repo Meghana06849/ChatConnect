@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,18 +67,6 @@ export const LoveVault: React.FC = () => {
     tags: [] as string[]
   });
 
-  useEffect(() => {
-    // Check if PIN is stored in session
-    const storedPin = sessionStorage.getItem('vault_pin');
-    if (storedPin) {
-      setPin(storedPin);
-      setIsPinVerified(true);
-      fetchItems();
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
   const verifyPin = async () => {
     try {
       const { data: valid, error } = await supabase.rpc('verify_lovers_pin', { _pin: pin });
@@ -118,7 +106,7 @@ export const LoveVault: React.FC = () => {
     }
   };
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -141,7 +129,19 @@ export const LoveVault: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    // Check if PIN is stored in session
+    const storedPin = sessionStorage.getItem('vault_pin');
+    if (storedPin) {
+      setPin(storedPin);
+      setIsPinVerified(true);
+      fetchItems();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchItems]);
 
   const uploadItem = async () => {
     try {

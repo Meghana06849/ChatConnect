@@ -81,11 +81,12 @@ export const ChatWallpaperUpload: React.FC<ChatWallpaperUploadProps> = ({
 
       onUploadComplete(publicUrl);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not upload wallpaper';
       console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "Could not upload wallpaper",
+        description: message,
         variant: "destructive"
       });
     } finally {

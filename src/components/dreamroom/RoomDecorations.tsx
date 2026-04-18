@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, X, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useProfile } from '@/hooks/useProfile';
 
 interface Decoration {
@@ -11,6 +12,15 @@ interface Decoration {
   y: number;
   placedBy: string;
 }
+
+type DecorationJson = {
+  id: string;
+  emoji: string;
+  label: string;
+  x: number;
+  y: number;
+  placedBy: string;
+};
 
 const DECORATION_OPTIONS = [
   { emoji: '🌹', label: 'Rose' },
@@ -32,6 +42,51 @@ export const RoomDecorations: React.FC = () => {
   const userId = profile?.user_id;
   const partnerId = profile?.lovers_partner_id;
 
+  const toJsonDecorations = useCallback(
+    (items: Decoration[]): DecorationJson[] =>
+      items.map((item) => ({
+        id: item.id,
+        emoji: item.emoji,
+        label: item.label,
+        x: item.x,
+        y: item.y,
+        placedBy: item.placedBy,
+      })),
+    []
+  );
+
+  const parseDecorations = useCallback((value: Json): Decoration[] => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+    const raw = (value as { decorations?: unknown }).decorations;
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+        const obj = entry as Record<string, unknown>;
+        if (
+          typeof obj.id !== 'string' ||
+          typeof obj.emoji !== 'string' ||
+          typeof obj.label !== 'string' ||
+          typeof obj.x !== 'number' ||
+          typeof obj.y !== 'number' ||
+          typeof obj.placedBy !== 'string'
+        ) {
+          return null;
+        }
+
+        return {
+          id: obj.id,
+          emoji: obj.emoji,
+          label: obj.label,
+          x: obj.x,
+          y: obj.y,
+          placedBy: obj.placedBy,
+        } as Decoration;
+      })
+      .filter((item): item is Decoration => item !== null);
+  }, []);
+
   // Load decorations from dream_features
   useEffect(() => {
     if (!userId || !partnerId) return;
@@ -42,10 +97,7 @@ export const RoomDecorations: React.FC = () => {
         .eq('feature_type', 'room_decoration')
         .or(`user_id.eq.${userId},partner_id.eq.${userId}`);
       if (data) {
-        const items: Decoration[] = data.flatMap(row => {
-          const d = row.data as any;
-          return d.decorations || [];
-        });
+        const items: Decoration[] = data.flatMap((row) => parseDecorations(row.data));
         setDecorations(items);
       }
     };
@@ -63,7 +115,7 @@ export const RoomDecorations: React.FC = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [userId, partnerId]);
+  }, [userId, partnerId, parseDecorations]);
 
   const saveDecorations = useCallback(async (newDecorations: Decoration[]) => {
     if (!userId || !partnerId) return;
@@ -78,7 +130,7 @@ export const RoomDecorations: React.FC = () => {
       feature_type: 'room_decoration',
       user_id: userId,
       partner_id: partnerId,
-      data: { decorations: newDecorations } as any,
+      data: { decorations: toJsonDecorations(newDecorations) } as Json,
     };
 
     if (existing) {
@@ -86,7 +138,7 @@ export const RoomDecorations: React.FC = () => {
     } else {
       await supabase.from('dream_features').insert(payload);
     }
-  }, [userId, partnerId]);
+  }, [userId, partnerId, toJsonDecorations]);
 
   const handlePlaceDecoration = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!placing || !userId) return;

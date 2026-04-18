@@ -11,12 +11,20 @@ interface PushPayload {
   title: string;
   body: string;
   tag?: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
+interface PushSubscriptionRow {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
 async function sendWebPush(
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: { title: string; body: string; tag?: string; data?: Record<string, any> }
+  subscription: PushSubscriptionRow,
+  payload: { title: string; body: string; tag?: string; data?: Record<string, unknown> }
 ): Promise<boolean> {
   try {
     const notificationPayload = JSON.stringify({
@@ -51,7 +59,7 @@ async function sendWebPush(
 
 // Check if caller has a valid relationship with target user (conversation, contact, or group)
 async function hasRelationshipWithUser(
-  supabase: any,
+  supabase: SupabaseClient,
   callerId: string,
   targetUserId: string
 ): Promise<boolean> {
@@ -80,7 +88,7 @@ async function hasRelationshipWithUser(
     .eq('user_id', callerId);
 
   if (callerConversations && callerConversations.length > 0) {
-    const conversationIds = callerConversations.map((c: any) => c.conversation_id);
+    const conversationIds = callerConversations.map((conversation: { conversation_id: string }) => conversation.conversation_id);
     
     const { data: sharedParticipant } = await supabase
       .from('conversation_participants')
@@ -101,7 +109,7 @@ async function hasRelationshipWithUser(
     .eq('user_id', callerId);
 
   if (callerGroups && callerGroups.length > 0) {
-    const groupIds = callerGroups.map((g: any) => g.group_id);
+    const groupIds = callerGroups.map((group: { group_id: string }) => group.group_id);
     
     const { data: sharedGroup } = await supabase
       .from('group_members')
@@ -236,7 +244,7 @@ serve(async (req) => {
 
     // Send push to all subscribed devices
     const results = await Promise.allSettled(
-      subscriptions.map((sub: any) =>
+      subscriptions.map((sub: PushSubscriptionRow) =>
         sendWebPush(
           { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
           { title, body, tag, data }

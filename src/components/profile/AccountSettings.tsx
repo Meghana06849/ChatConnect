@@ -75,10 +75,10 @@ export const AccountSettings: React.FC = () => {
           description: 'This User ID is available',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error checking availability',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to check availability',
         variant: 'destructive'
       });
     } finally {
@@ -102,8 +102,9 @@ export const AccountSettings: React.FC = () => {
         title: 'User ID Updated!',
         description: 'Your custom User ID has been saved',
       });
-    } catch (error: any) {
-      if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('unique') || message.includes('duplicate')) {
         toast({
           title: 'User ID Taken',
           description: 'This User ID is already in use',
@@ -112,7 +113,7 @@ export const AccountSettings: React.FC = () => {
       } else {
         toast({
           title: 'Error saving User ID',
-          description: error.message,
+          description: message || 'Failed to save User ID',
           variant: 'destructive'
         });
       }

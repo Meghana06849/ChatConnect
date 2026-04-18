@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,11 +63,7 @@ export const GroupManager: React.FC = () => {
     isPrivate: false
   });
 
-  useEffect(() => {
-    loadGroups();
-  }, []);
-
-  const loadGroups = async () => {
+  const loadGroups = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('groups')
@@ -87,16 +83,20 @@ export const GroupManager: React.FC = () => {
       })) || [];
 
       setGroups(processedGroups);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading groups",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   const createGroup = async () => {
     if (!newGroup.name.trim()) {
@@ -145,10 +145,10 @@ export const GroupManager: React.FC = () => {
       setNewGroup({ name: '', description: '', isPrivate: false });
       setShowCreateDialog(false);
       loadGroups();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error creating group",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
@@ -173,10 +173,10 @@ export const GroupManager: React.FC = () => {
       })) || [];
 
       setGroupMembers(members as GroupMember[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading members",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
@@ -239,7 +239,7 @@ export const GroupManager: React.FC = () => {
             <CreateGroup 
               onClose={() => setShowCreateGroup(false)}
               onGroupCreated={(group) => {
-                setGroups(prev => [group, ...prev]);
+                setGroups(prev => [group as Group, ...prev]);
                 setShowCreateGroup(false);
               }}
             />

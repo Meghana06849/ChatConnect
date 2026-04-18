@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { getDreamRoomId } from '@/lib/dreamRoom';
 
@@ -12,7 +13,7 @@ interface DreamMessage {
   message_type: string;
   created_at: string;
   read_at?: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown> | null;
 }
 
 interface TypingUser {
@@ -29,7 +30,15 @@ export const useDreamChat = (partnerId: string | null) => {
   const { toast } = useToast();
 
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const partnerTypingTimeoutRef = useRef<NodeJS.Timeout>();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  interface TypingBroadcastPayload {
+    user_id: string;
+    partner_id: string;
+    dream_room_id: string;
+    typing: boolean;
+  }
 
   // Load current user
   useEffect(() => {
@@ -65,10 +74,11 @@ export const useDreamChat = (partnerId: string | null) => {
 
       if (error) throw error;
       setMessages((data || []) as DreamMessage[]);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: 'Error loading dream messages',
-        description: error.message,
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -115,7 +125,7 @@ export const useDreamChat = (partnerId: string | null) => {
     }
   }, [currentUserId, partnerId, dreamRoomId]);
 
-  const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, any>) => {
+  const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, unknown>) => {
     if (!dreamRoomId || !currentUserId || !partnerId || !content.trim()) return false;
 
     const tempId = `temp-${Date.now()}`;
@@ -135,7 +145,14 @@ export const useDreamChat = (partnerId: string | null) => {
     setMessages(prev => [...prev, tempMessage]);
 
     try {
-      const insertData: any = {
+      const insertData: {
+        dream_room_id: string;
+        sender_id: string;
+        partner_id: string;
+        content: string;
+        message_type: string;
+        metadata?: Json;
+      } = {
         dream_room_id: dreamRoomId,
         sender_id: currentUserId,
         partner_id: partnerId,
@@ -144,12 +161,12 @@ export const useDreamChat = (partnerId: string | null) => {
       };
 
       if (metadata && Object.keys(metadata).length > 0) {
-        insertData.metadata = metadata;
+        insertData.metadata = metadata as Json;
       }
 
       const { data, error } = await supabase
         .from('dream_messages')
-        .insert([insertData])
+        .insert(insertData)
         .select('*')
         .single();
 
@@ -162,12 +179,13 @@ export const useDreamChat = (partnerId: string | null) => {
 
       setTyping(false);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       // Remove temp message on failure
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       toast({
         title: 'Error sending dream message',
-        description: error.message,
+        description: message,
         variant: 'destructive',
       });
       return false;
@@ -220,22 +238,31 @@ export const useDreamChat = (partnerId: string | null) => {
         const msg = payload.new as DreamMessage;
         setMessages(prev => prev.map(m => (m.id === msg.id ? msg : m)));
       })
-      .on('broadcast', { event: 'typing' }, (payload: any) => {
-        const data = payload.payload;
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const data = payload.payload as TypingBroadcastPayload | undefined;
 
         if (
           data?.dream_room_id !== dreamRoomId ||
-          data?.user_id !== partnerId
+          data?.user_id !== partnerId ||
+          data?.partner_id !== currentUserId
         ) {
           return;
+        }
+
+        if (partnerTypingTimeoutRef.current) {
+          clearTimeout(partnerTypingTimeoutRef.current);
         }
 
         if (data.typing) {
           setTypingUsers([{ user_id: partnerId, display_name: 'Partner' }]);
           // Auto-clear after 4s
-          setTimeout(() => setTypingUsers([]), 4000);
+          partnerTypingTimeoutRef.current = setTimeout(() => {
+            setTypingUsers([]);
+            partnerTypingTimeoutRef.current = undefined;
+          }, 4000);
         } else {
           setTypingUsers([]);
+          partnerTypingTimeoutRef.current = undefined;
         }
       })
       .subscribe();
@@ -247,6 +274,11 @@ export const useDreamChat = (partnerId: string | null) => {
       channelRef.current = null;
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = undefined;
+      }
+      if (partnerTypingTimeoutRef.current) {
+        clearTimeout(partnerTypingTimeoutRef.current);
+        partnerTypingTimeoutRef.current = undefined;
       }
       setTypingUsers([]);
     };

@@ -144,7 +144,9 @@ export const EmojiKeyboard: React.FC<EmojiKeyboardProps> = ({ onEmojiSelect, isL
     setRecentEmojis(newRecent);
     try {
       localStorage.setItem(RECENT_EMOJIS_KEY, JSON.stringify(newRecent));
-    } catch {}
+    } catch {
+      // Ignore localStorage write failures in private mode/quota limits.
+    }
     
     onEmojiSelect(emoji);
   };

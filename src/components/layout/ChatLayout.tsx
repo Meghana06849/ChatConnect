@@ -1,34 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
+import { useSearchParams } from 'react-router-dom';
 import { Navigation } from './Navigation';
 import { ContactsList } from '@/components/chat/ContactsList';
 import { ChatInterface } from '@/components/chat/ChatInterface';
-import { DreamRoom } from '@/components/dreamroom/DreamRoom';
-import { DreamRoomHome } from '@/components/dreamroom/DreamRoomHome';
-import { LoversUnlock } from '@/components/lovers/LoversUnlock';
-import { CallHistory } from '@/components/features/CallHistory';
-import { GamesHub } from '@/components/features/GamesHub';
-import { MoodSync } from '@/components/unique/MoodSync';
-import { CoupleChallenge } from '@/components/unique/CoupleChallenge';
-import { DisappearingMessages } from '@/components/unique/DisappearingMessages';
-import { ScreenshotDetection } from '@/components/unique/ScreenshotDetection';
-import { HeartbeatSync } from '@/components/unique/HeartbeatSync';
-import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
-import { ARFilters } from '@/components/unique/ARFilters';
-import { SecretVault } from '@/components/unique/SecretVault';
-import { DreamRoomInvite } from '@/components/unique/DreamRoomInvite';
-import { VirtualPet } from '@/components/unique/VirtualPet';
-import { MusicNotes } from '@/components/media/MusicNotes';
-import { Moments } from '@/components/stories/Moments';
-import { FriendsManager } from '@/components/friends/FriendsManager';
-import { GroupManager } from '@/components/groups/GroupManager';
-import { AdvancedSettings } from '@/components/settings/AdvancedSettings';
-import { LoveVault } from '@/components/dreamroom/LoveVault';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gamepad2, Phone, Users, Heart, Calendar } from 'lucide-react';
+import { Loader2, Gamepad2, Phone, Users, Heart, Calendar, AlertCircle, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const DreamRoom = lazy(() => import('@/components/dreamroom/DreamRoom').then((module) => ({ default: module.DreamRoom })));
+const DreamRoomHome = lazy(() => import('@/components/dreamroom/DreamRoomHome').then((module) => ({ default: module.DreamRoomHome })));
+const LoversUnlock = lazy(() => import('@/components/lovers/LoversUnlock').then((module) => ({ default: module.LoversUnlock })));
+const CallHistory = lazy(() => import('@/components/features/CallHistory').then((module) => ({ default: module.CallHistory })));
+const GamesHub = lazy(() => import('@/components/features/GamesHub').then((module) => ({ default: module.GamesHub })));
+const MoodSync = lazy(() => import('@/components/unique/MoodSync').then((module) => ({ default: module.MoodSync })));
+const CoupleChallenge = lazy(() => import('@/components/unique/CoupleChallenge').then((module) => ({ default: module.CoupleChallenge })));
+const DisappearingMessages = lazy(() => import('@/components/unique/DisappearingMessages').then((module) => ({ default: module.DisappearingMessages })));
+const ScreenshotDetection = lazy(() => import('@/components/unique/ScreenshotDetection').then((module) => ({ default: module.ScreenshotDetection })));
+const HeartbeatSync = lazy(() => import('@/components/unique/HeartbeatSync').then((module) => ({ default: module.HeartbeatSync })));
+const VoiceChangeChat = lazy(() => import('@/components/unique/VoiceChangeChat').then((module) => ({ default: module.VoiceChangeChat })));
+const ARFilters = lazy(() => import('@/components/unique/ARFilters').then((module) => ({ default: module.ARFilters })));
+const SecretVault = lazy(() => import('@/components/unique/SecretVault').then((module) => ({ default: module.SecretVault })));
+const DreamRoomInvite = lazy(() => import('@/components/unique/DreamRoomInvite').then((module) => ({ default: module.DreamRoomInvite })));
+const VirtualPet = lazy(() => import('@/components/unique/VirtualPet').then((module) => ({ default: module.VirtualPet })));
+const MusicNotes = lazy(() => import('@/components/media/MusicNotes').then((module) => ({ default: module.MusicNotes })));
+const Moments = lazy(() => import('@/components/stories/Moments').then((module) => ({ default: module.Moments })));
+const FriendsManager = lazy(() => import('@/components/friends/FriendsManager').then((module) => ({ default: module.FriendsManager })));
+const AdvancedSettings = lazy(() => import('@/components/settings/AdvancedSettings').then((module) => ({ default: module.AdvancedSettings })));
+const LoveVault = lazy(() => import('@/components/dreamroom/LoveVault').then((module) => ({ default: module.LoveVault })));
+
+const SectionLoading = () => (
+  <div className="flex-1 p-6 flex items-center justify-center">
+    <div className="flex items-center gap-3 text-muted-foreground">
+      <Loader2 className="w-5 h-5 animate-spin" />
+      <span>Loading section...</span>
+    </div>
+  </div>
+);
 
 interface Contact {
   id: string;
@@ -45,11 +55,45 @@ interface Contact {
 export const ChatLayout = () => {
   const { mode } = useChat();
   const { profile } = useProfile();
+  const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState('home');
   const [selectedContact, setSelectedContact] = useState<Contact | undefined>();
   const [loveStreak, setLoveStreak] = useState(0);
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
   
   const isLoversMode = mode === 'lovers';
+  const isDreamRoomTime = currentHour >= 0 && currentHour < 6; // 12am-6am
+
+  // Update hour every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Deep-link support for ?section=dreamroom
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section && isLoversMode && isDreamRoomTime) {
+      if (section === 'dreamroom') {
+        setActiveSection('dreamroom');
+      }
+    }
+  }, [searchParams, isLoversMode, isDreamRoomTime]);
+
+  useEffect(() => {
+    const loversOnlySections = new Set(['games', 'dreamroom', 'dreamroom-call', 'dreamroom-video-call', 'dream-invite', 'virtual-pet', 'mood-sync', 'couple-challenge', 'vault', 'secret-vault']);
+    if (!isLoversMode && loversOnlySections.has(activeSection)) {
+      setActiveSection('home');
+      setSelectedContact(undefined);
+    }
+  }, [isLoversMode, activeSection]);
+
+  // Reset selected contact when switching modes so chats don't bleed across modes.
+  useEffect(() => {
+    setSelectedContact(undefined);
+  }, [mode]);
   
   // Load love streak data
   useEffect(() => {
@@ -72,9 +116,18 @@ export const ChatLayout = () => {
     }
   }, [profile, isLoversMode]);
   
-  // Check if it's after 6 PM for night theme
-  const currentHour = new Date().getHours();
-  const isNightTime = currentHour >= 18 || currentHour <= 6;
+  // Check if it's after 6 PM for night theme (for other sections)
+  const isNightTime = currentHour >= 18;
+
+  const backgroundStyle: React.CSSProperties = isLoversMode
+    ? {
+        background:
+          'radial-gradient(1200px 600px at 10% -10%, hsl(var(--lovers-primary) / 0.14), transparent 55%), radial-gradient(1000px 650px at 90% 10%, hsl(var(--lovers-secondary) / 0.12), transparent 60%), hsl(var(--background))',
+      }
+    : {
+        background:
+          'radial-gradient(1200px 600px at 10% -10%, hsl(var(--general-primary) / 0.14), transparent 55%), radial-gradient(1000px 650px at 90% 10%, hsl(var(--general-secondary) / 0.12), transparent 60%), hsl(var(--background))',
+      };
 
   const renderContent = () => {
     switch (activeSection) {
@@ -106,139 +159,243 @@ export const ChatLayout = () => {
         );
       
       case 'settings':
-        return <AdvancedSettings />;
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <AdvancedSettings />
+          </Suspense>
+        );
       
       case 'wallpapers':
-        return <AdvancedSettings />;
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <AdvancedSettings />
+          </Suspense>
+        );
 
       case 'games':
-        return <GamesHub />;
+        if (!isLoversMode) {
+          return (
+            <div className="flex-1 p-6">
+              <div className="max-w-2xl mx-auto text-center py-16">
+                <h2 className="text-2xl font-bold mb-3">Games are available in Lovers Mode</h2>
+                <p className="text-muted-foreground">Switch to Lovers Mode to access couple games.</p>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <GamesHub />
+          </Suspense>
+        );
 
       case 'dreamroom':
-        return <DreamRoom isTimeRestricted={true} />;
+      case 'dreamroom-call':
+      case 'dreamroom-video-call':
+        if (!isDreamRoomTime) {
+          return (
+            <div className="flex-1 p-6 flex items-center justify-center">
+              <Card className="max-w-md glass border-lovers-primary/20 bg-lovers-primary/5">
+                <CardContent className="p-8 text-center">
+                  <div className="flex justify-center mb-4">
+                    <Clock className="w-12 h-12 text-lovers-secondary animate-spin" />
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2 text-lovers-primary">Dream Room Active</h2>
+                  <p className="text-muted-foreground mb-4">Only available from 12:00 AM to 6:00 AM</p>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>💤 For intimate moments</p>
+                    <p>📞 Calls & Chat only</p>
+                    <p>🎮 Games & Features</p>
+                  </div>
+                  <div className="mt-6 p-3 bg-lovers-secondary/10 rounded-lg border border-lovers-secondary/20">
+                    <p className="font-semibold text-lovers-secondary">Current time: {new Date().toLocaleTimeString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Come back during night hours</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        }
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <DreamRoom
+              isTimeRestricted={isDreamRoomTime}
+              autoStartVoiceCall={activeSection === 'dreamroom-call'}
+              autoStartVideoCall={activeSection === 'dreamroom-video-call'}
+            />
+          </Suspense>
+        );
 
       case 'stories':
-        return <Moments />;
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <Moments />
+          </Suspense>
+        );
 
       case 'calls':
-        return <CallHistory />;
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <CallHistory />
+          </Suspense>
+        );
 
         case 'friends':
-          return <FriendsManager />;
+          return (
+            <Suspense fallback={<SectionLoading />}>
+              <FriendsManager />
+            </Suspense>
+          );
           
         case 'dream-invite':
-          return <DreamRoomInvite />;
+          return (
+            <Suspense fallback={<SectionLoading />}>
+              <DreamRoomInvite />
+            </Suspense>
+          );
           
         case 'virtual-pet':
-          return <VirtualPet />;
+          return (
+            <Suspense fallback={<SectionLoading />}>
+              <VirtualPet />
+            </Suspense>
+          );
           
       case 'lovers-unlock':
-        return <LoversUnlock onSectionChange={setActiveSection} />;
+        return (
+          <Suspense fallback={<SectionLoading />}>
+            <LoversUnlock onSectionChange={setActiveSection} />
+          </Suspense>
+        );
         
       case 'mood-sync':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-2xl mx-auto">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
-                  Mood Sync
-                </h1>
-                <p className="text-muted-foreground">Share your feelings and connect emotionally</p>
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-2xl mx-auto">
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
+                    Mood Sync
+                  </h1>
+                  <p className="text-muted-foreground">Share your feelings and connect emotionally</p>
+                </div>
+                <MoodSync />
               </div>
-              <MoodSync />
             </div>
-          </div>
+          </Suspense>
         );
         
       case 'couple-challenge':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
-                  Couple Challenges
-                </h1>
-                <p className="text-muted-foreground">Complete fun challenges together to strengthen your bond</p>
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <div className="text-center mb-8">
+                  <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-lovers-primary to-lovers-secondary bg-clip-text text-transparent">
+                    Couple Challenges
+                  </h1>
+                  <p className="text-muted-foreground">Complete fun challenges together to strengthen your bond</p>
+                </div>
+                <CoupleChallenge />
               </div>
-              <CoupleChallenge />
             </div>
-          </div>
+          </Suspense>
         );
       
       case 'vault':
         return (
-          <div className="flex-1">
-            <LoveVault />
-          </div>
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1">
+              <LoveVault />
+            </div>
+          </Suspense>
         );
 
       case 'disappearing-messages':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <DisappearingMessages />
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <DisappearingMessages />
+              </div>
             </div>
-          </div>
+          </Suspense>
         );
 
       case 'screenshot-detection':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <ScreenshotDetection />
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <ScreenshotDetection />
+              </div>
             </div>
-          </div>
+          </Suspense>
         );
 
       case 'heartbeat-sync':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <HeartbeatSync />
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <HeartbeatSync />
+              </div>
             </div>
-          </div>
+          </Suspense>
         );
 
         case 'voice-change':
           return (
-            <div className="flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <VoiceChangeChat />
+            <Suspense fallback={<SectionLoading />}>
+              <div className="flex-1 p-6">
+                <div className="max-w-4xl mx-auto">
+                  <VoiceChangeChat />
+                </div>
               </div>
-            </div>
+            </Suspense>
           );
 
         case 'ar-filters':
           return (
-            <div className="flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <ARFilters />
+            <Suspense fallback={<SectionLoading />}>
+              <div className="flex-1 p-6">
+                <div className="max-w-4xl mx-auto">
+                  <ARFilters />
+                </div>
               </div>
-            </div>
+            </Suspense>
           );
 
         case 'secret-vault':
           return (
-            <div className="flex-1 p-6">
-              <div className="max-w-4xl mx-auto">
-                <SecretVault />
+            <Suspense fallback={<SectionLoading />}>
+              <div className="flex-1 p-6">
+                <div className="max-w-4xl mx-auto">
+                  <SecretVault />
+                </div>
               </div>
-            </div>
+            </Suspense>
           );
 
         case 'music-notes':
         return (
-          <div className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto">
-              <MusicNotes />
+          <Suspense fallback={<SectionLoading />}>
+            <div className="flex-1 p-6">
+              <div className="max-w-4xl mx-auto">
+                <MusicNotes />
+              </div>
             </div>
-          </div>
+          </Suspense>
         );
 
       default: // home
         // Show romantic Dream Room home for lovers mode
         if (isLoversMode) {
-          return <DreamRoomHome onNavigate={setActiveSection} />;
+          return (
+            <Suspense fallback={<SectionLoading />}>
+              <DreamRoomHome onNavigate={setActiveSection} />
+            </Suspense>
+          );
         }
         
         // General mode home
@@ -248,7 +405,7 @@ export const ChatLayout = () => {
               {/* Welcome Header */}
               <div className="text-center mb-12">
                 <div className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 bg-gradient-to-br from-general-primary/20 to-general-secondary/20">
-                  <Gamepad2 className="w-12 h-12 text-general-primary" />
+                  <Users className="w-12 h-12 text-general-primary" />
                 </div>
                 <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r bg-clip-text text-transparent from-general-primary to-general-secondary">
                   Welcome to ChatConnect
@@ -267,12 +424,7 @@ export const ChatLayout = () => {
                     desc: 'Connect with friends',
                     action: 'chats'
                   },
-                  { 
-                    icon: Gamepad2, 
-                    title: 'Mini Games', 
-                    desc: 'Fun with friends',
-                    action: 'games'
-                  },
+
                   { 
                     icon: Calendar, 
                     title: 'Daily Moments', 
@@ -316,12 +468,7 @@ export const ChatLayout = () => {
       isLoversMode ? 'mode-lovers' : 'mode-general'
     )}>
       {/* Background gradient */}
-      <div className={cn(
-        "fixed inset-0 -z-10",
-        isLoversMode 
-          ? "bg-gradient-to-br from-lovers-primary/5 via-background to-lovers-secondary/5"
-          : "bg-gradient-to-br from-general-primary/5 via-background to-general-secondary/5"
-      )} />
+      <div className="fixed inset-0 -z-10" style={backgroundStyle} />
       
       {/* Navigation - hide on mobile when in chat */}
       <div className={cn(

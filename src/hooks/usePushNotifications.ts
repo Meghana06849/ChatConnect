@@ -25,6 +25,10 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const getErrorMessage = (error: unknown): string => {
+    return error instanceof Error ? error.message : 'Unknown error';
+  };
+
   useEffect(() => {
     // Check if push notifications are supported
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -39,7 +43,7 @@ export const usePushNotifications = () => {
   const checkSubscription = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await (registration as any).pushManager.getSubscription();
+      const subscription = await registration.pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     } catch (error) {
       console.error('Error checking subscription:', error);
@@ -100,9 +104,9 @@ export const usePushNotifications = () => {
 
       // Subscribe to push notifications
       const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const subscription = await (registration as any).pushManager.subscribe({
+      const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: applicationServerKey.buffer as ArrayBuffer
+        applicationServerKey
       });
 
       const subscriptionJson = subscription.toJSON();
@@ -135,11 +139,11 @@ export const usePushNotifications = () => {
 
       setLoading(false);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error subscribing to push:', error);
       toast({
         title: 'Subscription Failed',
-        description: error.message || 'Could not enable push notifications',
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       setLoading(false);
@@ -152,7 +156,7 @@ export const usePushNotifications = () => {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await (registration as any).pushManager.getSubscription();
+      const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
         await subscription.unsubscribe();
@@ -176,11 +180,11 @@ export const usePushNotifications = () => {
 
       setLoading(false);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error unsubscribing from push:', error);
       toast({
         title: 'Error',
-        description: 'Could not disable push notifications',
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       setLoading(false);

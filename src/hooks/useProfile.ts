@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Profile {
@@ -17,15 +18,17 @@ export interface Profile {
   lovers_partner_id?: string;
   dream_room_pin?: string;
   love_coins: number;
-  privacy_settings?: any; // JSONB field - any for flexibility
+  privacy_settings?: Json | null;
 }
+
+type ProfileUpsert = Partial<Pick<Profile, 'lovers_mode_enabled' | 'dream_room_pin' | 'lovers_partner_id'>>;
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -68,17 +71,17 @@ export const useProfile = () => {
       } else {
         setProfile(profileData);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Profile error:', error);
       toast({
         title: "Error loading profile",
-        description: error.message || "Failed to load profile data",
+        description: error instanceof Error ? error.message : "Failed to load profile data",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
     try {
@@ -101,10 +104,10 @@ export const useProfile = () => {
       });
       
       return data;
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error updating profile",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
       throw error;
@@ -113,7 +116,7 @@ export const useProfile = () => {
 
   const toggleLoversMode = async (enabled: boolean, pin?: string) => {
     try {
-      const updates: any = { lovers_mode_enabled: enabled };
+      const updates: ProfileUpsert = { lovers_mode_enabled: enabled };
       if (enabled && pin) {
         updates.dream_room_pin = pin;
       } else if (!enabled) {
@@ -130,11 +133,36 @@ export const useProfile = () => {
 
   const linkLoversPartner = async (partnerId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Ensure current user is marked as Lovers Mode enabled before linking.
+      await supabase
+        .from('profiles')
+        .update({ lovers_mode_enabled: true })
+        .eq('user_id', user.id);
+
       const { data, error } = await supabase.rpc('link_lovers_partner', {
         _partner_id: partnerId,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Fallback: save pending partner link on current profile so user can continue,
+        // even if partner has not completed their side yet.
+        const { error: fallbackError } = await supabase
+          .from('profiles')
+          .update({ lovers_partner_id: partnerId, lovers_mode_enabled: true })
+          .eq('user_id', user.id);
+
+        if (fallbackError) throw error;
+
+        await loadProfile();
+        toast({
+          title: 'Partner link pending 💌',
+          description: 'Your request is saved. Ask your partner to enable Lovers Mode and link back.',
+        });
+        return true;
+      }
 
       await loadProfile();
       toast({
@@ -143,10 +171,10 @@ export const useProfile = () => {
       });
 
       return Boolean(data);
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Could not link partner',
-        description: error.message || 'Please make sure both users enabled Lovers Mode and are accepted friends.',
+        description: error instanceof Error ? error.message : 'Please make sure both users enabled Lovers Mode and are accepted friends.',
         variant: 'destructive',
       });
       return false;
@@ -165,7 +193,7 @@ export const useProfile = () => {
           last_seen: new Date().toISOString()
         })
         .eq('user_id', user.id);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating online status:', error);
     }
   };
@@ -188,7 +216,7 @@ export const useProfile = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       clearInterval(interval);
     };
-  }, []);
+  }, [loadProfile]);
 
   return {
     profile,

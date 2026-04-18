@@ -31,7 +31,7 @@ interface Friend {
 
 interface CreateGroupProps {
   onClose: () => void;
-  onGroupCreated: (group: any) => void;
+  onGroupCreated: (group: { id: string; name: string }) => void;
 }
 
 export const CreateGroup: React.FC<CreateGroupProps> = ({ onClose, onGroupCreated }) => {
@@ -215,11 +215,11 @@ export const CreateGroup: React.FC<CreateGroupProps> = ({ onClose, onGroupCreate
         description: `${groupName} has been created with ${selectedFriends.size} members`,
       });
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating group:', error);
       toast({
         title: "Failed to create group",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive"
       });
     } finally {

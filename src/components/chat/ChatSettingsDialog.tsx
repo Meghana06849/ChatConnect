@@ -17,7 +17,8 @@ import {
   Image as ImageIcon, 
   Ban,
   UserMinus,
-  Trash2
+  Trash2,
+  Palette
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ChatSettings } from '@/hooks/useChatSettings';
@@ -31,9 +32,12 @@ interface ChatSettingsDialogProps {
   onMuteToggle: () => void;
   onDisappearingModeChange: (mode: 'off' | '30s' | '1min' | 'on_seen') => void;
   onWallpaperChange: () => void;
+  onWallpaperReset: () => void;
   onBlock: () => void;
   onRemoveFriend: () => void;
   onClearChat: () => void;
+  currentTheme?: 'galaxy' | 'rainy_night' | 'sunset';
+  onThemeChange?: (theme: 'galaxy' | 'rainy_night' | 'sunset') => void;
 }
 
 export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
@@ -45,9 +49,12 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
   onMuteToggle,
   onDisappearingModeChange,
   onWallpaperChange,
+  onWallpaperReset,
   onBlock,
   onRemoveFriend,
   onClearChat,
+  currentTheme,
+  onThemeChange,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,7 +66,7 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
       )}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Chat Settings - {contactName}
+            {isLoversMode ? `Couple Space Settings - ${contactName}` : `Chat Settings - ${contactName}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -73,9 +80,11 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
                 <Bell className="w-5 h-5" />
               )}
               <div>
-                <Label>Mute Notifications</Label>
+                <Label>{isLoversMode ? 'Quiet Time' : 'Mute Notifications'}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Silence notifications from this chat
+                  {isLoversMode
+                    ? 'Pause notifications for this private couple chat'
+                    : 'Silence notifications from this chat'}
                 </p>
               </div>
             </div>
@@ -92,16 +101,18 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
             <div className="flex items-center gap-3">
               <Timer className="w-5 h-5" />
               <div>
-                <Label>Disappearing Messages</Label>
+                <Label>{isLoversMode ? 'Fading Love Notes' : 'Disappearing Messages'}</Label>
                 <p className="text-xs text-muted-foreground">
-                  Messages will auto-delete after being read
+                  {isLoversMode
+                    ? 'Messages can gently fade after they are seen'
+                    : 'Messages will auto-delete after being read'}
                 </p>
               </div>
             </div>
             
             <RadioGroup
               value={settings?.disappearing_mode || 'off'}
-              onValueChange={(value) => onDisappearingModeChange(value as any)}
+              onValueChange={(value) => onDisappearingModeChange(value as 'off' | '30s' | '1min' | 'on_seen')}
               className="grid grid-cols-2 gap-2"
             >
               <div className="flex items-center space-x-2">
@@ -126,21 +137,66 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
           <Separator className="bg-white/10" />
 
           {/* Wallpaper */}
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-3 glass border-white/20"
-            onClick={onWallpaperChange}
-          >
-            <ImageIcon className="w-5 h-5" />
-            Change Chat Wallpaper
-          </Button>
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 glass border-white/20"
+              onClick={onWallpaperChange}
+            >
+              <ImageIcon className="w-5 h-5" />
+              {isLoversMode ? 'Change Couple Wallpaper' : 'Change Chat Wallpaper'}
+            </Button>
+            {settings?.wallpaper_url && (
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 glass border-white/20 text-muted-foreground hover:text-foreground"
+                onClick={onWallpaperReset}
+              >
+                <ImageIcon className="w-5 h-5" />
+                {isLoversMode ? 'Reset Couple Wallpaper' : 'Reset to Default Wallpaper'}
+              </Button>
+            )}
+          </div>
+
+          {isLoversMode && currentTheme && onThemeChange && (
+            <>
+              <Separator className="bg-white/10" />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Palette className="w-5 h-5" />
+                  <div>
+                    <Label>Couple Theme</Label>
+                    <p className="text-xs text-muted-foreground">Choose the emotional atmosphere of your chat</p>
+                  </div>
+                </div>
+                <RadioGroup
+                  value={currentTheme}
+                  onValueChange={(value) => onThemeChange(value as 'galaxy' | 'rainy_night' | 'sunset')}
+                  className="grid grid-cols-1 gap-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="galaxy" id="theme-galaxy" />
+                    <Label htmlFor="theme-galaxy" className="text-sm cursor-pointer">Galaxy</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="rainy_night" id="theme-rainy" />
+                    <Label htmlFor="theme-rainy" className="text-sm cursor-pointer">Rainy Night</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="sunset" id="theme-sunset" />
+                    <Label htmlFor="theme-sunset" className="text-sm cursor-pointer">Sunset</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </>
+          )}
 
           <Separator className="bg-white/10" />
 
           {/* Danger Zone */}
           <div className="space-y-2">
             <Label className="text-destructive text-xs uppercase tracking-wider">
-              Danger Zone
+              {isLoversMode ? 'Sensitive Actions' : 'Danger Zone'}
             </Label>
             
             <Button
@@ -149,7 +205,7 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
               onClick={onClearChat}
             >
               <Trash2 className="w-4 h-4" />
-              Clear Chat History
+              {isLoversMode ? 'Clear Our Chat History' : 'Clear Chat History'}
             </Button>
             
             <Button
@@ -158,7 +214,7 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
               onClick={onRemoveFriend}
             >
               <UserMinus className="w-4 h-4" />
-              Remove Friend
+              {isLoversMode ? 'Leave Couple Space' : 'Remove Friend'}
             </Button>
             
             <Button
@@ -167,7 +223,7 @@ export const ChatSettingsDialog: React.FC<ChatSettingsDialogProps> = ({
               onClick={onBlock}
             >
               <Ban className="w-4 h-4" />
-              Block Contact
+              {isLoversMode ? 'Block Partner Contact' : 'Block Contact'}
             </Button>
           </div>
         </div>

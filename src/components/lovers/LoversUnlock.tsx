@@ -23,7 +23,7 @@ interface LoversUnlockProps {
 }
 
 export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) => {
-  const { switchMode } = useChat();
+  const { switchMode, setLoversPin } = useChat();
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
   const [showCreatePin, setShowCreatePin] = useState(false);
@@ -89,16 +89,22 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
       if (error) throw error;
       // Also store in profile for backward compat
       await updateProfile({ dream_room_pin: pin });
-      switchMode('lovers', pin);
+      setLoversPin(pin);
+
+      const switched = switchMode('lovers', pin);
+      if (!switched) {
+        throw new Error('PIN saved, but Lovers Mode could not be unlocked. Please try again.');
+      }
+
       onSectionChange('dreamroom');
       toast({
         title: "Welcome to Lovers Mode! 💕",
         description: "Your private space has been created"
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: "Error creating PIN",
-        description: e.message,
+        description: e instanceof Error ? e.message : 'Unknown error',
         variant: "destructive"
       });
     } finally {
@@ -119,7 +125,13 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
         if (!valid && pin === profile?.dream_room_pin) {
           await supabase.rpc('upsert_lovers_pin', { _pin: pin });
         }
-        switchMode('lovers', pin);
+
+        setLoversPin(pin);
+        const switched = switchMode('lovers', pin);
+        if (!switched) {
+          throw new Error('PIN verified, but Lovers Mode could not be unlocked. Please try again.');
+        }
+
         onSectionChange('dreamroom');
         toast({
           title: "Welcome back! 💕",
@@ -132,10 +144,10 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
           variant: "destructive"
         });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast({
         title: "Error verifying PIN",
-        description: e.message,
+        description: e instanceof Error ? e.message : 'Unknown error',
         variant: "destructive"
       });
     } finally {
@@ -287,13 +299,25 @@ export const LoversUnlock: React.FC<LoversUnlockProps> = ({ onSectionChange }) =
                 )}
               </Button>
 
-              <div className="text-center mt-4">
+              <div className="text-center mt-4 space-y-2">
                 <button
                   type="button"
                   onClick={() => setShowForgotPin(true)}
-                  className="text-sm text-muted-foreground hover:text-lovers-primary transition-colors"
+                  className="block w-full text-sm text-muted-foreground hover:text-lovers-primary transition-colors"
                 >
                   Forgot your PIN?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPin('');
+                    setConfirmPin('');
+                    setShowCreatePin(true);
+                    setShowVerifyPin(false);
+                  }}
+                  className="block w-full text-sm text-lovers-primary hover:opacity-80 transition-opacity"
+                >
+                  Create a new PIN instead
                 </button>
               </div>
             </CardContent>

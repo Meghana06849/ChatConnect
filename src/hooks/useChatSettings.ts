@@ -42,7 +42,9 @@ export const useChatSettings = (conversationId: string | null) => {
         let cachedWallpaper: string | null = null;
         try {
           cachedWallpaper = localStorage.getItem(`wallpaper_${conversationId}`);
-        } catch (e) {}
+        } catch {
+          // Ignore localStorage read failures and keep DB defaults.
+        }
         
         setSettings({
           user_id: user.id,
@@ -52,7 +54,7 @@ export const useChatSettings = (conversationId: string | null) => {
           wallpaper_url: cachedWallpaper,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading chat settings:', error);
     } finally {
       setLoading(false);
@@ -91,10 +93,11 @@ export const useChatSettings = (conversationId: string | null) => {
         title: "Settings updated",
         description: "Your chat settings have been saved.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error updating settings",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -36,13 +37,33 @@ export const VirtualPet: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadPet();
-    const interval = setInterval(updatePetStats, 60000); // Update every minute
-    return () => clearInterval(interval);
+  const createInitialPet = useCallback(async (userId: string) => {
+    const initialPet = {
+      name: 'Lovie',
+      type: 'heart',
+      level: 1,
+      happiness: 80,
+      energy: 70,
+      hunger: 60,
+      last_fed: new Date().toISOString(),
+      last_played: new Date().toISOString(),
+      last_slept: new Date().toISOString(),
+      evolution_stage: 1
+    };
+
+    const { error } = await supabase
+      .from('dream_features')
+      .insert([{
+        user_id: userId,
+        feature_type: 'virtual_pet',
+        data: initialPet as Json
+      }]);
+
+    if (error) throw error;
+    setPet(initialPet);
   }, []);
 
-  const loadPet = async () => {
+  const loadPet = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -62,46 +83,20 @@ export const VirtualPet: React.FC = () => {
         // Create initial pet
         await createInitialPet(user.id);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading pet:', error);
     }
-  };
+  }, [createInitialPet]);
 
-  const createInitialPet = async (userId: string) => {
-    const initialPet = {
-      name: 'Lovie',
-      type: 'heart',
-      level: 1,
-      happiness: 80,
-      energy: 70,
-      hunger: 60,
-      last_fed: new Date().toISOString(),
-      last_played: new Date().toISOString(),
-      last_slept: new Date().toISOString(),
-      evolution_stage: 1
-    };
-
-    const { error } = await supabase
-      .from('dream_features')
-      .insert([{
-        user_id: userId,
-        feature_type: 'virtual_pet',
-        data: initialPet
-      }]);
-
-    if (error) throw error;
-    setPet(initialPet);
-  };
-
-  const updatePetStats = async () => {
+  const updatePetStats = useCallback(async () => {
     const now = new Date();
     const hoursSinceLastFed = pet.last_fed ? 
       (now.getTime() - new Date(pet.last_fed).getTime()) / (1000 * 60 * 60) : 0;
     const hoursSinceLastPlayed = pet.last_played ? 
       (now.getTime() - new Date(pet.last_played).getTime()) / (1000 * 60 * 60) : 0;
 
-    let newHunger = Math.max(0, pet.hunger - (hoursSinceLastFed * 2));
-    let newHappiness = Math.max(0, pet.happiness - (hoursSinceLastPlayed * 1));
+    const newHunger = Math.max(0, pet.hunger - (hoursSinceLastFed * 2));
+    const newHappiness = Math.max(0, pet.happiness - (hoursSinceLastPlayed * 1));
     let newEnergy = pet.energy;
 
     // Energy decreases over time, increases with sleep
@@ -115,7 +110,13 @@ export const VirtualPet: React.FC = () => {
       happiness: newHappiness,
       energy: newEnergy
     }));
-  };
+  }, [pet]);
+
+  useEffect(() => {
+    loadPet();
+    const interval = setInterval(updatePetStats, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [loadPet, updatePetStats]);
 
   const savePet = async (updatedPet: PetData) => {
     try {
@@ -127,11 +128,11 @@ export const VirtualPet: React.FC = () => {
         .upsert([{
           user_id: user.id,
           feature_type: 'virtual_pet',
-          data: updatedPet as any
+          data: updatedPet as unknown as Json
         }], { onConflict: 'user_id,feature_type' });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving pet:', error);
     }
   };

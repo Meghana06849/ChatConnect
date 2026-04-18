@@ -127,12 +127,12 @@ export const EnhancedChatInterface: React.FC<EnhancedChatInterfaceProps> = ({ se
     setShowReactions(null);
   };
 
-  const getReactionCount = (reactions: any[], emoji: string) => {
-    return reactions?.filter((r: any) => r.emoji === emoji).length || 0;
+  const getReactionCount = (reactions: Reaction[], emoji: string) => {
+    return reactions?.filter((r) => r.emoji === emoji).length || 0;
   };
 
-  const hasUserReacted = (reactions: any[], emoji: string) => {
-    return reactions?.some((r: any) => r.emoji === emoji && r.user_id === currentUserId) || false;
+  const hasUserReacted = (reactions: Reaction[], emoji: string) => {
+    return reactions?.some((r) => r.emoji === emoji && r.user_id === currentUserId) || false;
   };
 
   if (!selectedContact) {

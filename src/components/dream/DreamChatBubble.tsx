@@ -7,6 +7,11 @@ interface Reaction {
   user_id: string;
 }
 
+interface DreamMessageMetadata {
+  duration?: string;
+  imageUrl?: string;
+}
+
 interface DreamChatBubbleProps {
   id: string;
   content: string;
@@ -15,7 +20,7 @@ interface DreamChatBubbleProps {
   createdAt: string;
   readAt?: string | null;
   reactions: Reaction[];
-  metadata?: any;
+  metadata?: DreamMessageMetadata;
   isNew?: boolean;
   onReaction?: (emoji: string) => void;
   onReply?: () => void;
@@ -62,7 +67,7 @@ const DreamDeliveryBadge: React.FC<{ status: DeliveryStatus; readAt?: string | n
   );
 };
 
-const DreamMessageContent: React.FC<{ messageType: string; content: string; metadata?: any }> = ({ messageType, content, metadata }) => {
+const DreamMessageContent: React.FC<{ messageType: string; content: string; metadata?: DreamMessageMetadata }> = ({ messageType, content, metadata }) => {
   switch (messageType) {
     case 'voice':
       return (

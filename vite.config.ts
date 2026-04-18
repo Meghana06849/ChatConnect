@@ -9,6 +9,29 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return;
+          }
+
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('@radix-ui')) return 'vendor-radix';
+          if (id.includes('recharts')) return 'vendor-charts';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          if (id.includes('date-fns')) return 'vendor-date';
+          if (id.includes('next-themes')) return 'vendor-themes';
+          if (id.includes('html5-qrcode')) return 'vendor-media';
+          if (id.includes('sonner')) return 'vendor-notifications';
+
+          return 'vendor';
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     mode === 'development' &&

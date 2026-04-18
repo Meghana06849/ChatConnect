@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Home, Volume2, VolumeX } from 'lucide-react';
+import { Home, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import { DreamRoomWelcome } from './DreamRoomWelcome';
 import { DreamRoomScene } from './DreamRoomScene';
 import { DreamRoomChatBar } from './DreamRoomChatBar';
 import { CoupleCalendar } from './CoupleCalendar';
 import { LoveVault } from './LoveVault';
-import { GamesHub } from '@/components/features/GamesHub';
-import { TruthOrDareGame } from '@/components/lovers/TruthOrDareGame';
+import LoversModeGames from '@/components/lovers/games/LoversModeGames';
 import { DreamCallUI } from '@/components/dreamcall/DreamCallUI';
 import { DreamIncomingCall } from '@/components/dreamcall/DreamIncomingCall';
 import { useProfile } from '@/hooks/useProfile';
@@ -15,13 +14,21 @@ import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
 import { useDreamChat } from '@/hooks/useDreamChat';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { useAmbientSounds } from '@/hooks/useAmbientSounds';
+import { useLoveCoins } from '@/contexts/LoveCoinsContext';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DreamRoomProps {
   isTimeRestricted?: boolean;
+  autoStartVoiceCall?: boolean;
+  autoStartVideoCall?: boolean;
 }
 
-export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }) => {
+export const DreamRoom: React.FC<DreamRoomProps> = ({
+  isTimeRestricted = false,
+  autoStartVoiceCall = false,
+  autoStartVideoCall = false,
+}) => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentView, setCurrentView] = useState<'main' | 'calendar' | 'vault' | 'games'>('main');
   const [loveLevel, setLoveLevel] = useState(42);
@@ -32,11 +39,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(true);
   const [isMutuallyLinked, setIsMutuallyLinked] = useState(false);
+  const [hasEnteredDreamRoom, setHasEnteredDreamRoom] = useState(false);
+  const [hasAutoStartedVoiceCall, setHasAutoStartedVoiceCall] = useState(false);
+  const [hasAutoStartedVideoCall, setHasAutoStartedVideoCall] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const { profile } = useProfile();
   const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
   const { muted: ambientMuted, toggleMute: toggleAmbient, activate: activateAmbient, currentType: ambientType } = useAmbientSounds(partnerOnline);
+  const { coins, spendCoins } = useLoveCoins();
 
   // WebRTC call integration
   const {
@@ -67,9 +78,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
 
       if (!conversations?.length) return;
 
+      type ConversationParticipant = { user_id: string };
+      type LoversConversation = {
+        id: string;
+        conversation_participants: ConversationParticipant[] | null;
+      };
+
       for (const conv of conversations) {
-        const participants = (conv as any).conversation_participants as { user_id: string }[];
-        const partnerId = participants?.find((p: any) => p.user_id !== currentUserId)?.user_id;
+        const participants = (conv as LoversConversation).conversation_participants || [];
+        const partnerId = participants.find((p) => p.user_id !== currentUserId)?.user_id;
         if (partnerId) {
           // Auto-link via RPC (sets both profiles)
           try {
@@ -102,17 +119,18 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, [currentUserId, profile?.lovers_partner_id]);
 
   const isPartnerLinked = Boolean(profile?.lovers_partner_id);
+  const canUseDreamFeatures = isPartnerLinked && isMutuallyLinked;
 
   const chatLockMessage = !profile?.lovers_partner_id
     ? 'No Dream partner linked yet. Link a Lovers Mode friend first to unlock chat and calls.'
-    : !isMutuallyLinked
-      ? `Partner linking is pending. Ask ${partnerName} to complete Lovers Mode linking from Friends.`
+    : !canUseDreamFeatures
+      ? `Dream chat is locked until both of you are linked. Ask ${partnerName} to link you back from Friends.`
       : null;
 
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
     messages, typingUsers, sendMessage, setTyping,
-  } = useDreamChat(isPartnerLinked ? profile?.lovers_partner_id || null : null);
+  } = useDreamChat(canUseDreamFeatures ? profile?.lovers_partner_id || null : null);
 
   // Check mutual linking
   useEffect(() => {
@@ -181,30 +199,104 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
   }, [togetherSince]);
 
   const handleSendChat = useCallback(async () => {
-    if (!isPartnerLinked || !chatMessage.trim()) return;
+    if (!canUseDreamFeatures || !chatMessage.trim()) return;
     const sent = await sendMessage(chatMessage.trim());
     if (sent) setChatMessage('');
-  }, [isPartnerLinked, chatMessage, sendMessage]);
+  }, [canUseDreamFeatures, chatMessage, sendMessage]);
 
   const handleTyping = useCallback(() => {
-    if (!isPartnerLinked) return;
+    if (!canUseDreamFeatures) return;
     setTyping(true);
-  }, [isPartnerLinked, setTyping]);
+  }, [canUseDreamFeatures, setTyping]);
 
   const handleStartVideoCall = useCallback(async () => {
-    if (!profile?.lovers_partner_id) return;
+    if (!profile?.lovers_partner_id || !canUseDreamFeatures) {
+      toast({
+        title: 'Dream call locked',
+        description: 'Both partners must link each other before calls are enabled.',
+        variant: 'destructive',
+      });
+      return;
+    }
     await startCall(profile.lovers_partner_id, partnerName, true);
-  }, [profile, partnerName, startCall]);
+  }, [profile, partnerName, startCall, canUseDreamFeatures]);
 
   const handleStartVoiceCall = useCallback(async () => {
-    if (!profile?.lovers_partner_id) return;
+    if (!profile?.lovers_partner_id || !canUseDreamFeatures) {
+      toast({
+        title: 'Dream call locked',
+        description: 'Both partners must link each other before calls are enabled.',
+        variant: 'destructive',
+      });
+      return;
+    }
     await startCall(profile.lovers_partner_id, partnerName, false);
-  }, [profile, partnerName, startCall]);
+  }, [profile, partnerName, startCall, canUseDreamFeatures]);
 
-  const handleEnterRoom = useCallback(() => {
-    setShowWelcome(false);
-    activateAmbient();
-  }, [activateAmbient]);
+  useEffect(() => {
+    if (!autoStartVoiceCall) return;
+    if (showWelcome) return;
+    if (hasAutoStartedVoiceCall) return;
+    if (isCallActive) return;
+
+    setHasAutoStartedVoiceCall(true);
+    void handleStartVoiceCall();
+  }, [autoStartVoiceCall, showWelcome, hasAutoStartedVoiceCall, isCallActive, handleStartVoiceCall]);
+
+  useEffect(() => {
+    if (!autoStartVideoCall) return;
+    if (showWelcome) return;
+    if (hasAutoStartedVideoCall) return;
+    if (isCallActive) return;
+
+    setHasAutoStartedVideoCall(true);
+    void handleStartVideoCall();
+  }, [autoStartVideoCall, showWelcome, hasAutoStartedVideoCall, isCallActive, handleStartVideoCall]);
+
+  const handleNavigate = useCallback((view: 'main' | 'calendar' | 'vault' | 'games') => {
+    if (view === 'games' && !canUseDreamFeatures) {
+      toast({
+        title: 'Games locked',
+        description: 'Both partners must link each other to play lovers games.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setCurrentView(view);
+  }, [canUseDreamFeatures]);
+
+  const handleEnterRoom = useCallback(async () => {
+    const DREAMROOM_ENTRY_COST = 250; // Love coins needed to enter
+
+    // Check if already entered in this session
+    if (hasEnteredDreamRoom) {
+      setShowWelcome(false);
+      activateAmbient();
+      return;
+    }
+
+    // Check if user has enough coins
+    if (coins < DREAMROOM_ENTRY_COST) {
+      toast({
+        title: "Insufficient Love Coins",
+        description: `DreamRoom entry costs ${DREAMROOM_ENTRY_COST} coins. You have ${coins}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Charge coins for entry
+    const spent = await spendCoins(DREAMROOM_ENTRY_COST, "DreamRoom Entry");
+    if (spent) {
+      setHasEnteredDreamRoom(true);
+      setShowWelcome(false);
+      activateAmbient();
+      toast({
+        title: "Welcome to DreamRoom! 💕",
+        description: `Entered with your love. Have fun!`
+      });
+    }
+  }, [coins, spendCoins, activateAmbient, hasEnteredDreamRoom]);
 
   // Reject/ignore calls from users other than linked lover in Dream Room
   useEffect(() => {
@@ -246,16 +338,24 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
 
   if (currentView !== 'main') {
     const viewMap: Record<string, React.ReactNode> = {
-      calendar: <CoupleCalendar />,
-      vault: <LoveVault />,
-      games: profile?.lovers_partner_id ? (
-        <TruthOrDareGame
-          partnerId={profile.lovers_partner_id}
-          partnerName={partnerName}
-          onBack={() => setCurrentView('main')}
-        />
+      calendar: (
+        <div className="w-full h-full overflow-auto">
+          <CoupleCalendar />
+        </div>
+      ),
+      vault: (
+        <div className="w-full h-full overflow-auto">
+          <LoveVault />
+        </div>
+      ),
+      games: canUseDreamFeatures && profile?.lovers_partner_id ? (
+        <div className="pt-16 px-4 md:px-6 w-full h-full overflow-auto">
+          <LoversModeGames />
+        </div>
       ) : (
-        <div className="pt-16 px-4 md:px-6"><GamesHub /></div>
+        <div className="pt-16 px-4 md:px-6 text-center text-white/80">
+          Games unlock when both partners complete linking in Lovers Mode.
+        </div>
       ),
     };
     return (
@@ -332,7 +432,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           isMuted={isMuted}
           onToggleMute={toggleMute}
           callDuration={callDuration}
-          onNavigate={setCurrentView}
+          onNavigate={handleNavigate}
           profile={profile}
         />
 
@@ -424,7 +524,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           )}
         </div>
 
-        {!isPartnerLinked && chatLockMessage && (
+        {!canUseDreamFeatures && chatLockMessage && (
           <div className="mb-2 text-[11px] text-center text-white/60 px-3">
             {chatLockMessage}
           </div>
@@ -435,16 +535,16 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({ isTimeRestricted = false }
           chatMessage={chatMessage}
           onChatMessageChange={setChatMessage}
           onSend={() => {
-            if (!isPartnerLinked) return;
+            if (!canUseDreamFeatures) return;
             handleSendChat();
             if (!showChat) setShowChat(true);
           }}
           onTyping={() => {
-            if (!isPartnerLinked) return;
+            if (!canUseDreamFeatures) return;
             handleTyping();
           }}
-          partnerName={isPartnerLinked ? partnerName : 'Linked Partner'}
-          onNavigate={setCurrentView}
+          partnerName={canUseDreamFeatures ? partnerName : 'Pending Link'}
+          onNavigate={handleNavigate}
         />
       </div>
     </div>

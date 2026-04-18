@@ -100,10 +100,10 @@ export const UserIdCard: React.FC<UserIdCardProps> = ({ className = '', compact 
           description: "They'll be notified of your request.",
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Failed to send request",
-        description: error.message || "Please try again",
+        description: error instanceof Error ? error.message : "Please try again",
         variant: "destructive",
       });
     } finally {

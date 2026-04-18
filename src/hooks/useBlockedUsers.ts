@@ -15,6 +15,15 @@ export interface BlockedUser {
   };
 }
 
+const getErrorMessage = (error: unknown): string => {
+  return error instanceof Error ? error.message : 'Unknown error';
+};
+
+interface BlockUserOptions {
+  reason?: string;
+  isLoversMode?: boolean;
+}
+
 export const useBlockedUsers = () => {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,15 +120,28 @@ export const useBlockedUsers = () => {
   }, [currentUserId, loadBlockedUsers]);
 
   // Block a user
-  const blockUser = useCallback(async (userId: string, reason?: string): Promise<boolean> => {
+  const blockUser = useCallback(async (userId: string, reasonOrOptions?: string | BlockUserOptions): Promise<boolean> => {
     if (!currentUserId) return false;
 
+    const options: BlockUserOptions =
+      typeof reasonOrOptions === 'string'
+        ? { reason: reasonOrOptions }
+        : (reasonOrOptions || {});
+
     if (userId === currentUserId) {
-      toast({
-        title: 'Invalid action',
-        description: 'You cannot block yourself',
-        variant: 'destructive'
-      });
+      toast(
+        options.isLoversMode
+          ? {
+              title: 'Action not allowed',
+              description: 'You cannot block your own account in Couple Space.',
+              variant: 'destructive'
+            }
+          : {
+              title: 'Invalid action',
+              description: 'You cannot block yourself',
+              variant: 'destructive'
+            }
+      );
       return false;
     }
 
@@ -130,33 +152,56 @@ export const useBlockedUsers = () => {
           user_id: currentUserId,
           blocked_user_id: userId,
           block_type: 'block',
-          reason: reason || null
+          reason: options.reason || null
         });
 
       if (error) {
         if (error.code === '23505') {
-          toast({
-            title: 'Already blocked',
-            description: 'This user is already blocked',
-            variant: 'destructive'
-          });
+          toast(
+            options.isLoversMode
+              ? {
+                  title: 'Contact already blocked',
+                  description: 'This contact is already blocked in your Couple Space.',
+                  variant: 'destructive'
+                }
+              : {
+                  title: 'Already blocked',
+                  description: 'This user is already blocked',
+                  variant: 'destructive'
+                }
+          );
           return false;
         }
         throw error;
       }
 
-      toast({
-        title: 'User blocked',
-        description: 'They will no longer be able to send you requests'
-      });
+      toast(
+        options.isLoversMode
+          ? {
+              title: 'Contact blocked',
+              description: 'They can no longer message or call you in your couple space'
+            }
+          : {
+              title: 'User blocked',
+              description: 'They will no longer be able to send you requests'
+            }
+      );
 
       return true;
-    } catch (error: any) {
-      toast({
-        title: 'Failed to block user',
-        description: error.message,
-        variant: 'destructive'
-      });
+    } catch (error: unknown) {
+      toast(
+        options.isLoversMode
+          ? {
+              title: 'Could not block contact',
+              description: 'We could not update your Couple Space right now. Please try again.',
+              variant: 'destructive'
+            }
+          : {
+              title: 'Failed to block user',
+              description: getErrorMessage(error),
+              variant: 'destructive'
+            }
+      );
       return false;
     }
   }, [currentUserId]);
@@ -193,10 +238,10 @@ export const useBlockedUsers = () => {
       });
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to mute user',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return false;
@@ -215,10 +260,10 @@ export const useBlockedUsers = () => {
 
       toast({ title: 'User unblocked' });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to unblock user',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return false;

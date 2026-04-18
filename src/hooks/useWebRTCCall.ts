@@ -6,10 +6,31 @@ interface CallSignal {
   type: 'offer' | 'answer' | 'ice-candidate' | 'call-request' | 'call-accepted' | 'call-rejected' | 'call-ended';
   from: string;
   to: string;
-  data?: any;
+  data?: unknown;
   callType: 'voice' | 'video';
   callerName?: string;
 }
+
+const WEBRTC_ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+  ],
+};
+
+const isSessionDescriptionInit = (value: unknown): value is RTCSessionDescriptionInit => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const type = (value as { type?: unknown }).type;
+  return type === 'offer' || type === 'answer' || type === 'pranswer' || type === 'rollback';
+};
+
+const isIceCandidateInit = (value: unknown): value is RTCIceCandidateInit => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return typeof (value as { candidate?: unknown }).candidate === 'string';
+};
 
 interface UseWebRTCCallReturn {
   localStream: MediaStream | null;
@@ -59,14 +80,6 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   
   const { toast } = useToast();
 
-  const ICE_SERVERS = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
-  };
-
   const saveCallHistory = useCallback(async (
     calleeId: string,
     callType: 'voice' | 'video',
@@ -88,14 +101,48 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     }
   }, [userId]);
 
+  const sendSignal = useCallback((signal: CallSignal) => {
+    // Send signal to partner's user channel for real-time reception
+    const partnerChannel = supabase.channel(`user:${signal.to}:calls`);
+    partnerChannel.send({
+      type: 'broadcast',
+      event: 'call-signal',
+      payload: signal
+    });
+  }, []);
+
   const setupPeerConnection = useCallback(async (isVideo: boolean) => {
-    peerConnection.current = new RTCPeerConnection(ICE_SERVERS);
+    peerConnection.current = new RTCPeerConnection(WEBRTC_ICE_SERVERS);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Try high-quality constraints first, then graceful fallback for stricter devices.
+      const preferredConstraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        },
+        video: isVideo ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 }
+        } : false
+      };
+
+      const fallbackConstraints: MediaStreamConstraints = {
         audio: true,
-        video: isVideo
-      });
+        video: isVideo,
+      };
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+      } catch (preferredError) {
+        console.warn('Preferred media constraints failed, retrying with fallback constraints.', preferredError);
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
+
       setLocalStream(stream);
       setIsVideoEnabled(isVideo);
 
@@ -106,14 +153,28 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       console.error('Error accessing media devices:', error);
       toast({
         title: "Media access failed",
-        description: "Could not access camera/microphone",
+        description: "Could not access camera/microphone. Check permissions.",
         variant: "destructive"
       });
       throw error;
     }
 
     peerConnection.current.ontrack = (event) => {
-      setRemoteStream(event.streams[0]);
+      if (event.streams && event.streams[0]) {
+        setRemoteStream(event.streams[0]);
+      }
+    };
+
+    peerConnection.current.onconnectionstatechange = () => {
+      const state = peerConnection.current?.connectionState;
+      console.log('Connection state:', state);
+      if (state === 'failed' || state === 'disconnected') {
+        toast({
+          title: "Connection issue",
+          description: "Call connection unstable. Attempting to reconnect...",
+          variant: "destructive"
+        });
+      }
     };
 
     peerConnection.current.onicecandidate = (event) => {
@@ -128,21 +189,20 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       }
     };
 
-    return peerConnection.current;
-  }, [userId, toast]);
+    peerConnection.current.onicegatheringstatechange = () => {
+      console.log('ICE gathering state:', peerConnection.current?.iceGatheringState);
+    };
 
-  const sendSignal = useCallback((signal: CallSignal) => {
-    if (callChannel.current) {
-      callChannel.current.send({
-        type: 'broadcast',
-        event: 'call-signal',
-        payload: signal
-      });
-    }
-  }, []);
+    return peerConnection.current;
+  }, [userId, toast, sendSignal]);
 
   const startDurationTimer = useCallback(() => {
+    if (durationInterval.current) {
+      clearInterval(durationInterval.current);
+      durationInterval.current = null;
+    }
     callStartTime.current = Date.now();
+    setCallDuration(0);
     durationInterval.current = setInterval(() => {
       setCallDuration(Math.floor((Date.now() - callStartTime.current) / 1000));
     }, 1000);
@@ -170,6 +230,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     setIncomingCallData(null);
     setIsScreenSharing(false);
     setCallDuration(0);
+    callStartTime.current = 0;
     stopDurationTimer();
     currentCallData.current = null;
   }, [stopDurationTimer]);
@@ -180,7 +241,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     currentCallData.current = { contactId, contactName, isVideo };
 
     try {
-      await setupPeerConnection(isVideo);
+      const pc = await setupPeerConnection(isVideo);
 
       // Get caller name
       const { data: profile } = await supabase
@@ -191,17 +252,26 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
 
       const callerName = profile?.display_name || profile?.username || 'Unknown';
 
-      // Send call request
+      // Create SDP offer
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: isVideo
+      });
+      await pc.setLocalDescription(offer);
+
+      // Send call request with offer
       sendSignal({
         type: 'call-request',
         from: userId,
         to: contactId,
+        data: offer,
         callType: isVideo ? 'video' : 'voice',
         callerName
       });
 
+      // Show the call window immediately while the other user is ringing.
       setIsCallActive(true);
-      
+
       toast({
         title: `${isVideo ? 'Video' : 'Voice'} call`,
         description: `Calling ${contactName}...`,
@@ -210,9 +280,15 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       // Save call as outgoing
       await saveCallHistory(contactId, isVideo ? 'video' : 'voice', 'outgoing', 0);
     } catch (error) {
+      console.error('Error starting call:', error);
       cleanup();
+      toast({
+        title: "Call failed",
+        description: "Unable to start call. Please try again.",
+        variant: "destructive"
+      });
     }
-  }, [userId, setupPeerConnection, sendSignal, toast, saveCallHistory, cleanup]);
+  }, [userId, setupPeerConnection, sendSignal, startDurationTimer, toast, saveCallHistory, cleanup]);
 
   const acceptCall = useCallback(async () => {
     if (!incomingCallData || !userId) return;
@@ -235,7 +311,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       });
 
       // Create and send answer if we have a pending offer
-      if (incomingCallData.data) {
+      if (isSessionDescriptionInit(incomingCallData.data)) {
         await pc.setRemoteDescription(new RTCSessionDescription(incomingCallData.data));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -395,11 +471,19 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     }
   }, [isScreenSharing, screenStream, localStream, toast]);
 
-  // Set up signaling channel
+  // Set up signaling channel for receiving call signals
   useEffect(() => {
     if (!userId) return;
 
-    callChannel.current = supabase.channel(`calls:${userId}`);
+    // Listen for incoming call signals on a dedicated channel
+    const channelName = `user:${userId}:calls`;
+    callChannel.current = supabase.channel(channelName, {
+      config: {
+        broadcast: {
+          self: false // Don't receive our own broadcasts
+        }
+      }
+    });
 
     callChannel.current
       .on('broadcast', { event: 'call-signal' }, async ({ payload }) => {
@@ -407,80 +491,86 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         
         if (signal.to !== userId) return;
 
-        switch (signal.type) {
-          case 'call-request':
-            setIncomingCallData(signal);
-            setIsIncomingCall(true);
-            break;
+        try {
+          switch (signal.type) {
+            case 'call-request':
+              // Store the offer in incoming call data for later processing
+              setIncomingCallData(signal);
+              setIsIncomingCall(true);
+              break;
 
-          case 'call-accepted':
-            if (peerConnection.current) {
-              const offer = await peerConnection.current.createOffer();
-              await peerConnection.current.setLocalDescription(offer);
-              
-              sendSignal({
-                type: 'offer',
-                from: userId,
-                to: signal.from,
-                data: offer,
-                callType: signal.callType
-              });
-              
+            case 'call-accepted':
+              // Remote user accepted, mark call active and begin duration timing.
+              setIsCallActive(true);
               startDurationTimer();
-            }
-            break;
+              break;
 
-          case 'call-rejected':
-            toast({
-              title: "Call rejected",
-              description: "The user declined your call",
-              variant: "destructive"
-            });
-            cleanup();
-            break;
-
-          case 'call-ended':
-            toast({
-              title: "Call ended",
-              description: "The other user ended the call",
-            });
-            cleanup();
-            break;
-
-          case 'offer':
-            if (peerConnection.current) {
-              await peerConnection.current.setRemoteDescription(new RTCSessionDescription(signal.data));
-              const answer = await peerConnection.current.createAnswer();
-              await peerConnection.current.setLocalDescription(answer);
-              
-              sendSignal({
-                type: 'answer',
-                from: userId,
-                to: signal.from,
-                data: answer,
-                callType: signal.callType
+            case 'call-rejected':
+              toast({
+                title: "Call rejected",
+                description: "The user declined your call",
+                variant: "destructive"
               });
-            }
-            break;
+              cleanup();
+              break;
 
-          case 'answer':
-            if (peerConnection.current) {
-              await peerConnection.current.setRemoteDescription(new RTCSessionDescription(signal.data));
-            }
-            break;
+            case 'call-ended':
+              toast({
+                title: "Call ended",
+                description: "The other user ended the call",
+              });
+              cleanup();
+              break;
 
-          case 'ice-candidate':
-            if (peerConnection.current && signal.data) {
-              try {
-                await peerConnection.current.addIceCandidate(new RTCIceCandidate(signal.data));
-              } catch (error) {
-                console.error('Error adding ICE candidate:', error);
+            case 'offer':
+              if (peerConnection.current && isSessionDescriptionInit(signal.data)) {
+                try {
+                  await peerConnection.current.setRemoteDescription(new RTCSessionDescription(signal.data));
+                  const answer = await peerConnection.current.createAnswer();
+                  await peerConnection.current.setLocalDescription(answer);
+                  
+                  sendSignal({
+                    type: 'answer',
+                    from: userId,
+                    to: signal.from,
+                    data: answer,
+                    callType: signal.callType
+                  });
+                } catch (error) {
+                  console.error('Error processing offer:', error);
+                }
               }
-            }
-            break;
+              break;
+
+            case 'answer':
+              if (peerConnection.current && isSessionDescriptionInit(signal.data)) {
+                try {
+                  await peerConnection.current.setRemoteDescription(new RTCSessionDescription(signal.data));
+                  setIsCallActive(true);
+                  startDurationTimer();
+                } catch (error) {
+                  console.error('Error setting remote description (answer):', error);
+                }
+              }
+              break;
+
+            case 'ice-candidate':
+              if (peerConnection.current && isIceCandidateInit(signal.data)) {
+                try {
+                  await peerConnection.current.addIceCandidate(new RTCIceCandidate(signal.data));
+                } catch (error) {
+                  console.error('Error adding ICE candidate:', error);
+                }
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('Error processing call signal:', error);
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Call channel subscription status: ${status}`);
+      });
 
     return () => {
       callChannel.current?.unsubscribe();

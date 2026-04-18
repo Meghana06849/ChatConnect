@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,7 +30,31 @@ interface Song {
   title: string;
   artist: string;
   file_url?: string;
+  genre?: string | null;
 }
+
+const STARTER_SONGS: Array<{ title: string; artist: string; genre: string }> = [
+  { title: 'Golden Hour', artist: 'JVKE', genre: 'Trending' },
+  { title: 'Calm Down', artist: 'Rema', genre: 'Trending' },
+  { title: 'Heat Waves', artist: 'Glass Animals', genre: 'Trending' },
+  { title: 'Until I Found You', artist: 'Stephen Sanchez', genre: 'Trending' },
+  { title: 'Kesariya', artist: 'Arijit Singh', genre: 'Movie' },
+  { title: 'Chaleya', artist: 'Arijit Singh', genre: 'Movie' },
+  { title: 'Tum Hi Ho', artist: 'Arijit Singh', genre: 'Movie' },
+  { title: 'Raatan Lambiyan', artist: 'Jubin Nautiyal', genre: 'Movie' },
+  { title: 'Heeriye', artist: 'Jasleen Royal', genre: 'Movie' },
+  { title: 'Teri Baaton Mein Aisa Uljha Jiya', artist: 'Raghav Chaitanya', genre: 'Movie' },
+  { title: 'Agar Tum Saath Ho', artist: 'Alka Yagnik', genre: 'Movie' },
+  { title: 'Apna Bana Le', artist: 'Arijit Singh', genre: 'Movie' },
+  { title: 'Midnight Confession', artist: 'Private Room', genre: 'Private' },
+  { title: 'Only Us Tonight', artist: 'Secret Echo', genre: 'Private' },
+  { title: 'Whispered Hearts', artist: 'Velvet Note', genre: 'Private' },
+  { title: 'Soft Lights', artist: 'Moon Diary', genre: 'Private' },
+  { title: 'Hidden Letters', artist: 'Quiet Bloom', genre: 'Private' },
+  { title: 'After Midnight', artist: 'Noir Pulse', genre: 'Private' },
+  { title: 'Velvet Silence', artist: 'Hush Avenue', genre: 'Private' },
+  { title: 'Stay A Little', artist: 'Private Skyline', genre: 'Private' },
+];
 
 interface Friend {
   user_id: string;
@@ -38,12 +63,24 @@ interface Friend {
   avatar_url: string | null;
 }
 
+const extractErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null) {
+    const maybeMessage = (error as { message?: string }).message;
+    if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
+      return maybeMessage;
+    }
+  }
+  return 'Failed to create moment';
+};
+
 export const MomentCreator: React.FC<MomentCreatorProps> = ({ 
   isOpen, 
   onClose, 
   onCreated,
   isLoversMode 
 }) => {
+  const { profile } = useProfile();
   const [content, setContent] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -56,7 +93,29 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
   const [loading, setLoading] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
+  const [songFilter, setSongFilter] = useState<'all' | 'trending' | 'movie' | 'private'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const groupedSongs = useMemo(() => {
+    const trending = songs.filter((song) => (song.genre || '').toLowerCase() === 'trending');
+    const movie = songs.filter((song) => (song.genre || '').toLowerCase() === 'movie');
+    const privateVibes = songs.filter((song) => (song.genre || '').toLowerCase() === 'private');
+    const other = songs.filter((song) => !['trending', 'movie', 'private'].includes((song.genre || '').toLowerCase()));
+    return { trending, movie, privateVibes, other };
+  }, [songs]);
+
+  const visibleSongGroups = useMemo(() => {
+    if (songFilter === 'trending') {
+      return { trending: groupedSongs.trending, movie: [], privateVibes: [], other: [] };
+    }
+    if (songFilter === 'movie') {
+      return { trending: [], movie: groupedSongs.movie, privateVibes: [], other: [] };
+    }
+    if (songFilter === 'private') {
+      return { trending: [], movie: [], privateVibes: groupedSongs.privateVibes, other: [] };
+    }
+    return groupedSongs;
+  }, [songFilter, groupedSongs]);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,11 +126,72 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
 
   const loadSongs = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data } = await supabase
         .from('user_songs')
-        .select('id, title, artist, file_url')
+        .select('id, title, artist, file_url, genre')
         .order('created_at', { ascending: false });
-      setSongs(data || []);
+
+      const existingSongs = data || [];
+
+      if (existingSongs.length > 0) {
+        const existingKeys = new Set(
+          existingSongs.map((song) => `${song.title.toLowerCase()}::${song.artist.toLowerCase()}`)
+        );
+
+        const missingStarterSongs = STARTER_SONGS.filter((song) => {
+          const key = `${song.title.toLowerCase()}::${song.artist.toLowerCase()}`;
+          return !existingKeys.has(key);
+        });
+
+        if (missingStarterSongs.length > 0) {
+          const { error: topUpError } = await supabase
+            .from('user_songs')
+            .insert(
+              missingStarterSongs.map((song) => ({
+                user_id: user.id,
+                title: song.title,
+                artist: song.artist,
+                genre: song.genre,
+              }))
+            );
+
+          if (topUpError) throw topUpError;
+
+          const { data: refreshedSongs } = await supabase
+            .from('user_songs')
+            .select('id, title, artist, file_url, genre')
+            .order('created_at', { ascending: false });
+
+          setSongs(refreshedSongs || []);
+          return;
+        }
+
+        setSongs(existingSongs);
+        return;
+      }
+
+      const { error: seedError } = await supabase
+        .from('user_songs')
+        .insert(
+          STARTER_SONGS.map((song) => ({
+            user_id: user.id,
+            title: song.title,
+            artist: song.artist,
+            genre: song.genre,
+          }))
+        );
+
+      if (seedError) throw seedError;
+
+      const { data: seededSongs } = await supabase
+        .from('user_songs')
+        .select('id, title, artist, file_url, genre')
+        .order('created_at', { ascending: false });
+
+      setSongs(seededSongs || []);
     } catch (error) {
       console.error('Error loading songs:', error);
     }
@@ -187,18 +307,37 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
       }
 
       // Create moment
-      const { error } = await supabase
+      const partnerId = profile?.lovers_partner_id || null;
+      const isPartnerScoped = isLoversMode && Boolean(partnerId);
+      const effectivePrivacy = isPartnerScoped ? 'selected' : privacyType;
+      const effectiveAudienceMode = isLoversMode ? 'lovers' : 'general';
+      const effectiveIncludedUsers = isPartnerScoped
+        ? [partnerId as string]
+        : includedUsers;
+      const effectiveExcludedUsers = isPartnerScoped ? [] : excludedUsers;
+
+      const insertPayload = {
+        user_id: user.id,
+        content: content.trim() || null,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        music_id: selectedSong?.id || null,
+        privacy_type: effectivePrivacy,
+        audience_mode: effectiveAudienceMode,
+        excluded_users: effectiveExcludedUsers,
+        included_users: effectiveIncludedUsers,
+      };
+
+      let { error } = await supabase
         .from('moments')
-        .insert({
-          user_id: user.id,
-          content: content.trim() || null,
-          media_url: mediaUrl,
-          media_type: mediaType,
-          music_id: selectedSong?.id || null,
-          privacy_type: privacyType,
-          excluded_users: excludedUsers,
-          included_users: includedUsers
-        });
+        .insert(insertPayload);
+
+      // Backward compatibility: some environments may not have the audience_mode column yet.
+      if (error && /audience_mode/i.test(error.message || '')) {
+        const { audience_mode: _audienceMode, ...legacyPayload } = insertPayload;
+        const legacyInsert = await supabase.from('moments').insert(legacyPayload);
+        error = legacyInsert.error;
+      }
 
       if (error) throw error;
 
@@ -217,10 +356,10 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
       setIncludedUsers([]);
       
       onCreated();
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: extractErrorMessage(error),
         variant: "destructive"
       });
     } finally {
@@ -317,6 +456,26 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
                     <Music className="w-4 h-4" />
                     <span>Add Music</span>
                   </Label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'trending', label: 'Trending' },
+                      { id: 'movie', label: 'Movie' },
+                      { id: 'private', label: 'Private' },
+                    ].map((chip) => (
+                      <Button
+                        key={chip.id}
+                        type="button"
+                        size="sm"
+                        variant={songFilter === chip.id ? 'default' : 'outline'}
+                        className={songFilter === chip.id ? (isLoversMode ? 'btn-lovers' : 'btn-general') : ''}
+                        onClick={() => setSongFilter(chip.id as 'all' | 'trending' | 'movie' | 'private')}
+                      >
+                        {chip.label}
+                      </Button>
+                    ))}
+                  </div>
                   
                   {selectedSong ? (
                     <Card className="glass border-white/20">
@@ -331,6 +490,9 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
                           <div>
                             <p className="font-medium text-sm">{selectedSong.title}</p>
                             <p className="text-xs text-muted-foreground">{selectedSong.artist}</p>
+                            {selectedSong.genre && (
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground/80 mt-1">{selectedSong.genre}</p>
+                            )}
                           </div>
                         </div>
                         <Button 
@@ -345,26 +507,105 @@ export const MomentCreator: React.FC<MomentCreatorProps> = ({
                   ) : (
                     <div className="space-y-2">
                       {songs.length > 0 ? (
-                        songs.map(song => (
-                          <Card 
-                            key={song.id}
-                            className="glass border-white/20 cursor-pointer hover:bg-white/5 transition-colors"
-                            onClick={() => setSelectedSong(song)}
-                          >
-                            <CardContent className="p-3 flex items-center space-x-3">
-                              <Play className="w-4 h-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">{song.title}</p>
-                                <p className="text-xs text-muted-foreground">{song.artist}</p>
+                        <>
+                          {visibleSongGroups.trending.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Trending Music</p>
+                              {visibleSongGroups.trending.map(song => (
+                                <Card 
+                                  key={song.id}
+                                  className="glass border-white/20 cursor-pointer hover:bg-white/5 transition-colors"
+                                  onClick={() => setSelectedSong(song)}
+                                >
+                                  <CardContent className="p-3 flex items-center space-x-3">
+                                    <Play className="w-4 h-4 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{song.title}</p>
+                                      <p className="text-xs text-muted-foreground">{song.artist}</p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+
+                          {visibleSongGroups.movie.length > 0 && (
+                            <div className="space-y-2 pt-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Movie Songs</p>
+                              {visibleSongGroups.movie.map(song => (
+                                <Card 
+                                  key={song.id}
+                                  className="glass border-white/20 cursor-pointer hover:bg-white/5 transition-colors"
+                                  onClick={() => setSelectedSong(song)}
+                                >
+                                  <CardContent className="p-3 flex items-center space-x-3">
+                                    <Play className="w-4 h-4 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{song.title}</p>
+                                      <p className="text-xs text-muted-foreground">{song.artist}</p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+
+                          {visibleSongGroups.privateVibes.length > 0 && (
+                            <div className="space-y-2 pt-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Private Songs</p>
+                              {visibleSongGroups.privateVibes.map(song => (
+                                <Card 
+                                  key={song.id}
+                                  className="glass border-white/20 cursor-pointer hover:bg-white/5 transition-colors"
+                                  onClick={() => setSelectedSong(song)}
+                                >
+                                  <CardContent className="p-3 flex items-center space-x-3">
+                                    <Play className="w-4 h-4 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{song.title}</p>
+                                      <p className="text-xs text-muted-foreground">{song.artist}</p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+
+                          {visibleSongGroups.other.length > 0 && (
+                            <div className="space-y-2 pt-2">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">More Songs</p>
+                              {visibleSongGroups.other.map(song => (
+                                <Card 
+                                  key={song.id}
+                                  className="glass border-white/20 cursor-pointer hover:bg-white/5 transition-colors"
+                                  onClick={() => setSelectedSong(song)}
+                                >
+                                  <CardContent className="p-3 flex items-center space-x-3">
+                                    <Play className="w-4 h-4 text-muted-foreground" />
+                                    <div>
+                                      <p className="font-medium text-sm">{song.title}</p>
+                                      <p className="text-xs text-muted-foreground">{song.artist}</p>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+
+                          {visibleSongGroups.trending.length === 0 &&
+                            visibleSongGroups.movie.length === 0 &&
+                            visibleSongGroups.privateVibes.length === 0 &&
+                            visibleSongGroups.other.length === 0 && (
+                              <div className="text-center py-6">
+                                <p className="text-sm text-muted-foreground">No songs found in this category.</p>
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))
+                            )}
+                        </>
                       ) : (
                         <div className="text-center py-8">
                           <Music className="w-12 h-12 mx-auto mb-2 text-muted-foreground/50" />
-                          <p className="text-muted-foreground text-sm">No songs in your collection</p>
-                          <p className="text-xs text-muted-foreground mt-1">Add songs from Settings → Music Collection</p>
+                          <p className="text-muted-foreground text-sm">Preparing your music library...</p>
+                          <p className="text-xs text-muted-foreground mt-1">Please reopen this tab in a moment</p>
                         </div>
                       )}
                     </div>

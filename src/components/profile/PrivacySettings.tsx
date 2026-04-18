@@ -43,7 +43,7 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ isLoversMode =
 
   useEffect(() => {
     if (profile?.privacy_settings) {
-      const privacySettings = profile.privacy_settings;
+      const privacySettings = profile.privacy_settings as Record<string, string>;
       setSettings({
         show_profile_photo: privacySettings.show_profile_photo || 'everyone',
         show_last_seen: privacySettings.show_last_seen || 'everyone',
@@ -63,10 +63,10 @@ export const PrivacySettings: React.FC<PrivacySettingsProps> = ({ isLoversMode =
         title: "Privacy updated",
         description: "Your privacy settings have been saved.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Update failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to update privacy settings',
         variant: "destructive",
       });
     }

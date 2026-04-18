@@ -35,6 +35,8 @@ export const DreamRoomChatBar: React.FC<DreamRoomChatBarProps> = ({
             Memories
           </button>
           <button
+            onClick={() => onNavigate('calendar')}
+            aria-label="Open couple calendar"
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-white/50 transition-all hover:text-white/70"
             style={{
               background: 'hsla(280 30% 15% / 0.5)',
@@ -71,10 +73,16 @@ export const DreamRoomChatBar: React.FC<DreamRoomChatBarProps> = ({
 
           {/* Action buttons */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
+            <button
+              onClick={() => onNavigate('vault')}
+              aria-label="Open memories"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
               <Heart className="w-3.5 h-3.5 text-[hsl(var(--lovers-primary))]" />
             </button>
-            <button className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
+            <button
+              onClick={() => onNavigate('games')}
+              aria-label="Open games"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
               <Grid3X3 className="w-3.5 h-3.5" />
             </button>
             {chatMessage.trim() ? (
@@ -87,7 +95,10 @@ export const DreamRoomChatBar: React.FC<DreamRoomChatBarProps> = ({
                 <Send className="w-3.5 h-3.5 text-white" />
               </button>
             ) : (
-              <button className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
+              <button
+                onClick={() => onNavigate('calendar')}
+                aria-label="Open calendar"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
                 <Plus className="w-4 h-4" />
               </button>
             )}

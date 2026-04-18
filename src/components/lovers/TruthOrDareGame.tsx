@@ -77,12 +77,22 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
   const isMyTurn = game?.current_turn === currentUserId;
 
   // Load or create game
-  useEffect(() => {
-    if (!currentUserId) return;
-    loadGame();
-  }, [currentUserId, partnerId]);
+  const loadRounds = useCallback(async (gameId: string) => {
+    const { data } = await supabase
+      .from('truth_dare_rounds')
+      .select('*')
+      .eq('game_id', gameId)
+      .order('round_number', { ascending: true });
 
-  const loadGame = async () => {
+    if (data) {
+      const typedRounds = data as unknown as Round[];
+      setRounds(typedRounds);
+      const active = typedRounds.find(r => r.status !== 'completed');
+      setCurrentRound(active || null);
+    }
+  }, []);
+
+  const loadGame = useCallback(async () => {
     if (!currentUserId) return;
     setLoading(true);
 
@@ -98,22 +108,12 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
       await loadRounds(g.id);
     }
     setLoading(false);
-  };
+  }, [currentUserId, partnerId, loadRounds]);
 
-  const loadRounds = async (gameId: string) => {
-    const { data } = await supabase
-      .from('truth_dare_rounds')
-      .select('*')
-      .eq('game_id', gameId)
-      .order('round_number', { ascending: true });
-
-    if (data) {
-      const typedRounds = data as unknown as Round[];
-      setRounds(typedRounds);
-      const active = typedRounds.find(r => r.status !== 'completed');
-      setCurrentRound(active || null);
-    }
-  };
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadGame();
+  }, [currentUserId, loadGame]);
 
   // Real-time subscriptions — reload full state on any change for consistency
   useEffect(() => {
@@ -148,7 +148,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
       .subscribe();
 
     return () => { supabase.removeChannel(gameChannel); };
-  }, [game?.id]);
+  }, [game?.id, loadRounds]);
 
   const startNewGame = async () => {
     if (!currentUserId || actionLoading) return;
@@ -184,8 +184,9 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
 
       await loadRounds(g.id);
       toast({ title: 'Game Started! 🎮', description: `It's your turn to choose Truth or Dare!` });
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setActionLoading(false);
     }
@@ -212,8 +213,9 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
         .eq('id', game!.id);
 
       if (gameErr) throw gameErr;
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setActionLoading(false);
     }
@@ -252,8 +254,9 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
       if (gameErr) throw gameErr;
 
       setQuestionInput('');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setActionLoading(false);
     }
@@ -304,14 +307,15 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
       if (nextRoundErr) throw nextRoundErr;
 
       setAnswerInput('');
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const useSuggestion = (text: string) => {
+  const applySuggestion = (text: string) => {
     setQuestionInput(text);
   };
 
@@ -327,8 +331,9 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
       if (data?.questions) {
         setAiSuggestions(data.questions);
       }
-    } catch (e: any) {
-      toast({ title: 'AI Error', description: e.message || 'Failed to generate', variant: 'destructive' });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Failed to generate';
+      toast({ title: 'AI Error', description: message, variant: 'destructive' });
     } finally {
       setAiLoading(false);
     }
@@ -523,7 +528,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
                       {aiSuggestions.map((s, i) => (
                         <button
                           key={i}
-                          onClick={() => useSuggestion(s)}
+                          onClick={() => applySuggestion(s)}
                           className="block w-full text-left text-[11px] px-3 py-2 rounded-lg text-white/70 hover:text-white/90 transition-colors"
                           style={{
                             background: 'linear-gradient(135deg, hsla(280 40% 20% / 0.5), hsla(320 40% 25% / 0.5))',
@@ -546,7 +551,7 @@ export const TruthOrDareGame: React.FC<TruthOrDareGameProps> = ({
                       .map((s, i) => (
                         <button
                           key={i}
-                          onClick={() => useSuggestion(s)}
+                          onClick={() => applySuggestion(s)}
                           className="text-[11px] px-2 py-1 rounded-full text-white/60 hover:text-white/90 transition-colors"
                           style={{
                             background: 'hsla(320 40% 25% / 0.5)',

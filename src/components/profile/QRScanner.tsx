@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,7 +17,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const { toast } = useToast();
 
-  const startScanner = async () => {
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current = null;
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+      }
+    }
+    setIsScanning(false);
+  }, []);
+
+  const startScanner = useCallback(async () => {
     try {
       setError(null);
       setIsScanning(true);
@@ -53,24 +65,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
           // Ignore scan failures (no QR in frame)
         }
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Scanner error:', err);
-      setError(err.message || 'Failed to start camera');
+      setError(err instanceof Error ? err.message : 'Failed to start camera');
       setIsScanning(false);
     }
-  };
-
-  const stopScanner = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch (err) {
-        console.error('Error stopping scanner:', err);
-      }
-    }
-    setIsScanning(false);
-  };
+  }, [onScan, stopScanner, toast]);
 
   useEffect(() => {
     if (isOpen) {
@@ -82,13 +82,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({ isOpen, onClose, onScan })
     } else {
       stopScanner();
     }
-  }, [isOpen]);
+  }, [isOpen, startScanner, stopScanner]);
 
   useEffect(() => {
     return () => {
       stopScanner();
     };
-  }, []);
+  }, [stopScanner]);
 
   const handleClose = () => {
     stopScanner();

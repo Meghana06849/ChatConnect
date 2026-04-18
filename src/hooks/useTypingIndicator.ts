@@ -7,14 +7,89 @@ interface TypingUser {
   isTyping: boolean;
 }
 
+interface TypingIndicatorRow {
+  user_id: string;
+  is_typing: boolean;
+}
+
+interface TypingBroadcastPayload {
+  user_id?: string;
+  conversation_id?: string;
+  typing?: boolean;
+  display_name?: string;
+}
+
 export const useTypingIndicator = (conversationId: string | null, currentUserId: string | null) => {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTypingUpdate = useRef<number>(0);
+  const lastDbTypingUpdateRef = useRef<number>(0);
+  const displayNameCacheRef = useRef<Map<string, string>>(new Map());
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const upsertTypingIndicator = useCallback(async (isTyping: boolean) => {
+    if (!conversationId || !currentUserId) return;
+
+    try {
+      await supabase
+        .from('typing_indicators')
+        .upsert({
+          conversation_id: conversationId,
+          user_id: currentUserId,
+          is_typing: isTyping,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'conversation_id,user_id',
+        });
+    } catch (error) {
+      console.error('Error updating typing indicator:', error);
+    }
+  }, [conversationId, currentUserId]);
 
   // Listen for typing indicators from other users
   useEffect(() => {
-    if (!conversationId || !currentUserId) return;
+    if (!conversationId || !currentUserId) {
+      setTypingUsers([]);
+      return;
+    }
+
+    let isActive = true;
+
+    const applyTypingState = (userId: string, isTyping: boolean, displayName?: string) => {
+      if (isTyping) {
+        setTypingUsers(prev => {
+          const existing = prev.find(u => u.userId === userId);
+          if (existing) {
+            return prev.map(u =>
+              u.userId === userId
+                ? { ...u, isTyping: true, displayName: displayName || u.displayName }
+                : u
+            );
+          }
+          return [...prev, {
+            userId,
+            displayName: displayName || 'Someone',
+            isTyping: true,
+          }];
+        });
+      } else {
+        setTypingUsers(prev => prev.filter(u => u.userId !== userId));
+      }
+    };
+
+    const getDisplayName = async (userId: string) => {
+      const cached = displayNameCacheRef.current.get(userId);
+      if (cached) return cached;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const displayName = profile?.display_name || 'Someone';
+      displayNameCacheRef.current.set(userId, displayName);
+      return displayName;
+    };
 
     // Subscribe to typing indicator changes
     const channel = supabase
@@ -28,45 +103,52 @@ export const useTypingIndicator = (conversationId: string | null, currentUserId:
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          const data = payload.new as any;
+          const data = (payload.eventType === 'DELETE' ? payload.old : payload.new) as TypingIndicatorRow | undefined;
+
+          if (!isActive || !data?.user_id) return;
           
           // Ignore our own typing
           if (data?.user_id === currentUserId) return;
 
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             if (data?.is_typing) {
-              // Get user display name
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('display_name')
-                .eq('user_id', data.user_id)
-                .maybeSingle();
-
-              setTypingUsers(prev => {
-                const existing = prev.find(u => u.userId === data.user_id);
-                if (existing) {
-                  return prev.map(u => 
-                    u.userId === data.user_id 
-                      ? { ...u, isTyping: true }
-                      : u
-                  );
-                }
-                return [...prev, {
-                  userId: data.user_id,
-                  displayName: profile?.display_name || 'Someone',
-                  isTyping: true,
-                }];
-              });
+              const displayName = await getDisplayName(data.user_id);
+              if (!isActive) return;
+              applyTypingState(data.user_id, true, displayName);
             } else {
-              setTypingUsers(prev => prev.filter(u => u.userId !== data.user_id));
+              applyTypingState(data.user_id, false);
             }
           } else if (payload.eventType === 'DELETE') {
-            const oldData = payload.old as any;
-            setTypingUsers(prev => prev.filter(u => u.userId !== oldData?.user_id));
+            const oldData = payload.old as TypingIndicatorRow | undefined;
+            if (oldData?.user_id) {
+              applyTypingState(oldData.user_id, false);
+            }
           }
         }
       )
+      .on('broadcast', { event: 'typing' }, async (payload) => {
+        const data = payload.payload as TypingBroadcastPayload;
+
+        if (
+          !isActive ||
+          !data?.user_id ||
+          data.user_id === currentUserId ||
+          data.conversation_id !== conversationId
+        ) {
+          return;
+        }
+
+        let displayName = data.display_name;
+        if (!displayName && data.typing) {
+          displayName = await getDisplayName(data.user_id);
+          if (!isActive) return;
+        }
+
+        applyTypingState(data.user_id, Boolean(data.typing), displayName);
+      })
       .subscribe();
+
+    channelRef.current = channel;
 
     // Load initial typing state
     const loadTypingState = async () => {
@@ -77,93 +159,96 @@ export const useTypingIndicator = (conversationId: string | null, currentUserId:
         .eq('is_typing', true)
         .neq('user_id', currentUserId);
 
+      if (!isActive) return;
+
       if (data && data.length > 0) {
         const usersWithNames = await Promise.all(
           data.map(async (indicator) => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('display_name')
-              .eq('user_id', indicator.user_id)
-              .maybeSingle();
-            
+            const displayName = await getDisplayName(indicator.user_id);
             return {
               userId: indicator.user_id,
-              displayName: profile?.display_name || 'Someone',
+              displayName,
               isTyping: true,
             };
           })
         );
+        if (!isActive) return;
         setTypingUsers(usersWithNames);
+      } else {
+        setTypingUsers([]);
       }
     };
 
     loadTypingState();
 
     return () => {
+      isActive = false;
       supabase.removeChannel(channel);
+      if (channelRef.current === channel) {
+        channelRef.current = null;
+      }
+      setTypingUsers([]);
     };
   }, [conversationId, currentUserId]);
 
-  // Update typing status in database
+  // Broadcast typing immediately and persist to DB on a controlled cadence.
   const setTyping = useCallback(async (isTyping: boolean) => {
     if (!conversationId || !currentUserId) return;
 
-    // Throttle updates to prevent spam
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        user_id: currentUserId,
+        conversation_id: conversationId,
+        typing: isTyping,
+      },
+    });
+
+    // Throttle DB writes to prevent churn while still providing fallback state.
     const now = Date.now();
-    if (isTyping && now - lastTypingUpdate.current < 1000) return;
-    lastTypingUpdate.current = now;
+    const shouldPersist = !isTyping || now - lastDbTypingUpdateRef.current >= 1000;
+    if (shouldPersist) {
+      lastDbTypingUpdateRef.current = now;
+      await upsertTypingIndicator(isTyping);
+    }
 
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
 
-    try {
-      // Upsert typing indicator
-      await supabase
-        .from('typing_indicators')
-        .upsert({
-          conversation_id: conversationId,
-          user_id: currentUserId,
-          is_typing: isTyping,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'conversation_id,user_id',
-        });
-
-      // Auto-stop typing after 3 seconds of no input
-      if (isTyping) {
-        typingTimeoutRef.current = setTimeout(() => {
-          setTyping(false);
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error updating typing indicator:', error);
+    // Auto-stop typing after 3 seconds of no input
+    if (isTyping) {
+      typingTimeoutRef.current = setTimeout(() => {
+        void setTyping(false);
+      }, 3000);
     }
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, upsertTypingIndicator]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
       }
       // Set typing to false when leaving
       if (conversationId && currentUserId) {
-        supabase
-          .from('typing_indicators')
-          .upsert({
-            conversation_id: conversationId,
+        channelRef.current?.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: {
             user_id: currentUserId,
-            is_typing: false,
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'conversation_id,user_id',
-          })
-          .then(() => {});
+            conversation_id: conversationId,
+            typing: false,
+          },
+        });
+        void upsertTypingIndicator(false);
       }
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, upsertTypingIndicator]);
 
   return {
     typingUsers: typingUsers.filter(u => u.isTyping),

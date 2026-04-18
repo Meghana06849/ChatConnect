@@ -24,6 +24,7 @@ import {
   Users,
   ArrowLeft,
   Moon,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +46,7 @@ interface ChatHeaderProps {
   onVideoCall?: () => void;
   onSearch?: () => void;
   onMuteToggle?: () => void;
+  onOpenSettings?: () => void;
   onViewMedia?: () => void;
   onViewStarred?: () => void;
   onBlock?: () => void;
@@ -63,6 +65,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onVideoCall,
   onSearch,
   onMuteToggle,
+  onOpenSettings,
   onViewMedia,
   onViewStarred,
   onBlock,
@@ -114,10 +117,14 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <BellOff className="w-3.5 h-3.5 text-muted-foreground" />
               )}
             </div>
+            {isLoversMode && (
+              <p className="text-[11px] text-lovers-primary/90 font-medium">Our Private Space</p>
+            )}
             <LastSeenStatus
               isOnline={contact.isOnline}
               lastSeen={contact.lastSeen}
               isTyping={isTyping}
+              typingText={typingText}
               isLoversMode={isLoversMode}
             />
           </div>
@@ -160,7 +167,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
               {isLoversMode && onDreamRoom && (
                 <DropdownMenuItem onClick={onDreamRoom} className="gap-3 text-lovers-primary">
                   <Moon className="w-4 h-4" />
-                  Open Dream Room 💜
+                  Enter Our Dream Room 💜
                 </DropdownMenuItem>
               )}
 
@@ -170,6 +177,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 <DropdownMenuItem onClick={onSearch} className="gap-3">
                   <Search className="w-4 h-4" />
                   Search in chat
+                </DropdownMenuItem>
+              )}
+
+              {onOpenSettings && (
+                <DropdownMenuItem onClick={onOpenSettings} className="gap-3">
+                  <Settings className="w-4 h-4" />
+                  Chat settings
                 </DropdownMenuItem>
               )}
               

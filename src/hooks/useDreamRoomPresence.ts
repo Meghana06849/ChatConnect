@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from './useProfile';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -21,17 +21,38 @@ export const useDreamRoomPresence = () => {
     partnerName: null,
     partnerMood: null,
   });
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const profileChannelRef = useRef<RealtimeChannel | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  const resetPartnerState = useCallback(() => {
+    setPresenceState({
+      partnerOnline: false,
+      partnerLastSeen: null,
+      partnerId: null,
+      partnerName: null,
+      partnerMood: null,
+    });
+  }, []);
 
   // Join the Dream Room presence channel
   useEffect(() => {
-    if (!profile?.user_id || !profile?.lovers_partner_id) return;
+    if (!profile?.user_id || !profile?.lovers_partner_id) {
+      setIsConnected(false);
+      resetPartnerState();
+      return;
+    }
+
+    let isActive = true;
+    setIsConnected(false);
+    resetPartnerState();
 
     // Shared dream_room_id for this linked couple
     const roomId = getDreamRoomId(profile.user_id, profile.lovers_partner_id);
+    // Keep the channel name aligned with realtime authorization rules.
+    const dreamChannelName = `dream-chat:${roomId}`;
 
-    const dreamRoomChannel = supabase.channel(roomId, {
+    const dreamRoomChannel = supabase.channel(dreamChannelName, {
       config: {
         presence: {
           key: profile.user_id,
@@ -48,28 +69,31 @@ export const useDreamRoomPresence = () => {
         const partnerPresence = state[profile.lovers_partner_id!];
         
         if (partnerPresence && partnerPresence.length > 0) {
-          const partnerData = partnerPresence[0] as any;
+          const partnerData = partnerPresence[0] as { display_name?: string; mood?: string };
           setPresenceState(prev => ({
             ...prev,
             partnerOnline: true,
             partnerLastSeen: new Date(),
+            partnerId: profile.lovers_partner_id!,
             partnerName: partnerData.display_name || prev.partnerName,
             partnerMood: partnerData.mood || null,
           }));
         } else {
           setPresenceState(prev => ({
             ...prev,
-            partnerOnline: false,
+            // Keep profile-based online status if available and only clear dream-specific mood.
+            partnerMood: null,
           }));
         }
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         if (key === profile.lovers_partner_id) {
-          const partnerData = newPresences[0] as any;
+          const partnerData = newPresences[0] as { display_name?: string; mood?: string };
           setPresenceState(prev => ({
             ...prev,
             partnerOnline: true,
             partnerLastSeen: new Date(),
+            partnerId: profile.lovers_partner_id!,
             partnerName: partnerData.display_name || prev.partnerName,
             partnerMood: partnerData.mood || null,
           }));
@@ -79,13 +103,14 @@ export const useDreamRoomPresence = () => {
         if (key === profile.lovers_partner_id) {
           setPresenceState(prev => ({
             ...prev,
-            partnerOnline: false,
+            // Partner may still be online in Lovers mode, just not in DreamRoom presence.
+            partnerMood: null,
             partnerLastSeen: new Date(),
           }));
         }
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status === 'SUBSCRIBED' && isActive) {
           setIsConnected(true);
           
           // Track our presence with user info
@@ -98,7 +123,30 @@ export const useDreamRoomPresence = () => {
         }
       });
 
-    setChannel(dreamRoomChannel);
+    channelRef.current = dreamRoomChannel;
+
+    // Subscribe to partner profile updates for live online/offline fallback when partner
+    // is active in Lovers mode chat but not currently tracked in DreamRoom presence.
+    const partnerProfileChannel = supabase
+      .channel(`dreamroom-profile:${profile.user_id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `user_id=eq.${profile.lovers_partner_id}`,
+      }, (payload) => {
+        const next = payload.new as { is_online?: boolean | null; display_name?: string | null; last_seen?: string | null };
+        setPresenceState(prev => ({
+          ...prev,
+          partnerOnline: Boolean(next.is_online),
+          partnerName: next.display_name || prev.partnerName,
+          partnerLastSeen: next.last_seen ? new Date(next.last_seen) : prev.partnerLastSeen,
+          partnerId: profile.lovers_partner_id!,
+        }));
+      })
+      .subscribe();
+
+    profileChannelRef.current = partnerProfileChannel;
 
     // Load partner profile info
     const loadPartnerInfo = async () => {
@@ -108,11 +156,12 @@ export const useDreamRoomPresence = () => {
         .eq('user_id', profile.lovers_partner_id!)
         .maybeSingle();
       
-      if (data) {
+      if (data && isActive) {
         setPresenceState(prev => ({
           ...prev,
           partnerId: profile.lovers_partner_id!,
           partnerName: data.display_name,
+          partnerOnline: Boolean(data.is_online),
         }));
       }
     };
@@ -120,28 +169,41 @@ export const useDreamRoomPresence = () => {
     loadPartnerInfo();
 
     return () => {
+      isActive = false;
+      setIsConnected(false);
+      if (channelRef.current === dreamRoomChannel) {
+        channelRef.current = null;
+      }
+      if (profileChannelRef.current === partnerProfileChannel) {
+        profileChannelRef.current = null;
+      }
+      void dreamRoomChannel.untrack();
       dreamRoomChannel.unsubscribe();
+      partnerProfileChannel.unsubscribe();
+      resetPartnerState();
     };
-  }, [profile?.user_id, profile?.lovers_partner_id, profile?.display_name]);
+  }, [profile?.user_id, profile?.lovers_partner_id, profile?.display_name, resetPartnerState]);
 
   // Update mood
   const updateMood = useCallback(async (mood: string) => {
-    if (!channel || !profile) return;
+    if (!channelRef.current || !profile) return;
     
-    await channel.track({
+    await channelRef.current.track({
       user_id: profile.user_id,
       display_name: profile.display_name || 'Love',
       online_at: new Date().toISOString(),
       mood,
     });
-  }, [channel, profile]);
+  }, [profile]);
 
   // Leave presence (call when leaving Dream Room)
   const leavePresence = useCallback(async () => {
-    if (channel) {
-      await channel.untrack();
+    if (channelRef.current) {
+      await channelRef.current.untrack();
+      setIsConnected(false);
+      resetPartnerState();
     }
-  }, [channel]);
+  }, [resetPartnerState]);
 
   return {
     ...presenceState,

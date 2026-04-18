@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { Suspense, lazy, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -20,10 +20,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ImageEditor } from '@/components/media/ImageEditor';
-import { SongManager } from '@/components/media/SongManager';
-import { ARFilters } from '@/components/unique/ARFilters';
-import { VoiceChangeChat } from '@/components/unique/VoiceChangeChat';
+const ImageEditor = lazy(() => import('@/components/media/ImageEditor').then((module) => ({ default: module.ImageEditor })));
+const SongManager = lazy(() => import('@/components/media/SongManager').then((module) => ({ default: module.SongManager })));
+const ARFilters = lazy(() => import('@/components/unique/ARFilters').then((module) => ({ default: module.ARFilters })));
+const VoiceChangeChat = lazy(() => import('@/components/unique/VoiceChangeChat').then((module) => ({ default: module.VoiceChangeChat })));
 
 interface MediaAttachmentPickerProps {
   onImageSelect: (file: File) => void;
@@ -185,59 +185,75 @@ export const MediaAttachmentPicker: React.FC<MediaAttachmentPickerProps> = ({
       </Popover>
 
       {/* Image Editor Dialog */}
-      <ImageEditor 
-        isOpen={showImageEditor} 
-        onClose={() => setShowImageEditor(false)}
-        onSave={(url) => {
-          onImageEdited?.(url);
-          setShowImageEditor(false);
-        }}
-      />
+      {showImageEditor && (
+        <Suspense fallback={null}>
+          <ImageEditor 
+            isOpen={showImageEditor} 
+            onClose={() => setShowImageEditor(false)}
+            onSave={(url) => {
+              onImageEdited?.(url);
+              setShowImageEditor(false);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Music Manager Dialog */}
-      <Dialog open={showMusicManager} onOpenChange={setShowMusicManager}>
-        <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Music className="w-5 h-5" />
-              <span>Music Collection</span>
-            </DialogTitle>
-          </DialogHeader>
-          <SongManager />
-        </DialogContent>
-      </Dialog>
+      {showMusicManager && (
+        <Dialog open={showMusicManager} onOpenChange={setShowMusicManager}>
+          <DialogContent className="glass border-white/20 max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Music className="w-5 h-5" />
+                <span>Music Collection</span>
+              </DialogTitle>
+            </DialogHeader>
+            <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Loading music collection...</div>}>
+              <SongManager />
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* AR Filters Dialog — now functional */}
-      <Dialog open={showARFilters} onOpenChange={setShowARFilters}>
-        <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Sparkles className="w-5 h-5" />
-              <span>AR Filters & Effects</span>
-            </DialogTitle>
-          </DialogHeader>
-          <ARFilters onSendImage={(file) => {
-            onImageSelect(file);
-            setShowARFilters(false);
-          }} />
-        </DialogContent>
-      </Dialog>
+      {showARFilters && (
+        <Dialog open={showARFilters} onOpenChange={setShowARFilters}>
+          <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5" />
+                <span>AR Filters & Effects</span>
+              </DialogTitle>
+            </DialogHeader>
+            <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Loading AR filters...</div>}>
+              <ARFilters onSendImage={(file) => {
+                onImageSelect(file);
+                setShowARFilters(false);
+              }} />
+            </Suspense>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Voice Changer Dialog — now functional */}
-      <Dialog open={showVoiceChanger} onOpenChange={setShowVoiceChanger}>
-        <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Mic className="w-5 h-5" />
-              <span>Voice Changer</span>
-            </DialogTitle>
-          </DialogHeader>
-          <VoiceChangeChat onSendVoice={(file) => {
-            onImageSelect(file); // reuse same upload handler
-            setShowVoiceChanger(false);
-          }} />
+      {showVoiceChanger && (
+        <Dialog open={showVoiceChanger} onOpenChange={setShowVoiceChanger}>
+          <DialogContent className="glass border-white/20 max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Mic className="w-5 h-5" />
+                <span>Voice Changer</span>
+              </DialogTitle>
+            </DialogHeader>
+            <Suspense fallback={<div className="py-8 text-center text-muted-foreground">Loading voice effects...</div>}>
+              <VoiceChangeChat onSendVoice={(file) => {
+                onImageSelect(file); // reuse same upload handler
+                setShowVoiceChanger(false);
+              }} />
+            </Suspense>
         </DialogContent>
-      </Dialog>
+        </Dialog>
+      )}
     </>
   );
 };

@@ -16,9 +16,10 @@ import {
 
 interface OnboardingFlowProps {
   onComplete: () => void;
+  storageKey: string;
 }
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete, storageKey }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const slides = [
@@ -113,7 +114,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
 
   const nextSlide = () => {
     if (isLastSlide) {
-      localStorage.setItem('chatconnect_onboarding_completed', 'true');
+      localStorage.setItem(storageKey, 'true');
       onComplete();
     } else {
       setCurrentSlide(prev => prev + 1);
@@ -121,7 +122,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   };
 
   const skipOnboarding = () => {
-    localStorage.setItem('chatconnect_onboarding_completed', 'true');
+    localStorage.setItem(storageKey, 'true');
     onComplete();
   };
 

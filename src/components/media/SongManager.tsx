@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,11 +41,7 @@ export const SongManager: React.FC = () => {
     file: null as File | null
   });
 
-  useEffect(() => {
-    loadSongs();
-  }, []);
-
-  const loadSongs = async () => {
+  const loadSongs = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('user_songs')
@@ -54,16 +50,20 @@ export const SongManager: React.FC = () => {
 
       if (error) throw error;
       setSongs(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading songs",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadSongs();
+  }, [loadSongs]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -132,10 +132,10 @@ export const SongManager: React.FC = () => {
       setNewSong({ title: '', artist: '', genre: '', file: null });
       setShowAddDialog(false);
       loadSongs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error adding song",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -158,10 +158,10 @@ export const SongManager: React.FC = () => {
       });
 
       loadSongs();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error deleting song",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

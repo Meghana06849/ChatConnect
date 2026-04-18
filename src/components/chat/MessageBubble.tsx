@@ -19,6 +19,16 @@ interface ReplyInfo {
   messageType?: string;
 }
 
+interface MessageMetadata {
+  imageUrl?: string;
+  audioUrl?: string;
+  videoUrl?: string;
+  duration?: number;
+  filename?: string;
+  size?: number;
+  forwarded?: boolean;
+}
+
 interface MessageBubbleProps {
   id: string;
   content: string;
@@ -29,7 +39,7 @@ interface MessageBubbleProps {
   readAt?: string | null;
   deliveredAt?: string | null;
   reactions: Reaction[];
-  metadata?: any;
+  metadata?: MessageMetadata;
   replyTo?: ReplyInfo | null;
   isStarred?: boolean;
   isLoversMode?: boolean;
@@ -174,7 +184,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           </a>
         );
         
-      case 'location':
+      case 'location': {
         const locationUrl = content.startsWith('http') ? content : null;
         return (
           <a 
@@ -189,6 +199,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             <ExternalLink className="w-3 h-3 ml-auto opacity-60" />
           </a>
         );
+      }
         
       default:
         return (
@@ -250,7 +261,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Main bubble */}
           <div
             className={cn(
-              "rounded-2xl px-4 py-2.5 shadow-lg transition-all",
+              "rounded-2xl px-4 py-2.5 shadow-lg transition-all duration-200 animate-in fade-in-0 slide-in-from-bottom-1",
               replyTo ? "rounded-t-lg" : "",
               isOwnMessage
                 ? isLoversMode

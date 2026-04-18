@@ -25,6 +25,13 @@ interface Contact {
   avatar?: string;
 }
 
+interface CallGroup {
+  id: string;
+  name: string;
+  members: number;
+  online: number;
+}
+
 interface CallInterfaceProps {
   isLoversMode?: boolean;
 }
@@ -88,7 +95,7 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
     loadContacts();
   }, [userId]);
 
-  const groups = [
+  const groups: CallGroup[] = [
     { id: '1', name: 'Family Group', members: 5, online: 3 },
     { id: '2', name: 'Work Team', members: 8, online: 4 },
     { id: '3', name: 'Study Group', members: 6, online: 2 },
@@ -107,7 +114,7 @@ export const CallInterface: React.FC<CallInterfaceProps> = ({ isLoversMode = fal
     await startCall(contact.userId, contact.name, isVideo);
   };
 
-  const startGroupCall = (group: any) => {
+  const startGroupCall = (group: CallGroup) => {
     toast({
       title: "Group call starting",
       description: `Connecting to ${group.name}...`,

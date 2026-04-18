@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -58,11 +59,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchMode = (newMode: ChatMode, pin?: string): boolean => {
     if (newMode === 'lovers') {
-      if (!loversPin) {
-        return false; // No PIN set
+      const effectivePin = loversPin || pin || null;
+      if (!effectivePin || !pin) {
+        return false; // No PIN available or provided for verification
       }
-      
-      if (pin && pin === loversPin) {
+
+      if (pin === effectivePin) {
+        if (!loversPin) {
+          setLoversPin(effectivePin);
+          localStorage.setItem('chatconnect_lovers_pin', effectivePin);
+        }
+
         setMode('lovers');
         setHasLoversAccess(true);
         localStorage.setItem('chatconnect_mode', 'lovers');

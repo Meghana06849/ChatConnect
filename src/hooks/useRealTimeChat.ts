@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,20 +31,87 @@ interface Conversation {
   }>;
 }
 
+interface ConversationParticipantRow {
+  user_id: string;
+  profiles: {
+    display_name: string;
+    avatar_url?: string;
+    is_online: boolean;
+    is_verified?: boolean;
+    verification_type?: string;
+    last_seen?: string | null;
+  } | null;
+}
+
+interface ConversationRow {
+  id: string;
+  type: string;
+  name?: string;
+  is_lovers_conversation: boolean;
+  conversation_participants?: ConversationParticipantRow[];
+}
+
+interface MessageInsert {
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  message_type: string;
+  is_dream_message: boolean;
+  dream_reveal_at?: string;
+}
+
 export const useRealTimeChat = (isLoversMode: boolean = false) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const isMountedRef = useRef(true);
+  const conversationIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      conversationIdsRef.current.clear();
+    };
+  }, []);
 
   // Load conversations filtered by mode
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async (showLoading: boolean = false) => {
+    if (showLoading && isMountedRef.current) {
+      setLoading(true);
+    }
+
     try {
-      let query = supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (isMountedRef.current) {
+          setConversations([]);
+          conversationIdsRef.current = new Set();
+        }
+        return;
+      }
+
+      const { data: participantRows, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+      if (participantsError) throw participantsError;
+
+      const conversationIds = (participantRows || []).map((row) => row.conversation_id);
+      if (conversationIds.length === 0) {
+        if (isMountedRef.current) {
+          setConversations([]);
+          conversationIdsRef.current = new Set();
+        }
+        return;
+      }
+
+      const { data: conversationsData, error } = await supabase
         .from('conversations')
         .select(`
           *,
-          conversation_participants!inner (
+          conversation_participants (
             user_id,
             profiles!conversation_participants_user_id_profiles_fkey (
               display_name,
@@ -56,16 +123,15 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
             )
           )
         `)
-        .eq('is_lovers_conversation', isLoversMode);
-
-      const { data: conversationsData, error } = await query;
+        .eq('is_lovers_conversation', isLoversMode)
+        .in('id', conversationIds);
 
       if (error) throw error;
       
       // Type-safe conversation mapping
-      const typedConversations = (conversationsData || []).map(conv => ({
+      const typedConversations = ((conversationsData || []) as ConversationRow[]).map((conv) => ({
         ...conv,
-        conversation_participants: (conv.conversation_participants as any[])?.map((p: any) => ({
+        conversation_participants: conv.conversation_participants?.map((p) => ({
           user_id: p.user_id,
           profiles: {
             display_name: p.profiles?.display_name || 'Unknown',
@@ -77,19 +143,26 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
           }
         })) || []
       })) as Conversation[];
-      
+
+      if (!isMountedRef.current) return;
+
       setConversations(typedConversations);
-    } catch (error: any) {
+      conversationIdsRef.current = new Set(typedConversations.map((conversation) => conversation.id));
+    } catch (error) {
       toast({
         title: "Error loading conversations",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load conversations',
         variant: "destructive",
       });
+    } finally {
+      if (showLoading && isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [isLoversMode, toast]);
 
   // Load messages for a conversation
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string) => {
     try {
       const { data: messagesData, error } = await supabase
         .from('messages')
@@ -99,23 +172,23 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
 
       if (error) throw error;
       return messagesData || [];
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error loading messages",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to load messages',
         variant: "destructive",
       });
       return [];
     }
-  };
+  }, [toast]);
 
   // Send a message
-  const sendMessage = async (conversationId: string, content: string, messageType: string = 'text', isDreamMessage: boolean = false) => {
+  const sendMessage = useCallback(async (conversationId: string, content: string, messageType: string = 'text', isDreamMessage: boolean = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const messageData: any = {
+      const messageData: MessageInsert = {
         conversation_id: conversationId,
         sender_id: user.id,
         content,
@@ -138,21 +211,64 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
 
       if (error) throw error;
       return data;
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error sending message",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to send message',
         variant: "destructive",
       });
       throw error;
     }
-  };
+  }, [toast]);
 
   // Create a new conversation
-  const createConversation = async (participantUserIds: string[], isLoversConversation: boolean = false) => {
+  const createConversation = useCallback(async (participantUserIds: string[], isLoversConversation: boolean = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      if (participantUserIds.length === 1) {
+        const partnerId = participantUserIds[0];
+
+        const { data: myConversationRows, error: myConvError } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', user.id);
+
+        if (myConvError) throw myConvError;
+
+        const myConversationIds = (myConversationRows || []).map((row) => row.conversation_id);
+
+        if (myConversationIds.length > 0) {
+          const { data: partnerRows, error: partnerError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', partnerId)
+            .in('conversation_id', myConversationIds);
+
+          if (partnerError) throw partnerError;
+
+          const sharedConversationIds = (partnerRows || []).map((row) => row.conversation_id);
+
+          if (sharedConversationIds.length > 0) {
+            const { data: existingConversation, error: existingError } = await supabase
+              .from('conversations')
+              .select('id, type, created_by, is_lovers_conversation')
+              .eq('type', 'direct')
+              .eq('is_lovers_conversation', isLoversConversation)
+              .in('id', sharedConversationIds)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (existingError && existingError.code !== 'PGRST116') throw existingError;
+
+            if (existingConversation) {
+              return existingConversation;
+            }
+          }
+        }
+      }
 
       // Generate UUID client-side to avoid needing .select() after insert
       const conversationId = crypto.randomUUID();
@@ -181,6 +297,8 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
 
       if (participantsError) throw participantsError;
 
+      await loadConversations();
+
       // Return the conversation object with the generated ID
       return { 
         id: conversationId, 
@@ -188,52 +306,67 @@ export const useRealTimeChat = (isLoversMode: boolean = false) => {
         created_by: user.id, 
         is_lovers_conversation: isLoversConversation 
       };
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error creating conversation",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to create conversation',
         variant: "destructive",
       });
       throw error;
     }
-  };
+  }, [loadConversations, toast]);
 
   // Set up real-time subscriptions
   useEffect(() => {
-    loadConversations();
+    let isActive = true;
+    setMessages([]);
+    void loadConversations(true);
 
     // Subscribe to new messages
     const messageSubscription = supabase
-      .channel('messages')
+      .channel(`legacy-messages-${isLoversMode ? 'lovers' : 'general'}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'messages'
       }, (payload) => {
+        if (!isActive) return;
+
         const newMessage = payload.new as Message;
-        setMessages(prev => [...prev, newMessage]);
+        if (!conversationIdsRef.current.has(newMessage.conversation_id)) {
+          return;
+        }
+
+        setMessages(prev => {
+          if (prev.some((message) => message.id === newMessage.id)) {
+            return prev;
+          }
+
+          return [...prev, newMessage];
+        });
       })
       .subscribe();
 
     // Subscribe to conversation changes
     const conversationSubscription = supabase
-      .channel('conversations')
+      .channel(`legacy-conversations-${isLoversMode ? 'lovers' : 'general'}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'conversations'
+        table: 'conversations',
+        filter: `is_lovers_conversation=eq.${isLoversMode}`,
       }, () => {
-        loadConversations();
+        if (!isActive) return;
+        void loadConversations();
       })
       .subscribe();
 
-    setLoading(false);
-
     return () => {
+      isActive = false;
       supabase.removeChannel(messageSubscription);
       supabase.removeChannel(conversationSubscription);
     };
-  }, [isLoversMode]);
+  }, [isLoversMode, loadConversations]);
 
   return {
     messages,

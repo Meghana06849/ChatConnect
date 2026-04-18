@@ -31,7 +31,7 @@ export const VoiceMessageRecorder: React.FC<VoiceMessageRecorderProps> = ({
   const animationRef = useRef<number>();
 
   // Start recording
-  const startRecording = useCallback(async () => {
+  const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -75,7 +75,7 @@ export const VoiceMessageRecorder: React.FC<VoiceMessageRecorderProps> = ({
     } catch (error) {
       console.error('Error starting recording:', error);
     }
-  }, []);
+  };
 
   // Visualize waveform
   const visualize = useCallback(() => {

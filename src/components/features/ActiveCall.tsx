@@ -38,6 +38,7 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const screenVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const [isSpeakerOn, setIsSpeakerOn] = React.useState(true);
 
   useEffect(() => {
@@ -53,6 +54,19 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
   }, [remoteStream]);
 
   useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = !isSpeakerOn;
+      remoteAudioRef.current.volume = isSpeakerOn ? 1 : 0;
+    }
+  }, [isSpeakerOn]);
+
+  useEffect(() => {
     if (screenVideoRef.current && screenStream) {
       screenVideoRef.current.srcObject = screenStream;
     }
@@ -66,6 +80,7 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       <Card className="w-full max-w-2xl glass border-white/20">
         <CardContent className="p-8">
           {/* Header */}
@@ -128,6 +143,7 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
                   <video
                     ref={remoteVideoRef}
                     autoPlay
+                    muted
                     playsInline
                     className="w-full h-full object-cover"
                   />

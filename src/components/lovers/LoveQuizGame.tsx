@@ -50,6 +50,7 @@ export const LoveQuizGame: React.FC<LoveQuizGameProps> = ({
   const [currentIdx, setCurrentIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isMutuallyLinked, setIsMutuallyLinked] = useState(false);
 
   const currentUserId = profile?.user_id;
   const myAnswers = answers.filter(a => a.user_id === currentUserId);
@@ -72,12 +73,55 @@ export const LoveQuizGame: React.FC<LoveQuizGameProps> = ({
   }, [bothFinished, totalQ, questions, myAnswers, partnerAnswers]);
 
   // Load or create game
+  const loadQuestions = useCallback(async () => {
+    const { data } = await supabase
+      .from('love_quiz_questions')
+      .select('*')
+      .limit(10);
+    if (data) {
+      setQuestions(data.map(q => ({
+        ...q,
+        options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
+      })) as QuizQuestion[]);
+    }
+  }, []);
+
+  const loadAnswers = useCallback(async (gameId: string) => {
+    const { data } = await supabase
+      .from('love_quiz_answers')
+      .select('*')
+      .eq('game_id', gameId);
+    if (data) {
+      const typedAnswers = data as unknown as QuizAnswer[];
+      setAnswers(typedAnswers);
+      // Set current index to first unanswered
+      const myIds = new Set(typedAnswers.filter((answer) => answer.user_id === currentUserId).map((answer) => answer.question_id));
+      const idx = questions.findIndex(q => !myIds.has(q.id));
+      if (idx >= 0) setCurrentIdx(idx);
+    }
+  }, [currentUserId, questions]);
+
   useEffect(() => {
-    if (!currentUserId) return;
-    loadGame();
+    if (!currentUserId || !partnerId) return;
+
+    const checkMutualLink = async () => {
+      const { data, error } = await supabase.rpc('are_linked_lovers', {
+        _user_a: currentUserId,
+        _user_b: partnerId,
+      });
+
+      if (error) {
+        setIsMutuallyLinked(false);
+        return;
+      }
+
+      setIsMutuallyLinked(Boolean(data));
+    };
+
+    checkMutualLink();
   }, [currentUserId, partnerId]);
 
-  const loadGame = async () => {
+  const loadGame = useCallback(async () => {
     if (!currentUserId) return;
     setLoading(true);
 
@@ -96,34 +140,12 @@ export const LoveQuizGame: React.FC<LoveQuizGameProps> = ({
       await loadQuestions();
     }
     setLoading(false);
-  };
+  }, [currentUserId, partnerId, loadQuestions, loadAnswers]);
 
-  const loadQuestions = async () => {
-    const { data } = await supabase
-      .from('love_quiz_questions')
-      .select('*')
-      .limit(10);
-    if (data) {
-      setQuestions(data.map(q => ({
-        ...q,
-        options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options,
-      })) as QuizQuestion[]);
-    }
-  };
-
-  const loadAnswers = async (gameId: string) => {
-    const { data } = await supabase
-      .from('love_quiz_answers')
-      .select('*')
-      .eq('game_id', gameId);
-    if (data) {
-      setAnswers(data as unknown as QuizAnswer[]);
-      // Set current index to first unanswered
-      const myIds = new Set(data.filter((a: any) => a.user_id === currentUserId).map((a: any) => a.question_id));
-      const idx = questions.findIndex(q => !myIds.has(q.id));
-      if (idx >= 0) setCurrentIdx(idx);
-    }
-  };
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadGame();
+  }, [currentUserId, loadGame]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -173,6 +195,16 @@ export const LoveQuizGame: React.FC<LoveQuizGameProps> = ({
 
   const startNewGame = async () => {
     if (!currentUserId || questions.length === 0) return;
+
+    if (!isMutuallyLinked) {
+      toast({
+        title: 'Quiz locked',
+        description: `${partnerName} must link you back in Lovers Mode before starting Love Quiz.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
 
     const { data, error } = await supabase
@@ -284,10 +316,16 @@ export const LoveQuizGame: React.FC<LoveQuizGameProps> = ({
             </div>
             <Button
               onClick={startNewGame}
+              disabled={!isMutuallyLinked || questions.length === 0}
               className="w-full bg-gradient-to-r from-[hsl(var(--lovers-primary))] to-[hsl(var(--lovers-secondary))] hover:opacity-90 text-white"
             >
               <Heart className="w-4 h-4 mr-2" /> Start Quiz
             </Button>
+            {!isMutuallyLinked && (
+              <p className="text-xs text-white/60 text-center">
+                Locked until both partners complete Lovers Mode linking.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

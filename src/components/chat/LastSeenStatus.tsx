@@ -6,6 +6,7 @@ interface LastSeenStatusProps {
   isOnline: boolean;
   lastSeen?: string | null;
   isTyping?: boolean;
+  typingText?: string;
   isLoversMode?: boolean;
   className?: string;
 }
@@ -14,6 +15,7 @@ export const LastSeenStatus: React.FC<LastSeenStatusProps> = ({
   isOnline,
   lastSeen,
   isTyping = false,
+  typingText,
   isLoversMode = false,
   className
 }) => {
@@ -24,7 +26,7 @@ export const LastSeenStatus: React.FC<LastSeenStatusProps> = ({
         isLoversMode ? "text-lovers-primary" : "text-general-primary",
         className
       )}>
-        {isLoversMode ? 'typing with love...' : 'typing...'}
+        {typingText || (isLoversMode ? 'typing with love...' : 'typing...')}
       </span>
     );
   }

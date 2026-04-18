@@ -88,9 +88,10 @@ export const useDisappearingMessages = ({ mode, conversationId }: DisappearingMe
 
   // Cleanup on unmount
   useEffect(() => {
+    const timeouts = deleteTimeoutsRef.current;
     return () => {
-      deleteTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
-      deleteTimeoutsRef.current.clear();
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      timeouts.clear();
     };
   }, []);
 

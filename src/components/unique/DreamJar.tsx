@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,11 +24,7 @@ export const DreamJar: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadWishes();
-  }, []);
-
-  const loadWishes = async () => {
+  const loadWishes = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -54,14 +50,18 @@ export const DreamJar: React.FC = () => {
       }) || [];
 
       setWishes(wishData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading wishes",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadWishes();
+  }, [loadWishes]);
 
   const addWish = async () => {
     if (!newWish.trim() || !revealDate) {
@@ -100,10 +100,10 @@ export const DreamJar: React.FC = () => {
       setNewWish('');
       setRevealDate('');
       loadWishes();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error adding wish",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

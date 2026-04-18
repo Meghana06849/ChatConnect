@@ -12,5 +12,5 @@ export interface ChatMessage {
   created_at: string;
   read_at?: string | null;
   reactions?: Reaction[];
-  metadata?: any;
+  metadata?: Record<string, unknown> | null;
 }

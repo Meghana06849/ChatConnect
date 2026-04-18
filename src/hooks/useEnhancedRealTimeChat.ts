@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json, Tables } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -16,16 +17,53 @@ interface Message {
   message_type: string;
   created_at: string;
   read_at?: string | null;
-  reactions?: any;
-  metadata?: any;
+  reactions?: Reaction[] | null;
+  metadata?: Record<string, unknown> | null;
 }
+
+type MessageRow = Tables<'messages'>;
 
 interface TypingUser {
   user_id: string;
   display_name: string;
 }
 
+interface TypingBroadcastPayload {
+  user_id: string;
+  conversation_id: string;
+  typing: boolean;
+}
+
 const MESSAGES_PER_PAGE = 50;
+
+const toReactionList = (value: Json | null | undefined): Reaction[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
+      const item = entry as Record<string, unknown>;
+      if (typeof item.emoji !== 'string' || typeof item.user_id !== 'string') return null;
+      return { emoji: item.emoji, user_id: item.user_id } as Reaction;
+    })
+    .filter((entry): entry is Reaction => entry !== null);
+};
+
+const toMetadata = (value: Json | null | undefined): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+};
+
+const toMessage = (row: MessageRow): Message => ({
+  id: row.id,
+  content: row.content,
+  sender_id: row.sender_id,
+  conversation_id: row.conversation_id,
+  message_type: row.message_type || 'text',
+  created_at: row.created_at,
+  read_at: row.read_at,
+  reactions: toReactionList(row.reactions),
+  metadata: toMetadata(row.metadata),
+});
 
 export const useEnhancedRealTimeChat = (conversationId: string | null, disappearingMode?: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,6 +73,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
   const [hasMore, setHasMore] = useState(true);
   const { toast } = useToast();
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const channelRef = useRef<RealtimeChannel>();
   const currentUserIdRef = useRef<string>();
   const disappearTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -64,13 +103,14 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
 
       if (error) throw error;
       
-      const messagesData = (data || []) as Message[];
+      const messagesData = ((data || []) as MessageRow[]).map(toMessage);
       setMessages(messagesData.reverse());
       setHasMore(messagesData.length === MESSAGES_PER_PAGE);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error loading messages",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -95,16 +135,17 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
 
       if (error) throw error;
       
-      const olderMessages = (data || []) as Message[];
+      const olderMessages = ((data || []) as MessageRow[]).map(toMessage);
       if (olderMessages.length < MESSAGES_PER_PAGE) {
         setHasMore(false);
       }
       
       setMessages(prev => [...olderMessages.reverse(), ...prev]);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error loading older messages",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -113,32 +154,49 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
   }, [conversationId, loadingMore, hasMore, messages, toast]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, any>) => {
+  const sendMessage = useCallback(async (content: string, messageType: string = 'text', metadata?: Record<string, unknown>) => {
     if (!conversationId || !currentUserIdRef.current || !content.trim()) return;
 
     try {
-      const insertData: any = {
+      const insertData: {
+        conversation_id: string;
+        sender_id: string;
+        content: string;
+        message_type: string;
+        metadata?: Json;
+      } = {
         conversation_id: conversationId,
         sender_id: currentUserIdRef.current,
         content: content.trim(),
         message_type: messageType,
       };
       if (metadata && Object.keys(metadata).length > 0) {
-        insertData.metadata = metadata;
+        insertData.metadata = metadata as Json;
       }
 
       const { error } = await supabase
         .from('messages')
-        .insert([insertData]);
+        .insert(insertData);
 
       if (error) throw error;
 
       // Stop typing indicator
-      setTyping(false);
-    } catch (error: any) {
+      if (channelRef.current && currentUserIdRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: {
+            user_id: currentUserIdRef.current,
+            conversation_id: conversationId,
+            typing: false,
+          },
+        });
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error sending message",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -183,7 +241,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
       if (disappearingMode && disappearingMode !== 'off') {
         scheduleDisappear(messageId, disappearingMode);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error marking message as read:', error);
     }
   }, [disappearingMode, scheduleDisappear]);
@@ -193,18 +251,26 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
     if (!conversationId || !currentUserIdRef.current) return;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .update({ read_at: new Date().toISOString() })
         .eq('conversation_id', conversationId)
         .neq('sender_id', currentUserIdRef.current)
-        .is('read_at', null);
+        .is('read_at', null)
+        .select('id');
 
       if (error) throw error;
-    } catch (error: any) {
+
+      // Schedule disappear for newly read messages if mode is active
+      if (disappearingMode && disappearingMode !== 'off') {
+        (data || []).forEach((msg: { id: string }) => {
+          scheduleDisappear(msg.id, disappearingMode);
+        });
+      }
+    } catch (error: unknown) {
       console.error('Error marking messages as read:', error);
     }
-  }, [conversationId]);
+  }, [conversationId, disappearingMode, scheduleDisappear]);
 
   // Add reaction to message (toggle)
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
@@ -219,9 +285,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
 
       if (fetchError) throw fetchError;
 
-      const currentReactions: Reaction[] = Array.isArray(message?.reactions) 
-        ? (message.reactions as unknown as Reaction[])
-        : [];
+      const currentReactions = toReactionList((message?.reactions as Json) || null);
       
       const existingIndex = currentReactions.findIndex(
         (r) => r.user_id === currentUserIdRef.current && r.emoji === emoji
@@ -233,14 +297,15 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
 
       const { error } = await supabase
         .from('messages')
-        .update({ reactions: updatedReactions as any })
+        .update({ reactions: updatedReactions as unknown as Json })
         .eq('id', messageId);
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       toast({
         title: "Error adding reaction",
-        description: error.message,
+        description: message,
         variant: "destructive",
       });
     }
@@ -255,18 +320,20 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
       event: 'typing',
       payload: {
         user_id: currentUserIdRef.current,
+        conversation_id: conversationId,
         typing: isTyping,
       },
     });
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = undefined;
     }
 
     if (isTyping) {
       typingTimeoutRef.current = setTimeout(() => setTyping(false), 3000);
     }
-  }, []);
+  }, [conversationId]);
 
   // Real-time subscriptions
   useEffect(() => {
@@ -289,7 +356,7 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const newMsg = payload.new as Message;
+          const newMsg = toMessage(payload.new as MessageRow);
           setMessages((prev) => {
             // Prevent duplicates
             if (prev.some(m => m.id === newMsg.id)) return prev;
@@ -311,9 +378,22 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
+          const updated = toMessage(payload.new as MessageRow);
+          const previous = toMessage(payload.old as MessageRow);
+
           setMessages((prev) =>
-            prev.map((msg) => (msg.id === payload.new.id ? payload.new as Message : msg))
+            prev.map((msg) => (msg.id === updated.id ? updated : msg))
           );
+
+          // Schedule deletion only when message transitions from unread -> read.
+          if (
+            disappearingMode &&
+            disappearingMode !== 'off' &&
+            !previous?.read_at &&
+            !!updated?.read_at
+          ) {
+            scheduleDisappear(updated.id, disappearingMode);
+          }
         }
       )
       .on(
@@ -329,9 +409,15 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
         }
       )
       // Use broadcast for typing instead of DB writes (faster, no RLS issues)
-      .on('broadcast', { event: 'typing' }, (payload: any) => {
-        const data = payload.payload;
-        if (!data || data.user_id === currentUserIdRef.current) return;
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const data = payload.payload as TypingBroadcastPayload | undefined;
+        if (!data || data.user_id === currentUserIdRef.current || data.conversation_id !== conversationId) return;
+
+        const existingTimeout = typingTimeoutsRef.current.get(data.user_id);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+          typingTimeoutsRef.current.delete(data.user_id);
+        }
 
         if (data.typing) {
           setTypingUsers(prev => {
@@ -339,28 +425,36 @@ export const useEnhancedRealTimeChat = (conversationId: string | null, disappear
             return [...prev, { user_id: data.user_id, display_name: 'Someone' }];
           });
           // Auto-clear typing after 4s
-          setTimeout(() => {
+          const timeout = setTimeout(() => {
             setTypingUsers(prev => prev.filter(u => u.user_id !== data.user_id));
+            typingTimeoutsRef.current.delete(data.user_id);
           }, 4000);
+          typingTimeoutsRef.current.set(data.user_id, timeout);
         } else {
           setTypingUsers(prev => prev.filter(u => u.user_id !== data.user_id));
+          typingTimeoutsRef.current.delete(data.user_id);
         }
       })
       .subscribe();
 
     channelRef.current = channel;
+    const typingTimeouts = typingTimeoutsRef.current;
+    const disappearTimeouts = disappearTimeoutsRef.current;
 
     return () => {
       channel.unsubscribe();
       channelRef.current = undefined;
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = undefined;
       }
-      disappearTimeoutsRef.current.forEach(t => clearTimeout(t));
-      disappearTimeoutsRef.current.clear();
+      typingTimeouts.forEach(timeout => clearTimeout(timeout));
+      typingTimeouts.clear();
+      disappearTimeouts.forEach(t => clearTimeout(t));
+      disappearTimeouts.clear();
       setTypingUsers([]);
     };
-  }, [conversationId, loadMessages, markAsRead]);
+  }, [conversationId, loadMessages, markAsRead, disappearingMode, scheduleDisappear]);
 
   // Mark messages as read when conversation opens
   useEffect(() => {

@@ -13,6 +13,12 @@ interface GroupCallProps {
   onClose?: () => void;
 }
 
+interface ParticipantView {
+  userName: string;
+  stream: MediaStream | null;
+  isScreenSharing: boolean;
+}
+
 const StreamVideo: React.FC<{ stream: MediaStream | null; muted?: boolean; className?: string; objectFit?: 'cover' | 'contain' }> = ({
   stream,
   muted,
@@ -373,7 +379,7 @@ export const GroupCall: React.FC<GroupCallProps> = ({ userId, onClose }) => {
   );
 };
 
-const ParticipantVideo: React.FC<{ participant: any }> = ({ participant }) => {
+const ParticipantVideo: React.FC<{ participant: ParticipantView }> = ({ participant }) => {
   return (
     <div className="relative bg-muted/20 rounded-xl overflow-hidden aspect-video">
       {participant.stream ? (

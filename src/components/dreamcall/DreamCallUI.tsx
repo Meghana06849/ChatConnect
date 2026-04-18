@@ -87,6 +87,13 @@ export const DreamCallUI: React.FC<DreamCallUIProps> = ({
     }
   }, [remoteStream]);
 
+  useEffect(() => {
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = !isSpeakerOn;
+      remoteAudioRef.current.volume = isSpeakerOn ? 1 : 0;
+    }
+  }, [isSpeakerOn]);
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;

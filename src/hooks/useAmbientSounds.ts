@@ -50,7 +50,11 @@ export const useAmbientSounds = (partnerOnline: boolean) => {
 
   const stop = useCallback(() => {
     if (sourceRef.current) {
-      try { sourceRef.current.stop(); } catch {}
+      try {
+        sourceRef.current.stop();
+      } catch {
+        // Ignore if source node is already stopped.
+      }
       sourceRef.current = null;
     }
   }, []);

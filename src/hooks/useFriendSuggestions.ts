@@ -10,6 +10,15 @@ export interface FriendSuggestion {
   isOnline: boolean;
 }
 
+interface FriendSuggestionRow {
+  user_id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  mutual_friend_count: number | string | null;
+  is_online: boolean | null;
+}
+
 export const useFriendSuggestions = (limit: number = 10) => {
   const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,7 +44,7 @@ export const useFriendSuggestions = (limit: number = 10) => {
         return;
       }
 
-      const formattedSuggestions: FriendSuggestion[] = (data || []).map((s: any) => ({
+      const formattedSuggestions: FriendSuggestion[] = (data || [] as FriendSuggestionRow[]).map((s) => ({
         userId: s.user_id,
         username: s.username || 'unknown',
         displayName: s.display_name || 'Unknown',

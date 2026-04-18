@@ -3,12 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const useUserPresence = () => {
   const heartbeatRef = useRef<NodeJS.Timeout>();
+  const blurTimeoutRef = useRef<NodeJS.Timeout>();
   const isActiveRef = useRef(true);
+  const lastStatusRef = useRef<boolean | null>(null);
 
   // Update presence status
-  const updatePresence = useCallback(async (isOnline: boolean) => {
+  const updatePresence = useCallback(async (isOnline: boolean, force: boolean = false) => {
+    if (!force && lastStatusRef.current === isOnline) {
+      return;
+    }
+
     try {
       await supabase.rpc('update_user_presence', { is_online_status: isOnline });
+      lastStatusRef.current = isOnline;
     } catch (error) {
       console.error('Error updating presence:', error);
     }
@@ -33,12 +40,17 @@ export const useUserPresence = () => {
     // Heartbeat to maintain online status
     heartbeatRef.current = setInterval(() => {
       if (isActiveRef.current) {
-        updatePresence(true);
+        updatePresence(true, true);
       }
     }, 30000); // Every 30 seconds
 
     // Handle visibility change
     const handleVisibilityChange = () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = undefined;
+      }
+
       if (document.hidden) {
         setOffline();
       } else {
@@ -52,13 +64,25 @@ export const useUserPresence = () => {
     };
 
     // Handle focus/blur
-    const handleFocus = () => setOnline();
+    const handleFocus = () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = undefined;
+      }
+      setOnline();
+    };
+
     const handleBlur = () => {
       // Delay offline status in case user switches tabs briefly
-      setTimeout(() => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+
+      blurTimeoutRef.current = setTimeout(() => {
         if (document.hidden) {
           setOffline();
         }
+        blurTimeoutRef.current = undefined;
       }, 5000);
     };
 
@@ -70,6 +94,11 @@ export const useUserPresence = () => {
     return () => {
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
+        heartbeatRef.current = undefined;
+      }
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+        blurTimeoutRef.current = undefined;
       }
       setOffline();
       document.removeEventListener('visibilitychange', handleVisibilityChange);

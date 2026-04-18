@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,11 +33,7 @@ export const SharedPlaylist: React.FC = () => {
     { value: 'dreamy', label: '✨ Dreamy', color: 'text-purple-500' }
   ];
 
-  useEffect(() => {
-    loadPlaylist();
-  }, []);
-
-  const loadPlaylist = async () => {
+  const loadPlaylist = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -64,14 +60,18 @@ export const SharedPlaylist: React.FC = () => {
       }) || [];
 
       setSongs(songData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading playlist",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadPlaylist();
+  }, [loadPlaylist]);
 
   const addSong = async () => {
     if (!newSong.title.trim() || !newSong.artist.trim()) {
@@ -111,10 +111,10 @@ export const SharedPlaylist: React.FC = () => {
 
       setNewSong({ title: '', artist: '', url: '', mood: 'love' });
       loadPlaylist();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error adding song",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

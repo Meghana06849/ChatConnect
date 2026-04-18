@@ -9,6 +9,7 @@ export interface FriendProfile {
   isOnline: boolean;
   isVerified?: boolean;
   verificationType?: string | null;
+  loversModeEnabled?: boolean;
 }
 
 export interface FriendRequest {
@@ -19,6 +20,12 @@ export interface FriendRequest {
   createdAt: string;
   senderProfile?: FriendProfile;
   receiverProfile?: FriendProfile;
+}
+
+interface SearchProfileResult {
+  user_id: string;
+  display_name: string | null;
+  username: string | null;
 }
 
 interface OnlineUser {
@@ -68,7 +75,7 @@ export const useFriendRequests = () => {
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, avatar_url, is_online, is_verified, verification_type')
+        .select('user_id, username, display_name, avatar_url, is_online, is_verified, verification_type, lovers_mode_enabled')
         .in('user_id', Array.from(userIds));
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
@@ -89,7 +96,8 @@ export const useFriendRequests = () => {
             avatarUrl: senderProfile.avatar_url,
             isOnline: senderProfile.is_online || false,
             isVerified: senderProfile.is_verified || false,
-            verificationType: senderProfile.verification_type
+            verificationType: senderProfile.verification_type,
+            loversModeEnabled: senderProfile.lovers_mode_enabled || false,
           } : undefined,
           receiverProfile: receiverProfile ? {
             username: receiverProfile.username || 'unknown',
@@ -97,7 +105,8 @@ export const useFriendRequests = () => {
             avatarUrl: receiverProfile.avatar_url,
             isOnline: receiverProfile.is_online || false,
             isVerified: receiverProfile.is_verified || false,
-            verificationType: receiverProfile.verification_type
+            verificationType: receiverProfile.verification_type,
+            loversModeEnabled: receiverProfile.lovers_mode_enabled || false,
           } : undefined
         };
       });
@@ -134,20 +143,19 @@ export const useFriendRequests = () => {
 
       if (matchError) throw matchError;
 
-      const best = (matches || [])[0] as
-        | { user_id: string; display_name: string | null; username: string | null }
-        | undefined;
+      const searchResults = (matches || []) as SearchProfileResult[];
+      const best = searchResults[0];
 
-      const exact = (matches || []).find((m: any) => {
+      const exact = searchResults.find((m) => {
         if (isUUID) return m.user_id === trimmedIdentifier;
         const q = trimmedIdentifier.toLowerCase();
         return (
           (m.username && String(m.username).toLowerCase() === q) ||
           (m.display_name && String(m.display_name).toLowerCase() === q)
         );
-      }) as any;
+      });
 
-      const targetUser = (exact || best) ? { user_id: (exact || best).user_id, display_name: (exact || best).display_name } : null;
+      const targetUser = exact || best ? { user_id: (exact || best).user_id, display_name: (exact || best).display_name } : null;
 
       if (!targetUser) {
         toast({
@@ -207,10 +215,10 @@ export const useFriendRequests = () => {
       });
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Failed to send request',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to send friend request',
         variant: 'destructive',
       });
       return false;
@@ -233,7 +241,7 @@ export const useFriendRequests = () => {
       });
 
       return true;
-    } catch (error: any) {
+    } catch {
       toast({
         title: "Failed to accept request",
         variant: "destructive"

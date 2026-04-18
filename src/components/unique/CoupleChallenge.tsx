@@ -21,7 +21,7 @@ interface Challenge {
   id: string;
   title: string;
   description: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
   completed: boolean;

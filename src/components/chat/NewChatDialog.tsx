@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from '@/contexts/ChatContext';
 import { useRealTimeChat } from '@/hooks/useRealTimeChat';
@@ -69,6 +69,10 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
   const { toast } = useToast();
   const { createConversation } = useRealTimeChat(isLoversMode);
 
+  const getErrorMessage = (error: unknown): string => {
+    return error instanceof Error ? error.message : 'Unknown error';
+  };
+
   // Load accepted contacts
   useEffect(() => {
     if (!open) return;
@@ -121,7 +125,7 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
   );
 
   // Search for new friends
-  const handleSearchUsers = async () => {
+  const handleSearchUsers = useCallback(async () => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
       return;
@@ -156,7 +160,7 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
     } finally {
       setSearchLoading(false);
     }
-  };
+  }, [searchQuery, contacts, toast]);
 
   // Debounced search
   useEffect(() => {
@@ -167,7 +171,7 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeTab]);
+  }, [searchQuery, activeTab, handleSearchUsers]);
 
   // Send friend request
   const sendFriendRequest = async (targetUserId: string) => {
@@ -211,11 +215,11 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
 
       // Remove from search results
       setSearchResults(prev => prev.filter(r => r.user_id !== targetUserId));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error sending friend request:', error);
       toast({
         title: "Failed to send request",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     } finally {
@@ -284,11 +288,11 @@ export const NewChatDialog: React.FC<NewChatDialogProps> = ({ onChatCreated }) =
         title: "Chat created",
         description: `Started conversation with ${contact.display_name || contact.username}`
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating chat:', error);
       toast({
         title: "Failed to create chat",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive"
       });
     } finally {

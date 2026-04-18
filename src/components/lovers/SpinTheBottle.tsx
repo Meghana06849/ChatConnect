@@ -41,12 +41,7 @@ export const SpinTheBottle: React.FC<SpinTheBottleProps> = ({
   const currentUserId = profile?.user_id;
 
   // Load recent spin history
-  useEffect(() => {
-    if (!currentUserId) return;
-    loadHistory();
-  }, [currentUserId, partnerId]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     const { data } = await supabase
       .from('spin_games')
       .select('id, result_player_id, created_at, romantic_prompts(text, type)')
@@ -56,7 +51,12 @@ export const SpinTheBottle: React.FC<SpinTheBottleProps> = ({
       .limit(10);
 
     if (data) setHistory(data as unknown as HistoryItem[]);
-  };
+  }, [currentUserId, partnerId]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadHistory();
+  }, [currentUserId, loadHistory]);
 
   // Realtime subscription for partner's spins
   useEffect(() => {
@@ -69,7 +69,10 @@ export const SpinTheBottle: React.FC<SpinTheBottleProps> = ({
         schema: 'public',
         table: 'spin_games',
       }, (payload) => {
-        const row = payload.new as any;
+        const row = payload.new as {
+          player1_id?: string;
+          player2_id?: string;
+        };
         if (
           (row.player1_id === partnerId && row.player2_id === currentUserId) ||
           (row.player1_id === currentUserId && row.player2_id === partnerId)
@@ -80,7 +83,7 @@ export const SpinTheBottle: React.FC<SpinTheBottleProps> = ({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [currentUserId, partnerId]);
+  }, [currentUserId, partnerId, loadHistory]);
 
   const handleSpin = useCallback(async () => {
     if (spinning || !currentUserId) return;
@@ -108,11 +111,11 @@ export const SpinTheBottle: React.FC<SpinTheBottleProps> = ({
         }
         setSpinning(false);
       }, 3000);
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } catch (e: unknown) {
+      toast({ title: 'Error', description: e instanceof Error ? e.message : 'Unknown error', variant: 'destructive' });
       setSpinning(false);
     }
-  }, [spinning, currentUserId, partnerId, toast]);
+  }, [spinning, currentUserId, partnerId, toast, loadHistory]);
 
   const chosenName = result
     ? result.chosen_player_id === currentUserId ? 'You' : partnerName

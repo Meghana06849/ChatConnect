@@ -99,13 +99,45 @@ export const FriendsManager: React.FC = () => {
     await startCall(friendUserId, friendName, true);
   };
 
-  // Filter friends based on search
+  const isLoversEligible = (friendUserId: string, friendProfile?: { loversModeEnabled?: boolean }) => {
+    if (linkedPartnerId && friendUserId === linkedPartnerId) return true;
+    return Boolean(friendProfile?.loversModeEnabled);
+  };
+
+  const isGeneralEligible = (friendUserId: string, friendProfile?: { loversModeEnabled?: boolean }) => {
+    // Keep General and Lovers lists disjoint.
+    return !isLoversEligible(friendUserId, friendProfile);
+  };
+
+  // Filter friends based on mode + search
   const filteredFriends = friends.filter(f => {
     const profile = f.userId === currentUserId ? f.receiverProfile : f.senderProfile;
+    const friendUserId = f.userId === currentUserId ? f.contactUserId : f.userId;
+
+    if (isLoversMode) {
+      if (!isLoversEligible(friendUserId, profile)) return false;
+    } else {
+      if (!isGeneralEligible(friendUserId, profile)) return false;
+    }
+
     const name = profile?.displayName || '';
     const username = profile?.username || '';
     return name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            username.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredIncomingRequests = incomingRequests.filter((request) => {
+    const senderId = request.userId;
+    return isLoversMode
+      ? isLoversEligible(senderId, request.senderProfile)
+      : isGeneralEligible(senderId, request.senderProfile);
+  });
+
+  const filteredOutgoingRequests = outgoingRequests.filter((request) => {
+    const targetId = request.contactUserId;
+    return isLoversMode
+      ? isLoversEligible(targetId, request.receiverProfile)
+      : isGeneralEligible(targetId, request.receiverProfile);
   });
 
   // Start or continue conversation with friend
@@ -149,10 +181,10 @@ export const FriendsManager: React.FC = () => {
         description: "New conversation created. Redirecting...",
       });
       window.location.href = '/dashboard?section=chats&contact=' + friendUserId;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to start conversation",
+        description: error instanceof Error ? error.message : "Failed to start conversation",
         variant: "destructive",
       });
     } finally {
@@ -347,18 +379,18 @@ export const FriendsManager: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="requests" className="relative text-xs sm:text-sm">
               Requests
-              {incomingRequests.length > 0 && (
+              {filteredIncomingRequests.length > 0 && (
                 <Badge 
                   className={`absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs animate-notification-bounce ${
                     isLoversMode ? 'bg-lovers-primary' : 'bg-general-primary'
                   }`}
                 >
-                  {incomingRequests.length}
+                  {filteredIncomingRequests.length}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="pending" className="text-xs sm:text-sm">
-              Pending ({outgoingRequests.length})
+              Pending ({filteredOutgoingRequests.length})
             </TabsTrigger>
             <TabsTrigger value="blocked" className="text-xs sm:text-sm">
               <ShieldOff className="w-3 h-3 mr-1 hidden sm:inline" />
@@ -368,6 +400,20 @@ export const FriendsManager: React.FC = () => {
 
           {/* Friends Tab */}
           <TabsContent value="friends" className="space-y-4">
+            {isLoversMode && (
+              <Card className="glass border-lovers-primary/20 bg-lovers-primary/5">
+                <CardContent className="p-3 text-sm text-muted-foreground flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-lovers-secondary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-medium text-lovers-secondary">Dream Partner Status:</span> 
+                    <span> </span>
+                    💞 = Linked & active
+                    <span> • </span>
+                    ⏳ = You're waiting for them to link back
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {filteredFriends.length === 0 ? (
               <Card className="glass border-white/20">
                 <CardContent className="p-8 text-center">
@@ -424,9 +470,15 @@ export const FriendsManager: React.FC = () => {
                                   {profile.isOnline ? 'Online' : 'Offline'}
                                 </Badge>
                                 {isLoversMode && isLinkedDreamPartner && (
-                                  <Badge className="bg-lovers-primary/20 text-lovers-primary border-lovers-primary/40">
+                                  <Badge className="bg-lovers-primary/20 text-lovers-primary border-lovers-primary/40 animate-pulse">
                                     <Heart className="w-3 h-3 mr-1" />
-                                    Dream Partner
+                                    💞 Dream Partner
+                                  </Badge>
+                                )}
+                                {isLoversMode && currentProfile?.lovers_partner_id === friendUserId && !isLinkedDreamPartner && (
+                                  <Badge className="bg-lovers-secondary/20 text-lovers-secondary border-lovers-secondary/40">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    Pending Your Link
                                   </Badge>
                                 )}
                               </div>
@@ -438,7 +490,15 @@ export const FriendsManager: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant={isLinkedDreamPartner ? 'secondary' : 'outline'}
-                                title={isLinkedDreamPartner ? 'Linked as Dream Room partner' : 'Link as Dream Room partner'}
+                                title={
+                                  isLinkedDreamPartner 
+                                    ? '💞 Linked! Dream Room chat & calls active'
+                                    : currentProfile?.lovers_partner_id === friendUserId
+                                      ? `⏳ Waiting for ${profile.displayName} to link back to activate Dream Room`
+                                      : linkedPartnerId && !isLinkedDreamPartner
+                                        ? `Already linked with someone else`
+                                        : `Link ${profile.displayName} as Dream Room partner`
+                                }
                                 onClick={() => handleLinkPartner(friendUserId, profile.displayName)}
                                 disabled={
                                   linkingPartnerId === friendUserId ||
@@ -515,7 +575,7 @@ export const FriendsManager: React.FC = () => {
 
           {/* Incoming Requests Tab */}
           <TabsContent value="requests" className="space-y-3">
-            {incomingRequests.length === 0 ? (
+            {filteredIncomingRequests.length === 0 ? (
               <Card className="glass border-white/20">
                 <CardContent className="p-8 text-center">
                   <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
@@ -526,7 +586,7 @@ export const FriendsManager: React.FC = () => {
                 </CardContent>
               </Card>
             ) : (
-              incomingRequests.map((request) => {
+              filteredIncomingRequests.map((request) => {
                 const profile = request.senderProfile;
                 if (!profile) return null;
 
@@ -585,7 +645,7 @@ export const FriendsManager: React.FC = () => {
 
           {/* Outgoing Pending Tab */}
           <TabsContent value="pending" className="space-y-3">
-            {outgoingRequests.length === 0 ? (
+            {filteredOutgoingRequests.length === 0 ? (
               <Card className="glass border-white/20">
                 <CardContent className="p-8 text-center">
                   <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
@@ -596,7 +656,7 @@ export const FriendsManager: React.FC = () => {
                 </CardContent>
               </Card>
             ) : (
-              outgoingRequests.map((request) => {
+              filteredOutgoingRequests.map((request) => {
                 const profile = request.receiverProfile;
                 if (!profile) return null;
 

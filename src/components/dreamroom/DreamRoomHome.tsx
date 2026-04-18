@@ -51,6 +51,19 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
   const [partnerLinkStatus, setPartnerLinkStatus] = useState<'linked' | 'pending' | 'not_linked'>('not_linked');
   const [availableLovers, setAvailableLovers] = useState<LoversFriend[]>([]);
   const [linking, setLinking] = useState(false);
+
+  const navigateWithAccess = (section: string) => {
+    const dreamLockedSections = new Set(['dreamroom', 'dreamroom-call', 'dreamroom-video-call', 'games', 'vault']);
+    if (dreamLockedSections.has(section) && partnerLinkStatus !== 'linked') {
+      toast({
+        title: 'Link required',
+        description: 'Link your partner first to unlock Dream Room features.',
+      });
+      onNavigate('friends');
+      return;
+    }
+    onNavigate(section);
+  };
   
   const currentHour = new Date().getHours();
   const isNightTime = currentHour >= 18 || currentHour <= 6;
@@ -126,10 +139,11 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
         title: '💜 Dream Partner Linked!',
         description: `You and ${name} are now connected in the Dream Room.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not link partner.';
       toast({
         title: 'Linking failed',
-        description: error.message,
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -177,9 +191,19 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
     loadData();
   }, [profile, currentHour, presencePartnerName]);
 
+  const romanticCardClass = 'border-lovers-primary/25 bg-gradient-to-br from-white/40 via-rose-50/20 to-fuchsia-100/15 backdrop-blur-xl shadow-[0_12px_36px_rgba(236,72,153,0.16)]';
+  const romanticSoftCardClass = 'border-lovers-secondary/25 bg-gradient-to-br from-white/30 via-fuchsia-50/15 to-violet-100/10 backdrop-blur-xl shadow-[0_8px_28px_rgba(192,132,252,0.14)]';
+
   return (
-    <div className="flex-1 p-6 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+    <div className="relative flex-1 min-h-full overflow-y-auto">
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+        <div className="absolute inset-0 bg-[linear-gradient(165deg,rgba(253,242,248,0.96)_0%,rgba(252,231,243,0.9)_34%,rgba(245,208,254,0.86)_68%,rgba(224,231,255,0.84)_100%)]" />
+        <div className="absolute -top-24 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-rose-300/35 to-fuchsia-500/0 blur-3xl animate-pulse motion-reduce:animate-none" />
+        <div className="absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-violet-300/30 to-indigo-500/0 blur-3xl animate-pulse [animation-delay:1.1s] motion-reduce:animate-none" />
+        <div className="absolute inset-x-10 bottom-8 h-24 rounded-full bg-gradient-to-r from-transparent via-white/50 to-transparent blur-2xl" />
+      </div>
+
+      <div className="relative z-10 max-w-4xl mx-auto p-6">
         {/* Romantic Header */}
         <div className="text-center mb-8 relative">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -278,7 +302,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
         </div>
 
         {/* Partner Link Status Card */}
-        <Card className="glass border-lovers-primary/20 mb-6">
+        <Card className={`${romanticCardClass} mb-6`}>
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -309,7 +333,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                     {partnerLinkStatus === 'linked'
                       ? 'Dream Room chat and calls are unlocked for both of you.'
                       : partnerLinkStatus === 'pending'
-                        ? `Ask ${partnerName} to complete Lovers Mode linking so chat sync works.`
+                        ? `Waiting for ${partnerName}... They need to enable Lovers Mode and link you back from their Friends list to activate Dream Room.`
                         : 'Link a Lovers Mode friend below or from Friends to unlock Dream Room.'}
                   </p>
                 </div>
@@ -320,7 +344,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                   <Button
                     size="sm"
                     className="btn-lovers gap-2"
-                    onClick={() => onNavigate('dreamroom')}
+                    onClick={() => navigateWithAccess('dreamroom')}
                   >
                     <MessageCircle className="w-4 h-4" />
                     Chat
@@ -329,16 +353,16 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
                     size="sm"
                     variant="outline"
                     className="border-lovers-primary/30 hover:bg-lovers-primary/10 gap-2"
-                    onClick={() => onNavigate('dreamroom')}
+                    onClick={() => navigateWithAccess('dreamroom-video-call')}
                   >
                     <Video className="w-4 h-4" />
-                    Call
+                    Video
                   </Button>
                 </div>
               ) : (
                 <Button
                   variant="outline"
-                  onClick={() => onNavigate('friends')}
+                  onClick={() => navigateWithAccess('friends')}
                 >
                   Go to Friends
                 </Button>
@@ -347,9 +371,28 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           </CardContent>
         </Card>
 
-        {/* Available Lovers Mode Friends - one-tap linking */}
+        {/* Status Legend Card */}
+        {partnerLinkStatus === 'pending' && (
+          <Card className={`${romanticSoftCardClass} mb-6`}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Moon className="w-5 h-5 text-lovers-secondary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-lovers-secondary mb-1">What happens next?</p>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>✓ You've requested to link with {partnerName}</li>
+                    <li>⏳ {partnerName} needs to enable Lovers Mode if they haven't already</li>
+                    <li>💌 Then they'll link you back from their Friends list</li>
+                    <li>💞 Once they do, Dream Room will activate!</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {partnerLinkStatus === 'not_linked' && availableLovers.length > 0 && (
-          <Card className="glass border-lovers-secondary/20 mb-6 animate-fade-in">
+          <Card className={`${romanticSoftCardClass} mb-6 animate-fade-in`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <UserPlus className="w-4 h-4 text-lovers-secondary" />
@@ -357,7 +400,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
               </div>
               <div className="space-y-2">
                 {availableLovers.map(friend => (
-                  <div key={friend.user_id} className="flex items-center justify-between p-3 rounded-xl bg-lovers-primary/5 border border-lovers-primary/10">
+                  <div key={friend.user_id} className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-lovers-primary/10 via-white/30 to-lovers-secondary/10 border border-lovers-primary/15 shadow-[0_8px_22px_rgba(244,114,182,0.12)]">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-lovers-primary to-lovers-secondary flex items-center justify-center text-white font-bold text-sm">
                         {(friend.display_name || '?')[0].toUpperCase()}
@@ -389,8 +432,8 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
         {/* Main Actions Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card 
-            className="glass border-lovers-primary/20 hover:border-lovers-primary/40 cursor-pointer group transition-all hover:shadow-lg hover:shadow-lovers-primary/10"
-            onClick={() => onNavigate('chats')}
+            className={`${romanticCardClass} hover:border-lovers-primary/45 cursor-pointer group transition-all hover:shadow-[0_18px_44px_rgba(236,72,153,0.22)]`}
+            onClick={() => navigateWithAccess('chats')}
           >
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
@@ -407,8 +450,8 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
           </Card>
 
           <Card 
-            className="glass border-lovers-primary/20 hover:border-lovers-primary/40 cursor-pointer group transition-all hover:shadow-lg hover:shadow-lovers-primary/10"
-            onClick={() => onNavigate('dreamroom')}
+            className={`${romanticCardClass} hover:border-lovers-primary/45 cursor-pointer group transition-all hover:shadow-[0_18px_44px_rgba(236,72,153,0.22)]`}
+            onClick={() => navigateWithAccess('dreamroom')}
           >
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
@@ -440,8 +483,8 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
             ].map((item, idx) => (
               <Card 
                 key={idx}
-                className="glass border-white/10 hover:border-lovers-primary/30 cursor-pointer group transition-all"
-                onClick={() => onNavigate(item.section)}
+                className={`${romanticSoftCardClass} hover:border-lovers-primary/35 cursor-pointer group transition-all hover:-translate-y-0.5`}
+                onClick={() => navigateWithAccess(item.section)}
               >
                 <CardContent className="p-4 text-center">
                   <div className="text-2xl mb-2">{item.emoji}</div>
@@ -456,7 +499,7 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
 
         {/* Night Mode Indicator */}
         {isNightTime && (
-          <Card className="glass border-lovers-primary/20 bg-gradient-to-r from-lovers-primary/5 to-lovers-secondary/5">
+          <Card className={`${romanticSoftCardClass} bg-gradient-to-r from-lovers-primary/12 via-white/30 to-lovers-secondary/12`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -481,27 +524,35 @@ export const DreamRoomHome: React.FC<DreamRoomHomeProps> = ({ onNavigate }) => {
         )}
 
         {/* Quick Actions */}
-        <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Button 
             variant="outline" 
-            className="h-auto py-4 flex-col gap-2 border-lovers-primary/30 hover:bg-lovers-primary/10"
-            onClick={() => onNavigate('dreamroom')}
+            className="h-auto py-4 flex-col gap-2 border-lovers-primary/35 bg-white/25 backdrop-blur-md hover:bg-lovers-primary/12"
+            onClick={() => navigateWithAccess('dreamroom-call')}
           >
             <span className="text-xl">📞</span>
-            <span className="text-xs">Dream Call</span>
+            <span className="text-xs">Voice Call</span>
           </Button>
           <Button 
             variant="outline" 
-            className="h-auto py-4 flex-col gap-2 border-lovers-primary/30 hover:bg-lovers-primary/10"
-            onClick={() => onNavigate('games')}
+            className="h-auto py-4 flex-col gap-2 border-lovers-primary/35 bg-white/25 backdrop-blur-md hover:bg-lovers-primary/12"
+            onClick={() => navigateWithAccess('dreamroom-video-call')}
+          >
+            <span className="text-xl">🎥</span>
+            <span className="text-xs">Video Call</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto py-4 flex-col gap-2 border-lovers-primary/35 bg-white/25 backdrop-blur-md hover:bg-lovers-primary/12"
+            onClick={() => navigateWithAccess('games')}
           >
             <span className="text-xl">🎮</span>
             <span className="text-xs">Play Together</span>
           </Button>
           <Button 
             variant="outline" 
-            className="h-auto py-4 flex-col gap-2 border-lovers-primary/30 hover:bg-lovers-primary/10"
-            onClick={() => onNavigate('stories')}
+            className="h-auto py-4 flex-col gap-2 border-lovers-primary/35 bg-white/25 backdrop-blur-md hover:bg-lovers-primary/12"
+            onClick={() => navigateWithAccess('stories')}
           >
             <span className="text-xl">📸</span>
             <span className="text-xs">Moments</span>

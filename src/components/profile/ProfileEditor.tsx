@@ -58,10 +58,10 @@ export const ProfileEditor: React.FC = () => {
         title: "Avatar updated!",
         description: "Your profile picture has been successfully updated.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to upload avatar',
         variant: "destructive",
       });
     } finally {
@@ -82,11 +82,11 @@ export const ProfileEditor: React.FC = () => {
     try {
       await updateProfile({ display_name: displayName.trim() });
       setEditingName(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Name update error:', error);
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update display name",
+        description: error instanceof Error ? error.message : "Failed to update display name",
         variant: "destructive",
       });
     }
@@ -96,11 +96,11 @@ export const ProfileEditor: React.FC = () => {
     try {
       await updateProfile({ bio: bio });
       setEditingBio(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Bio update error:', error);
       toast({
         title: "Update failed", 
-        description: error.message || "Failed to update bio",
+        description: error instanceof Error ? error.message : "Failed to update bio",
         variant: "destructive",
       });
     }

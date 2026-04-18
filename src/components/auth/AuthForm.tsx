@@ -30,15 +30,16 @@ export const AuthForm = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/`,
         }
       });
 
       if (error) throw error;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         title: "Google Sign-In Failed",
-        description: error.message || "Could not sign in with Google. Please try again.",
+        description: message || "Could not sign in with Google. Please try again.",
         variant: "destructive",
       });
       setGoogleLoading(false);
@@ -170,20 +171,21 @@ export const AuthForm = () => {
           description: "You've been signed in successfully.",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Record failed attempt
       await recordFailedAttempt(identifier, attemptType);
       
       // Handle specific error messages
-      let errorMessage = error.message || 'Authentication failed';
+      const rawMessage = error instanceof Error ? error.message : '';
+      let errorMessage = rawMessage || 'Authentication failed';
       
-      if (error.message?.includes('Invalid login credentials')) {
+      if (rawMessage.includes('Invalid login credentials')) {
         errorMessage = 'Invalid email or password. Please try again.';
-      } else if (error.message?.includes('User already registered')) {
+      } else if (rawMessage.includes('User already registered')) {
         errorMessage = 'This email is already registered. Please sign in instead.';
-      } else if (error.message?.includes('Email not confirmed')) {
+      } else if (rawMessage.includes('Email not confirmed')) {
         errorMessage = 'Please check your email and confirm your account.';
-      } else if (error.message?.includes('Password should be')) {
+      } else if (rawMessage.includes('Password should be')) {
         errorMessage = 'Password must be at least 6 characters long.';
       }
       
@@ -218,10 +220,11 @@ export const AuthForm = () => {
         title: "Password Reset Email Sent",
         description: "Check your email for a password reset link",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : undefined;
       toast({
         title: "Error",
-        description: error.message || "Failed to send reset email",
+        description: message || "Failed to send reset email",
         variant: "destructive",
       });
     }

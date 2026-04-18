@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 interface Contact {
   id: string;
+  partnerUserId?: string;
   name: string;
   lastMessage: string;
   lastMessageType?: string;
@@ -44,6 +45,16 @@ interface Contact {
   lastMessageReadAt?: string | null;
 }
 
+interface LastMessageSummary {
+  id: string;
+  content: string;
+  message_type: string;
+  created_at: string;
+  sender_id: string;
+  read_at: string | null;
+  conversation_id: string;
+}
+
 interface ContactsListProps {
   selectedContact?: Contact;
   onContactSelect: (contact: Contact) => void;
@@ -56,7 +67,8 @@ export const ContactsList: React.FC<ContactsListProps> = ({
   const { mode } = useChat();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [lastMessages, setLastMessages] = useState<Record<string, any>>({});
+  const [loversPartnerId, setLoversPartnerId] = useState<string | null>(null);
+  const [lastMessages, setLastMessages] = useState<Record<string, LastMessageSummary>>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   
   const isLoversMode = mode === 'lovers';
@@ -69,6 +81,25 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     };
     loadUser();
   }, []);
+
+  useEffect(() => {
+    const loadPartner = async () => {
+      if (!currentUserId || !isLoversMode) {
+        setLoversPartnerId(null);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('lovers_partner_id')
+        .eq('user_id', currentUserId)
+        .single();
+
+      setLoversPartnerId(data?.lovers_partner_id ?? null);
+    };
+
+    loadPartner();
+  }, [currentUserId, isLoversMode]);
 
   // Load last messages and unread counts for all conversations
   const loadLastMessagesAndCounts = useCallback(async () => {
@@ -84,7 +115,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       .order('created_at', { ascending: false });
 
     if (allMessages) {
-      const lastMsgs: Record<string, any> = {};
+      const lastMsgs: Record<string, LastMessageSummary> = {};
       const unreads: Record<string, number> = {};
 
       for (const convId of convIds) {
@@ -126,22 +157,25 @@ export const ContactsList: React.FC<ContactsListProps> = ({
     return () => { supabase.removeChannel(channel); };
   }, [currentUserId, loadLastMessagesAndCounts]);
 
-  // Transform conversations to contacts format with real data
-  const contacts: Contact[] = conversations.map(conv => {
+  // Transform conversations to contacts format with real data and dedupe by partner.
+  const contactsMap = new Map<string, Contact>();
+
+  conversations.forEach((conv) => {
     const otherParticipant = conv.conversation_participants.find(
       p => p.user_id !== currentUserId
     );
     const lastMsg = lastMessages[conv.id];
-    
-    return {
+
+    const candidate: Contact = {
       id: conv.id,
+      partnerUserId: otherParticipant?.user_id,
       conversationId: conv.id,
       name: otherParticipant?.profiles?.display_name || conv.name || 'Unknown',
       lastMessage: lastMsg?.content || '',
       lastMessageType: lastMsg?.message_type || 'text',
       lastMessageSenderId: lastMsg?.sender_id,
       lastMessageReadAt: lastMsg?.read_at,
-      timestamp: lastMsg ? new Date(lastMsg.created_at) : new Date(),
+      timestamp: lastMsg ? new Date(lastMsg.created_at) : new Date(0),
       isOnline: otherParticipant?.profiles?.is_online || false,
       unreadCount: unreadCounts[conv.id] || 0,
       avatar: otherParticipant?.profiles?.avatar_url,
@@ -149,14 +183,27 @@ export const ContactsList: React.FC<ContactsListProps> = ({
       isVerified: otherParticipant?.profiles?.is_verified,
       verificationType: otherParticipant?.profiles?.verification_type,
     };
+
+    const dedupeKey = otherParticipant?.user_id || conv.id;
+    const existing = contactsMap.get(dedupeKey);
+
+    if (!existing || candidate.timestamp.getTime() > existing.timestamp.getTime()) {
+      contactsMap.set(dedupeKey, candidate);
+    }
   });
+
+  const contacts: Contact[] = Array.from(contactsMap.values());
   
   const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const romanticContacts = isLoversMode && loversPartnerId
+    ? filteredContacts.filter((contact) => contact.partnerUserId === loversPartnerId)
+    : filteredContacts;
+
   // Sort: pinned first, then by most recent message
-  const sortedContacts = [...filteredContacts].sort((a, b) => {
+  const sortedContacts = [...romanticContacts].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
     return b.timestamp.getTime() - a.timestamp.getTime();
@@ -239,7 +286,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
             {isLoversMode ? (
               <>
                 <Heart className="w-5 h-5 text-lovers-primary animate-heart-beat" />
-                <span>Love Chats</span>
+                <span>Couple Space</span>
               </>
             ) : (
               <>
@@ -317,7 +364,7 @@ export const ContactsList: React.FC<ContactsListProps> = ({
             <h3 className="font-semibold mb-2">No conversations yet</h3>
             <p className="text-muted-foreground text-sm">
               {isLoversMode 
-                ? 'Start a romantic conversation'
+                ? (loversPartnerId ? 'Start your private romantic chat' : 'Link your partner to unlock couple chat')
                 : 'Add friends and start chatting!'}
             </p>
           </div>

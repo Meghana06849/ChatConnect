@@ -2,37 +2,58 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface LoversToastOptions {
+  isLoversMode?: boolean;
+}
+
 export const useChatActions = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
+  const getErrorMessage = (error: unknown): string => {
+    return error instanceof Error ? error.message : 'Unknown error';
+  };
+
   // Clear all messages in a conversation
-  const clearChat = useCallback(async (conversationId: string): Promise<boolean> => {
+  const clearChat = useCallback(async (conversationId: string, options?: LoversToastOptions): Promise<boolean> => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Delete all messages in the conversation sent by current user
       const { error } = await supabase
         .from('messages')
         .delete()
-        .eq('conversation_id', conversationId)
-        .eq('sender_id', user.id);
+        .eq('conversation_id', conversationId);
 
       if (error) throw error;
 
-      toast({
-        title: 'Chat cleared',
-        description: 'Your messages have been deleted'
-      });
+      toast(
+        options?.isLoversMode
+          ? {
+              title: 'Shared chat cleared',
+              description: 'Your private couple messages were gently cleared'
+            }
+          : {
+              title: 'Chat cleared',
+              description: 'Full conversation history has been deleted'
+            }
+      );
       return true;
-    } catch (error: any) {
-      toast({
-        title: 'Failed to clear chat',
-        description: error.message,
-        variant: 'destructive'
-      });
+    } catch (error: unknown) {
+      toast(
+        options?.isLoversMode
+          ? {
+              title: 'Could not clear shared chat',
+              description: 'Your couple messages were not cleared. Please try again.',
+              variant: 'destructive'
+            }
+          : {
+              title: 'Failed to clear chat',
+              description: getErrorMessage(error),
+              variant: 'destructive'
+            }
+      );
       return false;
     } finally {
       setLoading(false);
@@ -40,7 +61,7 @@ export const useChatActions = () => {
   }, [toast]);
 
   // Remove a friend (delete contact relationship)
-  const removeFriend = useCallback(async (contactUserId: string): Promise<boolean> => {
+  const removeFriend = useCallback(async (contactUserId: string, options?: LoversToastOptions): Promise<boolean> => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -54,17 +75,32 @@ export const useChatActions = () => {
 
       if (error) throw error;
 
-      toast({
-        title: 'Friend removed',
-        description: 'Contact has been removed from your friends list'
-      });
+      toast(
+        options?.isLoversMode
+          ? {
+              title: 'Couple space closed',
+              description: 'Your partner connection has been disconnected'
+            }
+          : {
+              title: 'Friend removed',
+              description: 'Contact has been removed from your friends list'
+            }
+      );
       return true;
-    } catch (error: any) {
-      toast({
-        title: 'Failed to remove friend',
-        description: error.message,
-        variant: 'destructive'
-      });
+    } catch (error: unknown) {
+      toast(
+        options?.isLoversMode
+          ? {
+              title: 'Could not leave couple space',
+              description: 'Your partner connection could not be updated right now. Please try again.',
+              variant: 'destructive'
+            }
+          : {
+              title: 'Failed to remove friend',
+              description: getErrorMessage(error),
+              variant: 'destructive'
+            }
+      );
       return false;
     } finally {
       setLoading(false);
@@ -85,10 +121,10 @@ export const useChatActions = () => {
         title: 'Message deleted'
       });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to delete message',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return false;
@@ -128,10 +164,10 @@ export const useChatActions = () => {
         .getPublicUrl(filename);
 
       return { url: publicUrl, type: messageType };
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Upload failed',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return null;
@@ -173,10 +209,10 @@ export const useChatActions = () => {
         description: `${file.name} uploaded successfully`
       });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to send media',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return false;
@@ -236,10 +272,10 @@ export const useChatActions = () => {
         description: 'Chat background changed successfully'
       });
       return publicUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to upload wallpaper',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return null;
@@ -291,10 +327,10 @@ export const useChatActions = () => {
         title: 'Message forwarded'
       });
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to forward message',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive'
       });
       return false;

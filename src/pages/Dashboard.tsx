@@ -4,12 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { ChatLayout } from "@/components/layout/ChatLayout";
 import { useUserPresence } from '@/hooks/useUserPresence';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
+import { useLoveCoins } from '@/contexts/LoveCoinsContext';
 import { User } from '@supabase/supabase-js';
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { updateStreak } = useLoveCoins();
   
   // Track user presence (online/offline status)
   useUserPresence();
@@ -23,6 +25,9 @@ const Dashboard = () => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         navigate('/');
+      } else {
+        // Update daily streak on login
+        updateStreak();
       }
       setLoading(false);
     });
@@ -33,13 +38,16 @@ const Dashboard = () => {
         setUser(session?.user ?? null);
         if (!session?.user) {
           navigate('/');
+        } else if (event === 'SIGNED_IN') {
+          // Update streak on sign in
+          updateStreak();
         }
         setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, updateStreak]);
 
   if (loading) {
     return (
