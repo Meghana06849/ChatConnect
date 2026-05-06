@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, Mail, Lock, User, Loader2, Eye, EyeOff, Hash } from 'lucide-react';
 import { useAuthRateLimit } from '@/hooks/useAuthRateLimit';
+import { sanitizeEmail, sanitizeUsername, sanitizeInput } from '@/lib/sanitization';
 
 export const AuthForm = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -48,17 +49,20 @@ export const AuthForm = () => {
 
   const validateForm = (): string | null => {
     if (isSignUp) {
-      if (!email.trim()) return 'Email is required';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
-      if (!customUserId.trim()) return 'User ID is required';
-      if (customUserId.length < 4 || customUserId.length > 32) return 'User ID must be 4-32 characters';
-      if (!/^[a-zA-Z0-9_-]+$/.test(customUserId)) return 'User ID can only contain letters, numbers, _ and -';
+      // Sanitize and validate email
+      const cleanEmail = sanitizeEmail(email);
+      if (!cleanEmail) return 'Please enter a valid email address';
+      
+      // Sanitize and validate User ID
+      const cleanUserId = sanitizeUsername(customUserId);
+      if (!cleanUserId) return 'User ID must be 4-32 characters with only letters, numbers, _ and -';
     } else {
       if (loginMethod === 'email') {
-        if (!email.trim()) return 'Email is required';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+        const cleanEmail = sanitizeEmail(email);
+        if (!cleanEmail) return 'Please enter a valid email address';
       } else {
-        if (!userId.trim()) return 'User ID is required';
+        const cleanUserId = sanitizeUsername(userId);
+        if (!cleanUserId) return 'User ID is invalid';
       }
     }
     if (!password) return 'Password is required';
@@ -79,7 +83,13 @@ export const AuthForm = () => {
       return;
     }
 
-    const identifier = isSignUp || loginMethod === 'email' ? email : userId;
+    // Sanitize inputs for security
+    const cleanEmail = isSignUp || loginMethod === 'email' ? sanitizeEmail(email) : null;
+    const cleanUserId = !isSignUp && loginMethod === 'userid' ? sanitizeUsername(userId) : null;
+    const cleanCustomUserId = isSignUp ? sanitizeUsername(customUserId) : null;
+    const cleanDisplayName = isSignUp ? sanitizeInput(displayName) : '';
+    
+    const identifier = cleanEmail || cleanUserId || cleanCustomUserId || email;
     const attemptType = isSignUp ? 'signup' : 'login';
     
     // Check rate limit before attempting auth
@@ -93,13 +103,13 @@ export const AuthForm = () => {
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim().toLowerCase(),
+          email: cleanEmail || email.trim().toLowerCase(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              display_name: displayName.trim() || customUserId.trim(),
-              custom_user_id: customUserId.trim()
+              display_name: cleanDisplayName || cleanCustomUserId || customUserId.trim(),
+              custom_user_id: cleanCustomUserId || customUserId.trim()
             }
           }
         });
@@ -111,9 +121,9 @@ export const AuthForm = () => {
           const { error: profileError } = await supabase
             .from('profiles')
             .update({ 
-              custom_user_id: customUserId.trim(),
-              username: customUserId.trim().toLowerCase(),
-              display_name: displayName.trim() || customUserId.trim()
+              custom_user_id: cleanCustomUserId || customUserId.trim(),
+              username: (cleanCustomUserId || customUserId.trim()).toLowerCase(),
+              display_name: cleanDisplayName || cleanCustomUserId || customUserId.trim()
             })
             .eq('user_id', data.user.id);
           
@@ -127,21 +137,21 @@ export const AuthForm = () => {
 
         toast({
           title: "Account created!",
-          description: `Welcome! Your User ID is: ${customUserId}. Use this to login and connect with friends!`,
+          description: `Welcome! Your User ID is: ${cleanCustomUserId || customUserId}. Use this to login and connect with friends!`,
         });
       } else {
         if (loginMethod === 'email') {
-          // Standard email login
+          // Standard email login with sanitized email
           const { error } = await supabase.auth.signInWithPassword({
-            email: email.trim().toLowerCase(),
+            email: cleanEmail || email.trim().toLowerCase(),
             password,
           });
 
           if (error) throw error;
         } else {
-          // User ID login via edge function
+          // User ID login via edge function with sanitized user ID
           const response = await supabase.functions.invoke('login-with-id', {
-            body: { userId: userId.trim(), password }
+            body: { userId: cleanUserId || userId.trim(), password }
           });
 
           if (response.error) {
@@ -200,17 +210,18 @@ export const AuthForm = () => {
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) {
+    const cleanEmail = sanitizeEmail(email);
+    if (!cleanEmail) {
       toast({
         title: "Email required",
-        description: "Please enter your email address first",
+        description: "Please enter a valid email address",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: `${window.location.origin}/`,
       });
       

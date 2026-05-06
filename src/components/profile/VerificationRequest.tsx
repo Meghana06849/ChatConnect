@@ -196,30 +196,53 @@ export const VerificationRequest: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type (images and PDFs only)
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload an image (JPG, PNG, WebP) or PDF",
-          variant: "destructive"
-        });
-        return;
-      }
+    if (!file) return;
 
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Document must be less than 10MB",
-          variant: "destructive"
-        });
-        return;
-      }
+    // Validation constants
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB (more secure than 10MB)
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+    const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf'];
 
-      setDocumentFile(file);
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive"
+      });
+      setDocumentFile(null);
+      return;
     }
+
+    // Check MIME type
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Only JPG, PNG, and PDF files are allowed",
+        variant: "destructive"
+      });
+      setDocumentFile(null);
+      return;
+    }
+
+    // Check file extension (additional security layer)
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      toast({
+        title: "Invalid file extension",
+        description: "File extension does not match file type",
+        variant: "destructive"
+      });
+      setDocumentFile(null);
+      return;
+    }
+
+    // All checks passed
+    setDocumentFile(file);
+    toast({
+      title: "File selected",
+      description: `${file.name} (${(file.size / 1024).toFixed(2)} KB) is ready to upload`,
+    });
     e.target.value = '';
   };
 

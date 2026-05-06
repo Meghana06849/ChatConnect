@@ -69,35 +69,44 @@ export const LoveVault: React.FC = () => {
 
   const verifyPin = async () => {
     try {
-      const { data: valid, error } = await supabase.rpc('verify_lovers_pin', { _pin: pin });
-      
-      // Fallback to plain-text check for unmigrated users
-      let isValid = !error && valid;
-      if (!isValid) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('dream_room_pin')
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-          .single();
-        isValid = profile?.dream_room_pin === pin;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "Not authenticated",
+          variant: "destructive"
+        });
+        return;
       }
 
-      if (isValid) {
-      setIsPinVerified(true);
-      sessionStorage.setItem('vault_pin', pin);
-      fetchItems();
-      toast({
-        title: "Vault Unlocked 🔓",
-        description: "Your private vault is now accessible"
+      // Use RPC for secure PIN comparison (timing-attack resistant)
+      const { data: valid, error } = await supabase.rpc('verify_lovers_pin', { 
+        _pin: pin,
+        _user_id: user.id 
       });
+
+      if (error) {
+        console.error('PIN verification error:', error);
+        throw error;
+      }
+
+      if (valid) {
+        setIsPinVerified(true);
+        sessionStorage.setItem('vault_pin', pin);
+        fetchItems();
+        toast({
+          title: "Vault Unlocked 🔓",
+          description: "Your private vault is now accessible"
+        });
       } else {
-      toast({
-        title: "Wrong PIN",
-        description: "Please enter your Dream Room PIN",
-        variant: "destructive"
-      });
+        toast({
+          title: "Wrong PIN",
+          description: "Please check your PIN and try again",
+          variant: "destructive"
+        });
       }
     } catch (e) {
+      console.error('PIN verification failed:', e);
       toast({
         title: "Error",
         description: "Could not verify PIN",
@@ -110,11 +119,17 @@ export const LoveVault: React.FC = () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
 
+      // Only fetch items where user is owner or partner
       const { data, error } = await supabase
         .from('vault_items')
         .select('*')
+        .or(`user_id.eq.${user.id},partner_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

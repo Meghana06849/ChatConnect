@@ -33,47 +33,46 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const streakStorageKey = 'chatconnect_daily_streak';
   const lastLoginStorageKey = 'chatconnect_last_login';
 
-  // Get current user
+  // Initialize user and load coins (combined to avoid race conditions)
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-      }
-    };
-    getCurrentUser();
-  }, []);
-
-  // Load coins from database
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const loadCoins = async () => {
+    const initializeCoins = async () => {
       try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+
+        setCurrentUserId(user.id);
+
+        // Load coins from database
         const { data, error } = await supabase
           .from('profiles')
           .select('love_coins')
-          .eq('user_id', currentUserId)
+          .eq('user_id', user.id)
           .single();
 
         if (error && error.code !== 'PGRST116') throw error;
 
         if (data) {
           setCoins(data.love_coins || 100);
-          const storedStreak = localStorage.getItem(streakStorageKey);
-          const storedLastLogin = localStorage.getItem(lastLoginStorageKey);
-          setDailyStreak(storedStreak ? parseInt(storedStreak, 10) : 0);
-          setLastLoginDate(storedLastLogin || null);
         } else {
           // Initialize if new user
           await supabase.from('profiles').upsert({
-            user_id: currentUserId,
+            user_id: user.id,
             love_coins: 100,
           });
           setCoins(100);
         }
+
+        // Load streak data from localStorage
+        const storedStreak = localStorage.getItem(streakStorageKey);
+        const storedLastLogin = localStorage.getItem(lastLoginStorageKey);
+        setDailyStreak(storedStreak ? parseInt(storedStreak, 10) : 0);
+        setLastLoginDate(storedLastLogin || null);
       } catch (error) {
-        console.error('Error loading love coins:', error);
+        console.error('Error initializing love coins:', error);
         // Fallback to localStorage
         const stored = localStorage.getItem('chatconnect_love_coins');
         setCoins(stored ? parseInt(stored) : 100);
@@ -82,9 +81,13 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
 
-    loadCoins();
+    initializeCoins();
+  }, [streakStorageKey, lastLoginStorageKey]);
 
-    // Subscribe to real-time updates
+  // Subscribe to real-time updates (separate effect to avoid race conditions)
+  useEffect(() => {
+    if (!currentUserId) return;
+
     const channel = supabase
       .channel(`user:${currentUserId}:profiles`)
       .on(
@@ -107,7 +110,7 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => {
       channel.unsubscribe();
     };
-  }, [currentUserId, streakStorageKey, lastLoginStorageKey]);
+  }, [currentUserId]);
 
   const earnCoins = async (amount: number, activity: string) => {
     if (!currentUserId) return;
