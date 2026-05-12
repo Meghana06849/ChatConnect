@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { createIceServers } from '@/lib/webrtc';
 import { 
   Mic, 
   MicOff, 
@@ -56,9 +57,7 @@ export const EnhancedCallUI: React.FC<EnhancedCallUIProps> = ({
 
   const setupPeerConnection = useCallback(async (localStream: MediaStream) => {
     try {
-      const peerConnection = new RTCPeerConnection({
-        iceServers: STUN_SERVERS.map((url) => ({ urls: url })),
-      });
+      const peerConnection = new RTCPeerConnection(createIceServers());
 
       localStream.getTracks().forEach((track) => {
         peerConnection.addTrack(track, localStream);

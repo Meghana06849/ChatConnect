@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createIceServers } from '@/lib/webrtc';
 
 interface CallSignal {
   type: 'offer' | 'answer' | 'ice-candidate' | 'call-request' | 'call-accepted' | 'call-rejected' | 'call-ended';
@@ -11,16 +12,6 @@ interface CallSignal {
   callerName?: string;
   callId?: string;
 }
-
-const WEBRTC_ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-  ],
-};
 
 const isSessionDescriptionInit = (value: unknown): value is RTCSessionDescriptionInit => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -285,7 +276,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     console.log('🔧 Setting up peer connection (isVideo:', isVideo, ')');
     
     if (!peerConnection.current) {
-      peerConnection.current = new RTCPeerConnection(WEBRTC_ICE_SERVERS);
+      peerConnection.current = new RTCPeerConnection(createIceServers());
     }
 
     const pc = peerConnection.current;

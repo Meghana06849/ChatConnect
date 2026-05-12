@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createIceServers } from '@/lib/webrtc';
 
 interface WebRTCCallProps {
   contactId: string;
@@ -74,14 +75,7 @@ export const WebRTCCall: React.FC<WebRTCCallProps> = ({
         localVideoRef.current.srcObject = stream;
       }
 
-      const configuration = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      };
-
-      peerConnectionRef.current = new RTCPeerConnection(configuration);
+      peerConnectionRef.current = new RTCPeerConnection(createIceServers());
 
       stream.getTracks().forEach(track => {
         peerConnectionRef.current?.addTrack(track, stream);

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { createIceServers } from '@/lib/webrtc';
 
 interface Participant {
   userId: string;
@@ -60,10 +61,6 @@ interface UseGroupCallReturn {
   toggleVideo: () => void;
   toggleScreenShare: () => Promise<void>;
 }
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
-};
 
 const toChatMessage = (row: GroupCallMessageRow): GroupCallChatMessage => ({
   id: row.id,
@@ -243,7 +240,7 @@ export const useGroupCall = (userId: string | null): UseGroupCallReturn => {
 
   const createPeerConnection = useCallback(
     async (participantId: string, participantName: string) => {
-      const pc = new RTCPeerConnection(ICE_SERVERS);
+      const pc = new RTCPeerConnection(createIceServers());
 
       if (localStream) {
         localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
