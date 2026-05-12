@@ -68,6 +68,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const callChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const outboundSignalChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const outboundSignalRecipient = useRef<string | null>(null);
   const callStartTime = useRef<number>(0);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const currentCallData = useRef<{ contactId: string; contactName: string; isVideo: boolean; isIncoming: boolean; callId?: string } | null>(null);
@@ -228,43 +230,47 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
 
   const sendSignal = useCallback(async (signal: CallSignal) => {
     try {
-      // Send signal to partner's user channel for real-time reception
-      const partnerChannel = supabase.channel(`user:${signal.to}:calls`, {
-        config: { broadcast: { self: false } }
-      });
+      // Keep a persistent signaling channel for this recipient so the
+      // offer/answer/ICE sequence does not race channel setup/teardown.
+      if (outboundSignalChannel.current && outboundSignalRecipient.current !== signal.to) {
+        await outboundSignalChannel.current.unsubscribe();
+        outboundSignalChannel.current = null;
+        outboundSignalRecipient.current = null;
+      }
 
-      // Wait until the channel is actually subscribed before broadcasting.
-      // Broadcasting too early can drop the call request before the recipient is listening.
-      await new Promise<void>((resolve, reject) => {
-        const timeoutId = window.setTimeout(() => {
-          reject(new Error('Timed out waiting for call channel subscription'));
-        }, 5000);
-
-        partnerChannel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            window.clearTimeout(timeoutId);
-            resolve();
-          }
-
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            window.clearTimeout(timeoutId);
-            reject(new Error(`Call channel subscription failed with status: ${status}`));
-          }
+      if (!outboundSignalChannel.current) {
+        outboundSignalRecipient.current = signal.to;
+        outboundSignalChannel.current = supabase.channel(`user:${signal.to}:calls`, {
+          config: { broadcast: { self: false } }
         });
-      });
+
+        await new Promise<void>((resolve, reject) => {
+          const timeoutId = window.setTimeout(() => {
+            reject(new Error('Timed out waiting for call channel subscription'));
+          }, 5000);
+
+          outboundSignalChannel.current?.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              window.clearTimeout(timeoutId);
+              resolve();
+            }
+
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              window.clearTimeout(timeoutId);
+              reject(new Error(`Call channel subscription failed with status: ${status}`));
+            }
+          });
+        });
+      }
       
       // Send the signal
-      await partnerChannel.send({
+      await outboundSignalChannel.current.send({
         type: 'broadcast',
         event: 'call-signal',
         payload: signal
       });
       
       console.log(`📡 Call signal sent: ${signal.type} from ${signal.from} to ${signal.to}`);
-      
-      // Unsubscribe after sending to avoid memory leaks
-      // The send has already been queued once the channel is subscribed.
-      await partnerChannel.unsubscribe();
     } catch (error) {
       console.error('❌ Failed to send call signal:', error);
       toast({
@@ -509,6 +515,12 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     callStartTime.current = 0;
     stopDurationTimer();
     currentCallData.current = null;
+
+    if (outboundSignalChannel.current) {
+      void outboundSignalChannel.current.unsubscribe();
+      outboundSignalChannel.current = null;
+      outboundSignalRecipient.current = null;
+    }
   }, [stopDurationTimer, stopRingbackTone]);
 
   const startCall = useCallback(async (contactId: string, contactName: string, isVideo: boolean) => {
