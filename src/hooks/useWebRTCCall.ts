@@ -9,6 +9,7 @@ interface CallSignal {
   data?: unknown;
   callType: 'voice' | 'video';
   callerName?: string;
+  callId?: string;
 }
 
 const WEBRTC_ICE_SERVERS: RTCConfiguration = {
@@ -50,6 +51,7 @@ interface UseWebRTCCallReturn {
   toggleMute: () => void;
   toggleVideo: () => void;
   toggleScreenShare: () => Promise<void>;
+  enableCallSound: () => void;
 }
 
 export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
@@ -68,8 +70,11 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   const callChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const callStartTime = useRef<number>(0);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
-  const currentCallData = useRef<{ contactId: string; contactName: string; isVideo: boolean; isIncoming: boolean } | null>(null);
+  const currentCallData = useRef<{ contactId: string; contactName: string; isVideo: boolean; isIncoming: boolean; callId?: string } | null>(null);
   const screenSender = useRef<RTCRtpSender | null>(null);
+  const hasShownCallHistoryErrorRef = useRef(false);
+  const ringbackAudioContextRef = useRef<AudioContext | null>(null);
+  const ringbackTimerRef = useRef<number | null>(null);
   // Use refs to avoid stale closures in cleanup
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -79,6 +84,60 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   useEffect(() => { screenStreamRef.current = screenStream; }, [screenStream]);
   
   const { toast } = useToast();
+
+  const stopRingbackTone = useCallback(() => {
+    if (ringbackTimerRef.current) {
+      window.clearInterval(ringbackTimerRef.current);
+      ringbackTimerRef.current = null;
+    }
+
+    if (ringbackAudioContextRef.current) {
+      void ringbackAudioContextRef.current.close();
+      ringbackAudioContextRef.current = null;
+    }
+  }, []);
+
+  const startRingbackTone = useCallback(() => {
+    stopRingbackTone();
+
+    try {
+      const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+
+      ringbackAudioContextRef.current = new Ctx();
+
+      const playRingbackBurst = () => {
+        const context = ringbackAudioContextRef.current;
+        if (!context) return;
+
+        if (context.state === 'suspended') {
+          void context.resume();
+        }
+
+        const now = context.currentTime;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(440, now);
+        oscillator.frequency.linearRampToValueAtTime(480, now + 0.4);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.07, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 0.45);
+      };
+
+      playRingbackBurst();
+      ringbackTimerRef.current = window.setInterval(playRingbackBurst, 2200);
+    } catch (error) {
+      console.warn('⚠️ Could not start ringback tone:', error);
+    }
+  }, [stopRingbackTone]);
 
   const sendPushNotification = useCallback(async (
     recipientId: string,
@@ -113,7 +172,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     callType: 'voice' | 'video',
     status: string,
     duration: number,
-    isIncoming: boolean = false
+    isIncoming: boolean = false,
+    callId?: string
   ) => {
     if (!userId) return;
     
@@ -122,19 +182,49 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       // For outgoing calls, we (userId) are the caller
       const caller_id = isIncoming ? contactId : userId;
       const callee_id = isIncoming ? userId : contactId;
+      const historyId = callId || crypto.randomUUID();
       
-      await supabase.from('call_history').insert({
+      const { error } = await supabase.from('call_history').upsert({
+        id: historyId,
         caller_id,
         callee_id,
         call_type: callType,
         status,
         duration_seconds: duration
+      }, {
+        onConflict: 'id'
       });
+
+      if (error) {
+        throw error;
+      }
+
       console.log(`📞 Call history saved: ${status} ${callType} call (${duration}s)`);
+      return historyId;
     } catch (error) {
       console.error('❌ Error saving call history:', error);
+      const errorObject = error as { code?: string; message?: string; details?: string; hint?: string };
+      const errorText = [errorObject.code, errorObject.message, errorObject.details, errorObject.hint]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const isRlsOrPermissionError =
+        errorObject.code === '42501' ||
+        /permission denied|row-level security|rls|not authorized|forbidden/.test(errorText);
+
+      if (isRlsOrPermissionError && !hasShownCallHistoryErrorRef.current) {
+        hasShownCallHistoryErrorRef.current = true;
+        toast({
+          title: 'Call history blocked by database policy',
+          description: 'The call can still proceed, but Supabase is rejecting writes to call_history. Apply the latest migration so call logs can be saved and shown in history.',
+          variant: 'destructive'
+        });
+      }
+
+      return null;
     }
-  }, [userId]);
+  }, [toast, userId]);
 
   const sendSignal = useCallback(async (signal: CallSignal) => {
     try {
@@ -176,6 +266,25 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
 
     const pc = peerConnection.current;
 
+    const requestMediaStream = async (constraints: MediaStreamConstraints) => {
+      console.log('📹 Requesting media with constraints:', constraints);
+      return navigator.mediaDevices.getUserMedia(constraints);
+    };
+
+    const isPermissionDeniedError = (error: unknown) => {
+      if (!error || typeof error !== 'object') return false;
+
+      const errorObject = error as { name?: unknown; message?: unknown };
+      const errorName = typeof errorObject.name === 'string' ? errorObject.name : '';
+      const errorMessage = typeof errorObject.message === 'string' ? errorObject.message : '';
+
+      return (
+        errorName === 'NotAllowedError' ||
+        errorName === 'PermissionDeniedError' ||
+        /permission denied|permission/i.test(errorMessage)
+      );
+    };
+
     try {
       // Try high-quality constraints first, then graceful fallback for stricter devices.
       const preferredConstraints: MediaStreamConstraints = {
@@ -192,39 +301,74 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         } : false
       };
 
-      const fallbackConstraints: MediaStreamConstraints = {
-        audio: true,
-        video: isVideo || undefined,
-      };
-
-      let stream: MediaStream;
+      let stream: MediaStream | null = null;
       try {
-        console.log('📹 Requesting media with preferred constraints...');
-        stream = await navigator.mediaDevices.getUserMedia(preferredConstraints);
+        stream = await requestMediaStream(preferredConstraints);
         console.log('✅ Got media with preferred constraints');
       } catch (preferredError) {
         console.warn('⚠️ Preferred constraints failed, retrying with fallback...', (preferredError as Error).message);
-        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-        console.log('✅ Got media with fallback constraints');
+
+        if (isVideo) {
+          try {
+            stream = await requestMediaStream({ audio: true, video: false });
+            console.log('✅ Got audio-only fallback stream after video request failed');
+          } catch (fallbackError) {
+            console.warn('⚠️ Audio-only fallback also failed.', (fallbackError as Error).message);
+            stream = null;
+          }
+        } else {
+          try {
+            stream = await requestMediaStream({ audio: true, video: false });
+            console.log('✅ Got audio-only fallback stream');
+          } catch (fallbackError) {
+            console.warn('⚠️ Audio-only fallback also failed.', (fallbackError as Error).message);
+            stream = null;
+          }
+        }
       }
 
-      setLocalStream(stream);
-      setIsVideoEnabled(isVideo);
+      if (stream) {
+        setLocalStream(stream);
+        setIsVideoEnabled(stream.getVideoTracks().length > 0);
 
-      console.log('📊 Adding', stream.getTracks().length, 'tracks to peer connection');
-      stream.getTracks().forEach(track => {
-        console.log(`  ↳ Adding ${track.kind} track:`, track.label);
-        pc.addTrack(track, stream);
-      });
-      console.log('✅ All tracks added');
+        console.log('📊 Adding', stream.getTracks().length, 'tracks to peer connection');
+        stream.getTracks().forEach(track => {
+          console.log(`  ↳ Adding ${track.kind} track:`, track.label);
+          pc.addTrack(track, stream as MediaStream);
+        });
+        console.log('✅ All tracks added');
+      } else {
+        setLocalStream(null);
+        setIsVideoEnabled(false);
+        toast({
+          title: 'Media permission blocked',
+          description: 'Starting the call without local camera or microphone access. You can still receive the other person once they answer.',
+          variant: 'destructive'
+        });
+        console.warn('⚠️ Continuing call setup without local media');
+      }
     } catch (error) {
       console.error('❌ Error accessing media devices:', error);
       const errorMsg = error instanceof DOMException ? error.message : String(error);
-      toast({
-        title: "Media access failed",
-        description: `Could not access camera/microphone: ${errorMsg}`,
-        variant: "destructive"
-      });
+      // Provide an actionable message for permission errors
+      const isPermissionError = isPermissionDeniedError(error);
+
+      if (isPermissionError) {
+        toast({
+          title: 'Camera / Microphone blocked',
+          description: 'Permission denied. Allow camera and microphone for this site (browser site settings and OS privacy settings), then retry.',
+          variant: 'destructive'
+        });
+        console.warn('Hint: check browser site permissions and OS settings.');
+      } else {
+        toast({
+          title: 'Media access failed',
+          description: `Could not access camera/microphone: ${errorMsg}`,
+          variant: 'destructive'
+        });
+      }
+
+      // Re-throw so callers can handle fallback paths
       throw error;
     }
 
@@ -242,6 +386,19 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       
       if (state === 'connected') {
         console.log('✅ Call connected successfully!');
+        stopRingbackTone();
+        setIsCallActive(true);
+        startDurationTimer();
+        if (currentCallData.current) {
+          void saveCallHistory(
+            currentCallData.current.contactId,
+            currentCallData.current.isVideo ? 'video' : 'voice',
+            'connected',
+            0,
+            currentCallData.current.isIncoming,
+            currentCallData.current.callId
+          );
+        }
         toast({
           title: "Call connected",
           description: "Connected to peer",
@@ -316,6 +473,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   }, []);
 
   const cleanup = useCallback(() => {
+    stopRingbackTone();
     // Use refs to avoid stale closure over stream state
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     screenStreamRef.current?.getTracks().forEach(track => track.stop());
@@ -333,16 +491,19 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     callStartTime.current = 0;
     stopDurationTimer();
     currentCallData.current = null;
-  }, [stopDurationTimer]);
+  }, [stopDurationTimer, stopRingbackTone]);
 
   const startCall = useCallback(async (contactId: string, contactName: string, isVideo: boolean) => {
     if (!userId) return;
 
     console.log(`📞 Starting ${isVideo ? 'video' : 'voice'} call to ${contactName} (${contactId})`);
     
-    currentCallData.current = { contactId, contactName, isVideo, isIncoming: false };
+    const callId = crypto.randomUUID();
+    currentCallData.current = { contactId, contactName, isVideo, isIncoming: false, callId };
 
     try {
+      setIsCallActive(true);
+      startRingbackTone();
       console.log('🔧 Setting up peer connection...');
       const pc = await setupPeerConnection(isVideo);
       console.log('✅ Peer connection setup complete');
@@ -365,6 +526,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       await pc.setLocalDescription(offer);
       console.log('✅ Local description set');
 
+      await saveCallHistory(contactId, isVideo ? 'video' : 'voice', 'outgoing', 0, false, callId);
+
       console.log('📤 Sending call request signal...');
       await sendSignal({
         type: 'call-request',
@@ -372,11 +535,10 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         to: contactId,
         data: offer,
         callType: isVideo ? 'video' : 'voice',
-        callerName
+        callerName,
+        callId
       });
       console.log('✅ Call request sent');
-
-      setIsCallActive(true);
 
       toast({
         title: `${isVideo ? 'Video' : 'Voice'} call`,
@@ -386,6 +548,16 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       console.error('❌ Error starting call:', error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('   Error details:', errorMsg);
+      if (currentCallData.current?.callId) {
+        await saveCallHistory(
+          contactId,
+          isVideo ? 'video' : 'voice',
+          'failed',
+          0,
+          false,
+          currentCallData.current.callId
+        );
+      }
       cleanup();
       toast({
         title: "Call failed",
@@ -393,7 +565,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         variant: "destructive"
       });
     }
-  }, [userId, setupPeerConnection, sendSignal, startDurationTimer, toast, saveCallHistory, cleanup]);
+  }, [userId, setupPeerConnection, sendSignal, startDurationTimer, toast, saveCallHistory, cleanup, startRingbackTone]);
 
   const acceptCall = useCallback(async () => {
     if (!incomingCallData || !userId) return;
@@ -402,18 +574,21 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       contactId: incomingCallData.from,
       contactName: incomingCallData.callerName || 'Unknown',
       isVideo: incomingCallData.callType === 'video',
-      isIncoming: true
+      isIncoming: true,
+      callId: incomingCallData.callId
     };
 
     try {
+      setIsCallActive(true);
       const pc = await setupPeerConnection(incomingCallData.callType === 'video');
 
       // Send accept signal
-      sendSignal({
+      await sendSignal({
         type: 'call-accepted',
         from: userId,
         to: incomingCallData.from,
-        callType: incomingCallData.callType
+        callType: incomingCallData.callType,
+        callId: incomingCallData.callId
       });
 
       // Notify the caller that their call was accepted
@@ -430,18 +605,17 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         
-        sendSignal({
+        await sendSignal({
           type: 'answer',
           from: userId,
           to: incomingCallData.from,
           data: answer,
-          callType: incomingCallData.callType
+          callType: incomingCallData.callType,
+          callId: incomingCallData.callId
         });
       }
 
       setIsIncomingCall(false);
-      setIsCallActive(true);
-      startDurationTimer();
     } catch (error) {
       console.error('Error accepting call:', error);
       cleanup();
@@ -455,24 +629,26 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       type: 'call-rejected',
       from: userId,
       to: incomingCallData.from,
-      callType: incomingCallData.callType
+      callType: incomingCallData.callType,
+      callId: incomingCallData.callId
     });
 
-    // Save as missed call (isIncoming=true: they were the caller)
+    // Save as rejected call (isIncoming=true: they were the caller)
     await saveCallHistory(
       incomingCallData.from,
       incomingCallData.callType,
-      'missed',
+      'rejected',
       0,
-      true
+      true,
+      incomingCallData.callId
     );
 
     // Notify the caller that their call was rejected
     await sendPushNotification(
       incomingCallData.from,
-      'Call Missed',
-      `Your ${incomingCallData.callType} call was not answered`,
-      { type: 'call-missed', callType: incomingCallData.callType }
+      'Call Rejected',
+      `Your ${incomingCallData.callType} call was rejected`,
+      { type: 'call-rejected', callType: incomingCallData.callType }
     );
 
     setIsIncomingCall(false);
@@ -481,11 +657,12 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
 
   const endCall = useCallback(async () => {
     if (currentCallData.current && userId) {
-      sendSignal({
+      await sendSignal({
         type: 'call-ended',
         from: userId,
         to: currentCallData.current.contactId,
-        callType: currentCallData.current.isVideo ? 'video' : 'voice'
+        callType: currentCallData.current.isVideo ? 'video' : 'voice',
+        callId: currentCallData.current.callId
       });
 
       // Save call history with final duration using isIncoming flag from currentCallData
@@ -494,7 +671,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
         currentCallData.current.isVideo ? 'video' : 'voice',
         'completed',
         callDuration,
-        currentCallData.current.isIncoming
+        currentCallData.current.isIncoming,
+        currentCallData.current.callId
       );
     }
 
@@ -633,10 +811,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
               break;
 
             case 'call-accepted':
-              // Remote user accepted, mark call active and begin duration timing.
+              // Remote user accepted; wait for the peer connection to become connected.
               console.log(`✅ Call accepted by ${signal.from}`);
-              setIsCallActive(true);
-              startDurationTimer();
               toast({
                 title: 'Call accepted',
                 description: 'Connecting...',
@@ -712,9 +888,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
               if (peerConnection.current && isSessionDescriptionInit(signal.data)) {
                 try {
                   await peerConnection.current.setRemoteDescription(new RTCSessionDescription(signal.data));
-                  setIsCallActive(true);
-                  startDurationTimer();
-                  console.log(`🔗 Remote description set, call active`);
+                  console.log(`🔗 Remote description set, waiting for connection`);
                 } catch (error) {
                   console.error('❌ Error setting remote description (answer):', error);
                 }
@@ -774,6 +948,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
     endCall,
     toggleMute,
     toggleVideo,
-    toggleScreenShare
+    toggleScreenShare,
+    enableCallSound: startRingbackTone
   };
 };

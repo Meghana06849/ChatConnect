@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Phone, PhoneOff, Video } from 'lucide-react';
+import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react';
 
 interface IncomingCallNotificationProps {
   callerName: string;
@@ -17,22 +17,80 @@ export const IncomingCallNotification: React.FC<IncomingCallNotificationProps> =
   onAccept,
   onReject
 }) => {
-  const [isRinging, setIsRinging] = useState(true);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+
+  const playRingTone = useCallback(async () => {
+    try {
+      const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new Ctx();
+      }
+
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+
+      const now = audioContextRef.current.currentTime;
+      const osc = audioContextRef.current.createOscillator();
+      const gain = audioContextRef.current.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(760, now);
+      osc.frequency.linearRampToValueAtTime(620, now + 0.18);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(audioContextRef.current.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch {
+      // Ignore browser audio restrictions.
+    }
+  }, []);
+
+  const unlockSound = useCallback(async () => {
+    setIsSoundEnabled(true);
+    await playRingTone();
+  }, [playRingTone]);
 
   useEffect(() => {
+    let vibrateIntervalId: number | null = null;
+
+    if (isSoundEnabled) {
+      void playRingTone();
+    }
+    const ringIntervalId = window.setInterval(() => {
+      if (isSoundEnabled) {
+        void playRingTone();
+      }
+    }, 1600);
+
     // Vibrate on mobile if supported
     if ('vibrate' in navigator) {
       const vibratePattern = [200, 100, 200, 100, 200];
-      const interval = setInterval(() => {
+      vibrateIntervalId = window.setInterval(() => {
         navigator.vibrate(vibratePattern);
       }, 2000);
-      
-      return () => {
-        clearInterval(interval);
-        navigator.vibrate(0);
-      };
     }
-  }, []);
+
+    return () => {
+      window.clearInterval(ringIntervalId);
+      if (vibrateIntervalId) {
+        window.clearInterval(vibrateIntervalId);
+      }
+      navigator.vibrate(0);
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, [isSoundEnabled, playRingTone]);
 
   // Auto-reject after 30 seconds
   useEffect(() => {
@@ -73,6 +131,18 @@ export const IncomingCallNotification: React.FC<IncomingCallNotificationProps> =
               </>
             )}
           </p>
+
+          {!isSoundEnabled && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={unlockSound}
+              className="mb-6 rounded-full border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
+            >
+              <Volume2 className="w-4 h-4 mr-2" />
+              Tap to enable call sound
+            </Button>
+          )}
 
           <div className="flex justify-center gap-6">
             <Button

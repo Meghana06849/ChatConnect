@@ -16,7 +16,7 @@ import { ChatWallpaperUpload } from '@/components/chat/ChatWallpaperUpload';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, ChevronDown, Heart, Lock, Sparkles } from 'lucide-react';
+import { Loader2, ChevronDown, Heart, Lock, Sparkles, PhoneCall } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,7 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
   conversationId,
   onBack,
 }) => {
-  const { startCall } = useCall();
+  const { startCall, isCallActive } = useCall();
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -176,6 +176,17 @@ export const DreamChatInterface: React.FC<DreamChatInterfaceProps> = ({
           onVideoCall={() => handleCall(true)}
           onMore={() => setShowSettings(true)}
         />
+
+        {isCallActive && (
+          <div className="px-4 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-sm text-white/80">
+              <PhoneCall className="h-4 w-4 shrink-0 text-lovers-primary" />
+              <span className="truncate text-xs font-medium">
+                Call active{selectedContact?.name ? ` with ${selectedContact.name}` : ''}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Disappearing messages indicator */}
         {chatSettings?.disappearing_mode && chatSettings.disappearing_mode !== 'off' && (

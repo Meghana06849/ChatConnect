@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Send, Mic, Heart, Loader2, ChevronDown, Settings, Moon, Sparkles, Gift, Music2, Plus, MoreHorizontal, PauseCircle, ShieldAlert, BarChart3, HandHeart } from 'lucide-react';
+import { Send, Mic, Heart, Loader2, ChevronDown, Settings, Moon, Sparkles, Gift, Music2, Plus, MoreHorizontal, PauseCircle, ShieldAlert, BarChart3, HandHeart, PhoneCall } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -141,7 +141,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onDreamRoom,
 }) => {
   const { mode, switchMode } = useChat();
-  const { startCall } = useCall();
+  const { startCall, isCallActive } = useCall();
   const { toast } = useToast();
   const runRpc = useCallback(async (fn: string, args?: Record<string, unknown>) => {
     const rpc = supabase.rpc as unknown as (
@@ -1232,6 +1232,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onBack={onBack}
         onDreamRoom={onDreamRoom}
       />
+
+      {isCallActive && (
+        <div className="relative z-10 px-4 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
+          <div className={cn(
+            'flex items-center gap-2 rounded-full border px-3 py-2 backdrop-blur-sm',
+            isLoversMode
+              ? 'border-lovers-primary/20 bg-lovers-primary/10 text-lovers-primary'
+              : 'border-primary/20 bg-primary/10 text-primary'
+          )}>
+            <PhoneCall className="h-4 w-4 shrink-0" />
+            <span className="truncate text-xs font-medium">
+              Call active{displayContact?.name ? ` with ${displayContact.name}` : ''}
+            </span>
+          </div>
+        </div>
+      )}
 
       {isLoversMode && (
         <div className="relative z-10 px-4 pt-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">

@@ -72,7 +72,8 @@ export const CallProvider: React.FC<CallProviderProps> = ({ children }) => {
     endCall,
     toggleMute,
     toggleVideo,
-    toggleScreenShare
+    toggleScreenShare,
+    enableCallSound
   } = useWebRTCCall(userId);
 
   // Fetch contact avatar when a call starts or is received
@@ -185,6 +186,8 @@ export const CallProvider: React.FC<CallProviderProps> = ({ children }) => {
             onToggleMute={toggleMute}
             onToggleVideo={toggleVideo}
             onToggleScreenShare={toggleScreenShare}
+            showSoundUnlock={!remoteStream}
+            onEnableCallSound={enableCallSound}
             onEndCall={endCall}
           />
         )

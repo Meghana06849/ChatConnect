@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from '@/contexts/ChatContext';
+import { useCall } from './CallProvider';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { 
   Phone, 
@@ -41,6 +43,8 @@ interface CallHistoryProps {
 
 export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
   const { mode } = useChat();
+  const { startCall: startRealtimeCall } = useCall();
+  const { toast } = useToast();
   const isLoversMode = mode === 'lovers';
   const [searchQuery, setSearchQuery] = useState('');
   const [callHistory, setCallHistory] = useState<CallRecord[]>([]);
@@ -68,8 +72,10 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
   useEffect(() => {
     if (!userId) return;
 
-    const loadCallHistory = async () => {
-      setLoading(true);
+    const loadCallHistory = async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      }
       
       const { data, error } = await supabase
         .from('call_history')
@@ -120,9 +126,9 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
       setLoading(false);
     };
 
-    loadCallHistory();
+    void loadCallHistory(true);
 
-    // Subscribe to new calls
+    // Subscribe to new and updated calls so the list stays live
     const channel = supabase
       .channel('call-history-changes')
       .on('postgres_changes', {
@@ -130,13 +136,25 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
         schema: 'public',
         table: 'call_history',
         filter: `caller_id=eq.${userId}`
-      }, () => loadCallHistory())
+      }, () => { void loadCallHistory(false); })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_history',
+        filter: `caller_id=eq.${userId}`
+      }, () => { void loadCallHistory(false); })
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'call_history',
         filter: `callee_id=eq.${userId}`
-      }, () => loadCallHistory())
+      }, () => { void loadCallHistory(false); })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'call_history',
+        filter: `callee_id=eq.${userId}`
+      }, () => { void loadCallHistory(false); })
       .subscribe();
 
     return () => {
@@ -145,16 +163,47 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
   }, [userId, loversPartnerId]);
 
   // Filter calls by mode - lovers mode shows only partner calls, general shows non-partner calls
-  const modeFilteredCalls = callHistory.filter(call => {
-    if (isLoversMode) {
-      return call.is_lovers_call === true;
-    }
-    return call.is_lovers_call !== true;
-  });
+  const modeFilteredCalls = isLoversMode
+    ? (() => {
+        const loversCalls = loversPartnerId
+          ? callHistory.filter(call => call.is_lovers_call === true)
+          : callHistory;
+
+        return loversCalls.length > 0 ? loversCalls : callHistory;
+      })()
+    : callHistory.filter(call => call.is_lovers_call !== true);
 
   const filteredCalls = modeFilteredCalls.filter(call =>
     call.contact_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const quickActionTarget = filteredCalls[0];
+
+  const handleStartCall = (contactId: string, contactName: string, isVideo: boolean) => {
+    if (onStartCall) {
+      onStartCall(contactId, contactName, isVideo);
+      return;
+    }
+
+    void startRealtimeCall(contactId, contactName, isVideo);
+  };
+
+  const handleQuickActionCall = (isVideo: boolean) => {
+    if (!quickActionTarget) {
+      toast({
+        title: 'No recent contact',
+        description: 'Start a call from your history or contacts list first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    handleStartCall(
+      quickActionTarget.caller_id === userId ? quickActionTarget.callee_id : quickActionTarget.caller_id,
+      quickActionTarget.contact_name || 'Unknown',
+      isVideo
+    );
+  };
 
   const getCallsByType = (type: 'all' | 'missed' | 'outgoing' | 'incoming') => {
     switch (type) {
@@ -237,7 +286,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => onStartCall(
+                    onClick={() => handleStartCall(
                       call.caller_id === userId ? call.callee_id : call.caller_id,
                       call.contact_name || 'Unknown',
                       false
@@ -249,7 +298,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => onStartCall(
+                    onClick={() => handleStartCall(
                       call.caller_id === userId ? call.callee_id : call.caller_id,
                       call.contact_name || 'Unknown',
                       true
@@ -388,7 +437,10 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
                 isLoversMode 
                   ? "bg-lovers-primary hover:bg-lovers-primary/90" 
                   : "bg-green-500 hover:bg-green-600"
-              )}>
+              )}
+                onClick={() => handleQuickActionCall(false)}
+                disabled={!quickActionTarget}
+              >
                 <PhoneCall className="w-4 h-4 mr-2" />
                 Start Voice Call
               </Button>
@@ -411,7 +463,10 @@ export const CallHistory: React.FC<CallHistoryProps> = ({ onStartCall }) => {
                 isLoversMode 
                   ? "bg-lovers-secondary hover:bg-lovers-secondary/90" 
                   : "bg-blue-500 hover:bg-blue-600"
-              )}>
+              )}
+                onClick={() => handleQuickActionCall(true)}
+                disabled={!quickActionTarget}
+              >
                 <Video className="w-4 h-4 mr-2" />
                 Start Video Call
               </Button>

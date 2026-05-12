@@ -11,6 +11,8 @@ interface DreamCallUIProps {
   isMuted: boolean;
   callDuration: number;
   onToggleMute: () => void;
+  showSoundUnlock?: boolean;
+  onEnableCallSound?: () => void;
   onEndCall: () => void;
 }
 
@@ -34,6 +36,8 @@ export const DreamCallUI: React.FC<DreamCallUIProps> = ({
   isMuted,
   callDuration,
   onToggleMute,
+  showSoundUnlock,
+  onEnableCallSound,
   onEndCall
 }) => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
@@ -159,6 +163,20 @@ export const DreamCallUI: React.FC<DreamCallUIProps> = ({
             {formatDuration(callDuration)}
           </p>
         </div>
+
+          {showSoundUnlock && onEnableCallSound && (
+            <div className="absolute top-20 left-0 right-0 flex justify-center">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onEnableCallSound}
+                className="rounded-full border border-pink-400/40 bg-pink-500/15 text-pink-100 hover:bg-pink-500/25"
+              >
+                <Volume2 className="w-4 h-4 mr-2" />
+                Tap to enable call sound
+              </Button>
+            </div>
+          )}
         
         {/* Avatar connection area */}
         <div className={`relative flex items-center justify-center gap-16 ${isEnding ? 'dream-heart-collapse' : ''}`}>

@@ -46,6 +46,19 @@ export const WebRTCCall: React.FC<WebRTCCallProps> = ({
       });
     } catch (error) {
       console.error('Error saving call history:', error);
+      const errorObject = error as { code?: string; message?: string; details?: string; hint?: string };
+      const errorText = [errorObject.code, errorObject.message, errorObject.details, errorObject.hint]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      if (errorObject.code === '42501' || /permission denied|row-level security|rls|not authorized|forbidden/.test(errorText)) {
+        toast({
+          title: 'Call history blocked by database policy',
+          description: 'The call can still run, but Supabase is rejecting call_history writes. Apply the latest migration to restore history updates.',
+          variant: 'destructive'
+        });
+      }
     }
   }, [contactId, isVideoCall]);
 

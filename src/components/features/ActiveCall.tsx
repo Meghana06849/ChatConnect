@@ -17,6 +17,8 @@ interface ActiveCallProps {
   onToggleMute: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
+  showSoundUnlock?: boolean;
+  onEnableCallSound?: () => void;
   onEndCall: () => void;
 }
 
@@ -33,6 +35,8 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
+  showSoundUnlock,
+  onEnableCallSound,
   onEndCall
 }) => {
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -93,6 +97,20 @@ export const ActiveCall: React.FC<ActiveCallProps> = ({
             <h2 className="text-2xl font-bold">{contactName}</h2>
             <p className="text-muted-foreground text-lg">{formatDuration(callDuration)}</p>
           </div>
+
+          {showSoundUnlock && onEnableCallSound && (
+            <div className="mb-6 flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onEnableCallSound}
+                className="rounded-full border-primary/20 bg-primary/10 text-primary hover:bg-primary/20"
+              >
+                <Volume2 className="w-4 h-4 mr-2" />
+                Tap to enable call sound
+              </Button>
+            </div>
+          )}
 
           {/* Video containers */}
           {isVideoCall && (

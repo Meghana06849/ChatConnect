@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, X } from 'lucide-react';
+import { Heart, Volume2, X } from 'lucide-react';
 
 interface DreamIncomingCallProps {
   callerName: string;
@@ -29,44 +29,58 @@ export const DreamIncomingCall: React.FC<DreamIncomingCallProps> = ({
   onReject
 }) => {
   const stars = useMemo(() => generateStars(40), []);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+
+  const playRingTone = useCallback(async () => {
+    try {
+      const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new Ctx();
+      }
+
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume();
+      }
+
+      const now = audioContextRef.current.currentTime;
+      const osc = audioContextRef.current.createOscillator();
+      const gain = audioContextRef.current.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(760, now);
+      osc.frequency.linearRampToValueAtTime(620, now + 0.18);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(audioContextRef.current.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch {
+      // Ignore browser audio restrictions.
+    }
+  }, []);
+
+  const unlockSound = useCallback(async () => {
+    setIsSoundEnabled(true);
+    await playRingTone();
+  }, [playRingTone]);
 
   useEffect(() => {
     let intervalId: number | null = null;
-    let audioContext: AudioContext | null = null;
 
-    const playRingTone = () => {
-      try {
-        const Ctx = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctx) return;
-        if (!audioContext) {
-          audioContext = new Ctx();
-        }
-        if (audioContext.state === 'suspended') {
-          void audioContext.resume();
-        }
-
-        const now = audioContext.currentTime;
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(760, now);
-        osc.frequency.linearRampToValueAtTime(620, now + 0.18);
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.06, now + 0.03);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } catch {
-        // Ignore browser audio restrictions.
+    if (isSoundEnabled) {
+      void playRingTone();
+    }
+    intervalId = window.setInterval(() => {
+      if (isSoundEnabled) {
+        void playRingTone();
       }
-    };
-
-    playRingTone();
-    intervalId = window.setInterval(playRingTone, 1600);
+    }, 1600);
 
     if ('vibrate' in navigator) {
       const vibrateId = window.setInterval(() => {
@@ -77,19 +91,21 @@ export const DreamIncomingCall: React.FC<DreamIncomingCallProps> = ({
         if (intervalId) window.clearInterval(intervalId);
         window.clearInterval(vibrateId);
         navigator.vibrate(0);
-        if (audioContext) {
-          void audioContext.close();
+        if (audioContextRef.current) {
+          void audioContextRef.current.close();
+          audioContextRef.current = null;
         }
       };
     }
 
     return () => {
       if (intervalId) window.clearInterval(intervalId);
-      if (audioContext) {
-        void audioContext.close();
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
       }
     };
-  }, []);
+  }, [isSoundEnabled, playRingTone]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -129,6 +145,18 @@ export const DreamIncomingCall: React.FC<DreamIncomingCallProps> = ({
         <p className="text-lg text-white/60 font-light tracking-widest mb-8 animate-pulse">
           ✨ Incoming Dream Call ✨
         </p>
+
+        {!isSoundEnabled && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={unlockSound}
+            className="mb-8 rounded-full border border-pink-400/40 bg-pink-500/15 text-pink-100 hover:bg-pink-500/25"
+          >
+            <Volume2 className="w-4 h-4 mr-2" />
+            Tap to enable call sound
+          </Button>
+        )}
         
         {/* Caller avatar with pulsing ring */}
         <div className="relative mb-8">
