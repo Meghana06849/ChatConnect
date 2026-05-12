@@ -232,9 +232,26 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       const partnerChannel = supabase.channel(`user:${signal.to}:calls`, {
         config: { broadcast: { self: false } }
       });
-      
-      // Subscribe to ensure connection is established
-      await partnerChannel.subscribe();
+
+      // Wait until the channel is actually subscribed before broadcasting.
+      // Broadcasting too early can drop the call request before the recipient is listening.
+      await new Promise<void>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => {
+          reject(new Error('Timed out waiting for call channel subscription'));
+        }, 5000);
+
+        partnerChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            window.clearTimeout(timeoutId);
+            resolve();
+          }
+
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            window.clearTimeout(timeoutId);
+            reject(new Error(`Call channel subscription failed with status: ${status}`));
+          }
+        });
+      });
       
       // Send the signal
       await partnerChannel.send({
@@ -246,6 +263,7 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
       console.log(`📡 Call signal sent: ${signal.type} from ${signal.from} to ${signal.to}`);
       
       // Unsubscribe after sending to avoid memory leaks
+      // The send has already been queued once the channel is subscribed.
       await partnerChannel.unsubscribe();
     } catch (error) {
       console.error('❌ Failed to send call signal:', error);
