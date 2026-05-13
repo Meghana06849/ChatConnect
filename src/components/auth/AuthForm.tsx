@@ -30,12 +30,9 @@ export const AuthForm = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        }
-      });
+    });
 
-      if (error) throw error;
+    if (error) throw error;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : undefined;
       toast({
