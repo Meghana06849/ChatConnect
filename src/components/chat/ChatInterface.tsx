@@ -267,7 +267,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const { data, error } = await runRpc('get_couple_theme', {
         p_conversation_id: conversationId,
       });
-      if (!error && data && ['galaxy', 'rainy_night', 'sunset'].includes(data)) {
+      if (!error && typeof data === 'string' && ['galaxy', 'rainy_night', 'sunset'].includes(data)) {
         setSharedTheme(data as ThemePreset);
       }
     };
