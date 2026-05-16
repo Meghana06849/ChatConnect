@@ -73,12 +73,6 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onBack,
   onDreamRoom,
 }) => {
-  const handleVideoCall = () => {
-    if (onVideoCall) {
-      onVideoCall();
-    }
-  };
-
   return (
     <div className="p-3 border-b border-white/20 glass">
       <div className="flex items-center justify-between">
@@ -136,17 +130,29 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {onCall && (
-            <Button variant="ghost" size="icon" onClick={onCall} className="rounded-full hover:bg-white/10">
-              <Phone className="w-5 h-5" />
-            </Button>
-          )}
+        <div className="flex items-center gap-1">
           {onVideoCall && (
-            <Button variant="ghost" size="icon" onClick={handleVideoCall} className="rounded-full hover:bg-white/10">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onVideoCall}
+              className="rounded-full hover:bg-white/10"
+            >
               <Video className="w-5 h-5" />
             </Button>
           )}
+          
+          {onCall && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onCall}
+              className="rounded-full hover:bg-white/10"
+            >
+              <Phone className="w-5 h-5" />
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

@@ -5,10 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { LoveCoinsProvider } from "@/contexts/LoveCoinsContext";
-import { CallProvider } from "@/contexts/CallContext";
+import { CallProvider } from "@/components/features/CallProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { IncomingCallUI } from "@/components/features/IncomingCallUI";
-import { ActiveCallUI } from "@/components/features/ActiveCallUI";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import MomentsPage from "./pages/MomentsPage";
@@ -25,8 +23,6 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <IncomingCallUI />
-              <ActiveCallUI />
               <BrowserRouter>
                 <Routes>
                   <Route path="/" element={<Index />} />
