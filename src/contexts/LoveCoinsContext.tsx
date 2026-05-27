@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,6 +29,7 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [lastLoginDate, setLastLoginDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const streakUpdateInFlight = useRef(false);
   const { toast } = useToast();
   const streakStorageKey = 'chatconnect_daily_streak';
   const lastLoginStorageKey = 'chatconnect_last_login';
@@ -56,7 +57,7 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (error && error.code !== 'PGRST116') throw error;
 
         if (data) {
-          setCoins(data.love_coins || 100);
+          setCoins(data.love_coins ?? 100);
         } else {
           // Initialize if new user
           await supabase.from('profiles').upsert({
@@ -183,47 +184,43 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const updateStreak = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId || streakUpdateInFlight.current) return;
+
+    streakUpdateInFlight.current = true;
 
     const today = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
 
     try {
-      if (lastLoginDate === yesterday) {
+      const storedLastLogin = localStorage.getItem(lastLoginStorageKey) || lastLoginDate;
+      const storedStreak = localStorage.getItem(streakStorageKey);
+      const currentStreak = storedStreak ? parseInt(storedStreak, 10) : dailyStreak;
+
+      if (storedLastLogin === today) {
+        setLastLoginDate(today);
+        setDailyStreak(currentStreak);
+        return;
+      }
+
+      if (storedLastLogin === yesterday) {
         // Continue streak
-        const newStreak = dailyStreak + 1;
+        const newStreak = currentStreak + 1;
         const bonusCoins = 10 + newStreak * 2;
         
         setDailyStreak(newStreak);
         setLastLoginDate(today);
-        setCoins(coins + bonusCoins);
         localStorage.setItem(streakStorageKey, String(newStreak));
         localStorage.setItem(lastLoginStorageKey, today);
 
-        await supabase
-          .from('profiles')
-          .update({
-            love_coins: coins + bonusCoins
-          })
-          .eq('user_id', currentUserId);
-
         await earnCoins(bonusCoins, `Day ${newStreak} Login Streak`);
-      } else if (lastLoginDate !== today) {
+      } else {
         // Start new streak or reset
         const loginCoins = 10;
         
         setDailyStreak(1);
         setLastLoginDate(today);
-        setCoins(coins + loginCoins);
         localStorage.setItem(streakStorageKey, '1');
         localStorage.setItem(lastLoginStorageKey, today);
-
-        await supabase
-          .from('profiles')
-          .update({
-            love_coins: coins + loginCoins
-          })
-          .eq('user_id', currentUserId);
 
         await earnCoins(loginCoins, 'Daily Login');
       }
@@ -234,6 +231,8 @@ export const LoveCoinsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         description: 'Could not update daily streak',
         variant: 'destructive'
       });
+    } finally {
+      streakUpdateInFlight.current = false;
     }
   };
 

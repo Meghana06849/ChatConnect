@@ -26,15 +26,19 @@ type ProfileUpsert = Partial<Pick<Profile, 'lovers_mode_enabled' | 'dream_room_p
 export const useProfile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadProfile = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        setCurrentUserId(null);
         setLoading(false);
         return;
       }
+
+      setCurrentUserId(user.id);
 
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -82,6 +86,36 @@ export const useProfile = () => {
       setLoading(false);
     }
   }, [toast]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`user:${currentUserId}:profile`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `user_id=eq.${currentUserId}`
+        },
+        (payload) => {
+          if (!payload.new || typeof payload.new !== 'object') return;
+
+          const updatedProfile = payload.new as Profile;
+          setProfile((current) => ({
+            ...(current || updatedProfile),
+            ...updatedProfile,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUserId]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
     try {

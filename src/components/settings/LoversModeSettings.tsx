@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useLoveCoins } from '@/contexts/LoveCoinsContext';
 import { 
   Heart, Moon, Star, Sparkles, Lock, Bell, Palette,
   Music, Calendar, Shield, Gift, Crown, Gem, Users,
@@ -24,6 +25,7 @@ interface LoversModeSettingsProps {
 
 export const LoversModeSettings: React.FC<LoversModeSettingsProps> = ({ onBack }) => {
   const { profile } = useProfile();
+  const { coins } = useLoveCoins();
   const { toast } = useToast();
   
   // Settings state
@@ -144,7 +146,7 @@ export const LoversModeSettings: React.FC<LoversModeSettingsProps> = ({ onBack }
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-yellow-400">{profile?.love_coins || 0}</p>
+                  <p className="text-3xl font-bold text-yellow-400">{coins}</p>
                   <Button size="sm" className="mt-1 bg-yellow-500/30 hover:bg-yellow-500/40 text-yellow-400 border border-yellow-500/50">
                     <Gift className="w-3 h-3 mr-1" />
                     Earn More

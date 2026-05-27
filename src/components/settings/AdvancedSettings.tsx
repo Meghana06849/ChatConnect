@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useLoveCoins } from '@/contexts/LoveCoinsContext';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,6 +58,7 @@ const SettingsItem: React.FC<{
 export const AdvancedSettings: React.FC = () => {
   const { mode, switchMode } = useChat();
   const { profile, updateProfile, toggleLoversMode, loading } = useProfile();
+  const { coins } = useLoveCoins();
   const { toast } = useToast();
   const [showPinDialog, setShowPinDialog] = useState(false);
   const [pin, setPin] = useState('');
@@ -194,7 +196,7 @@ export const AdvancedSettings: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-lovers-primary">{profile?.love_coins || 0}</p>
+                    <p className="text-2xl font-bold text-lovers-primary">{coins}</p>
                   <Badge className="bg-lovers-primary/20 text-lovers-primary">✨ Active</Badge>
                 </div>
               </div>
