@@ -15,6 +15,7 @@ export interface MomentRecord {
   music?: unknown;
   reactions?: Array<{ emoji: string; userId: string; createdAt: string }>;
   replies?: Array<{ text: string; userId: string; createdAt: string }>;
+  mode?: 'general' | 'lovers';
 }
 
 const STORAGE_KEY = 'chatconnect.moments.v1';
@@ -43,23 +44,32 @@ const SEED_MOMENTS: MomentRecord[] = [
   },
 ];
 
-function readStorage(): MomentRecord[] {
+function readStorage(mode: 'general' | 'lovers' = 'general'): MomentRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = `${STORAGE_KEY}.${mode}`;
+    const raw = localStorage.getItem(key);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_MOMENTS));
-      return SEED_MOMENTS;
+      // Seed only for general mode by default
+      const seed = mode === 'general' ? SEED_MOMENTS : [];
+      localStorage.setItem(key, JSON.stringify(seed));
+      return seed;
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return SEED_MOMENTS;
+    if (!Array.isArray(parsed)) return [];
     return parsed;
   } catch {
-    return SEED_MOMENTS;
+    return mode === 'general' ? SEED_MOMENTS : [];
   }
 }
 
 function writeStorage(moments: MomentRecord[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(moments));
+  // default write to general if no mode specified is not safe; callers should use writeForMode
+  localStorage.setItem(STORAGE_KEY + '.general', JSON.stringify(moments));
+}
+
+function writeForMode(moments: MomentRecord[], mode: 'general' | 'lovers' = 'general') {
+  const key = `${STORAGE_KEY}.${mode}`;
+  localStorage.setItem(key, JSON.stringify(moments));
 }
 
 // Upload media to Supabase storage and get public URL
@@ -91,13 +101,14 @@ export async function uploadMomentMedia(file: File, userId: string): Promise<{ u
   }
 }
 
-export function listMoments(): MomentRecord[] {
-  return readStorage();
+export function listMoments(mode: 'general' | 'lovers' = 'general'): MomentRecord[] {
+  return readStorage(mode);
 }
 
 export async function publishMoment(moment: MomentRecord) {
-  const moments = readStorage();
-  writeStorage([moment, ...moments]);
+  const mode = moment.mode || 'general';
+  const moments = readStorage(mode);
+  writeForMode([moment, ...moments], mode);
   
   // Also save to Supabase for real-time sync
   try {
@@ -114,6 +125,7 @@ export async function publishMoment(moment: MomentRecord) {
       specific_users: moment.specificUsers,
       edit_meta: moment.editMeta,
       music_data: moment.music,
+      mode: mode,
     }]);
   } catch (err) {
     console.error('Failed to sync moment to database:', err);
@@ -121,8 +133,8 @@ export async function publishMoment(moment: MomentRecord) {
   }
 }
 
-export function addMomentReaction(momentId: string, emoji: string, userId: string) {
-  const moments = readStorage();
+export function addMomentReaction(momentId: string, emoji: string, userId: string, mode: 'general' | 'lovers' = 'general') {
+  const moments = readStorage(mode);
   const next = moments.map((moment) => {
     if (moment.id !== momentId) return moment;
     return {
@@ -133,11 +145,11 @@ export function addMomentReaction(momentId: string, emoji: string, userId: strin
       ],
     };
   });
-  writeStorage(next);
+  writeForMode(next, mode);
 }
 
-export function addMomentReply(momentId: string, text: string, userId: string) {
-  const moments = readStorage();
+export function addMomentReply(momentId: string, text: string, userId: string, mode: 'general' | 'lovers' = 'general') {
+  const moments = readStorage(mode);
   const next = moments.map((moment) => {
     if (moment.id !== momentId) return moment;
     return {
@@ -148,11 +160,11 @@ export function addMomentReply(momentId: string, text: string, userId: string) {
       ],
     };
   });
-  writeStorage(next);
+  writeForMode(next, mode);
 }
 
-export async function updateMomentMusic(momentId: string, music: unknown | null) {
-  const moments = readStorage();
+export async function updateMomentMusic(momentId: string, music: unknown | null, mode: 'general' | 'lovers' = 'general') {
+  const moments = readStorage(mode);
   const next = moments.map((moment) => {
     if (moment.id !== momentId) return moment;
     return {
@@ -160,7 +172,7 @@ export async function updateMomentMusic(momentId: string, music: unknown | null)
       music: music ?? null,
     };
   });
-  writeStorage(next);
+  writeForMode(next, mode);
 
   try {
     await supabase

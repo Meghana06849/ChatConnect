@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useProfile } from '@/hooks/useProfile';
-import { useLoveCoins } from '@/contexts/LoveCoinsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -51,7 +50,6 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const { mode } = useChat();
   const { profile } = useProfile();
-  const { coins } = useLoveCoins();
   const navigate = useNavigate();
   
   const handleLogout = async () => {
@@ -95,10 +93,8 @@ export const Navigation: React.FC<NavigationProps> = ({
               
               if (taps.length >= 3) {
                 localStorage.removeItem(tapKey);
-                // Navigate to Lovers Mode unlock, or dreamroom if night time
-                const currentHour = new Date().getHours();
-                const isDreamRoomTime = currentHour >= 0 && currentHour < 6;
-                if (isDreamRoomTime) {
+                // Navigate to Dream Room for Lovers Mode users; otherwise open Lovers unlock
+                if (mode === 'lovers') {
                   window.location.href = '/dashboard?section=dreamroom';
                 } else {
                   onSectionChange('lovers-unlock');
@@ -124,16 +120,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </div>
         </div>
         
-        {/* Love Coins Display for Lovers Mode */}
-        {isLoversMode && (
-          <div className="mt-3 p-2 rounded-xl bg-lovers-primary/10 border border-lovers-primary/20">
-            <div className="flex items-center justify-center space-x-2">
-              <Heart className="w-4 h-4 text-lovers-primary animate-heart-beat" />
-              <span className="text-sm font-medium text-lovers-primary">{coins}</span>
-              <span className="text-xs text-muted-foreground">Love Coins</span>
-            </div>
-          </div>
-        )}
+        {/* Love Coins display removed */}
       </div>
 
       {/* Navigation Items */}

@@ -29,7 +29,7 @@ interface DreamChatBubbleProps {
 type DeliveryStatus = 'sending' | 'sent' | 'delivered' | 'seen';
 
 const DreamDeliveryBadge: React.FC<{ status: DeliveryStatus; readAt?: string | null }> = ({ status, readAt }) => {
-  const seenTitle = readAt ? `Seen at ${new Date(readAt).toLocaleTimeString()}` : 'Seen';
+  const seenTitle = 'Seen';
 
   if (status === 'sending') {
     return (
@@ -179,9 +179,6 @@ export const DreamChatBubble: React.FC<DreamChatBubbleProps> = ({
           )}
 
           <div className="flex items-center justify-end gap-1.5 mt-1.5">
-            <span className={cn("text-[10px]", isOwn ? "text-white/60" : "text-white/40")}>
-              {new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
             {isOwn && <DreamDeliveryBadge status={status} readAt={readAt} />}
           </div>
         </div>

@@ -145,7 +145,7 @@ export const DreamRoomWelcome: React.FC<DreamRoomWelcomeProps> = ({ onEnter }) =
               🔐 E2E Encrypted
             </Badge>
             <Badge className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-0 px-4 py-2">
-              🌙 12AM-5AM Open
+              🌙 Always Open
             </Badge>
           </div>
         </div>
@@ -213,7 +213,7 @@ export const DreamRoomWelcome: React.FC<DreamRoomWelcomeProps> = ({ onEnter }) =
           </Button>
           
           <p className="text-sm text-muted-foreground mt-4">
-            ✨ Requires PIN verification · Opens 12AM-5AM · Premium Lovers Mode only
+            ✨ Requires PIN verification · Premium Lovers Mode only
           </p>
         </div>
       </div>

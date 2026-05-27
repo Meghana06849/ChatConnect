@@ -65,7 +65,12 @@ FOR INSERT
 TO authenticated
 WITH CHECK (
   auth.uid() = sender_id
-  AND public.are_linked_lovers(sender_id, partner_id)
+  AND EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.user_id = auth.uid()
+      AND p.lovers_partner_id = partner_id
+  )
   AND dream_room_id = public.generate_dream_room_id(sender_id, partner_id)
 );
 

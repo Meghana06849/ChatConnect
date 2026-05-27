@@ -21,6 +21,47 @@ interface TypingUser {
   display_name: string;
 }
 
+type DreamChannelPayload =
+  | { type: 'typing'; roomId: string; userId: string; partnerId: string; typing: boolean };
+
+const mergeDreamMessages = (messages: DreamMessage[]) => {
+  const byId = new Map<string, DreamMessage>();
+  for (const message of messages) {
+    byId.set(message.id, message);
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const candidate = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+
+    const parts = [candidate.code, candidate.message, candidate.details, candidate.hint]
+      .filter((part): part is string => typeof part === 'string' && part.trim().length > 0);
+
+    if (parts.length > 0) {
+      return parts.join(' | ');
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
+    }
+  }
+
+  return 'Unknown error';
+};
+
 export const useDreamChat = (partnerId: string | null) => {
   const [messages, setMessages] = useState<DreamMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
@@ -32,6 +73,7 @@ export const useDreamChat = (partnerId: string | null) => {
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const partnerTypingTimeoutRef = useRef<NodeJS.Timeout>();
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const localChannelRef = useRef<BroadcastChannel | null>(null);
 
   interface TypingBroadcastPayload {
     user_id: string;
@@ -73,9 +115,10 @@ export const useDreamChat = (partnerId: string | null) => {
         .limit(200);
 
       if (error) throw error;
-      setMessages((data || []) as DreamMessage[]);
+      const remoteMessages = (data || []) as DreamMessage[];
+      setMessages(remoteMessages);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = getErrorMessage(error);
       toast({
         title: 'Error loading dream messages',
         description: message,
@@ -103,18 +146,30 @@ export const useDreamChat = (partnerId: string | null) => {
   }, [dreamRoomId, currentUserId, partnerId]);
 
   const setTyping = useCallback((isTyping: boolean) => {
-    if (!channelRef.current || !currentUserId || !partnerId || !dreamRoomId) return;
+    if (!currentUserId || !partnerId || !dreamRoomId) return;
 
-    channelRef.current.send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: {
-        user_id: currentUserId,
-        partner_id: partnerId,
-        dream_room_id: dreamRoomId,
-        typing: isTyping,
-      },
-    });
+    const typingPayload: DreamChannelPayload = {
+      type: 'typing',
+      roomId: dreamRoomId,
+      userId: currentUserId,
+      partnerId,
+      typing: isTyping,
+    };
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: {
+          user_id: currentUserId,
+          partner_id: partnerId,
+          dream_room_id: dreamRoomId,
+          typing: isTyping,
+        },
+      });
+    }
+
+    localChannelRef.current?.postMessage(typingPayload);
 
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
@@ -174,18 +229,31 @@ export const useDreamChat = (partnerId: string | null) => {
 
       if (data) {
         // Replace temp message with real one
-        setMessages(prev => prev.map(msg => (msg.id === tempId ? (data as DreamMessage) : msg)));
+        const confirmedMessage = data as DreamMessage;
+        setMessages(prev => {
+          const next = prev.map(msg => (msg.id === tempId ? confirmedMessage : msg));
+          return next;
+        });
       }
 
       setTyping(false);
       return true;
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = getErrorMessage(error);
+      const errorObject = error as { code?: unknown; message?: unknown };
+      const isRowLevelSecurityError =
+        errorObject?.code === '42501' ||
+        (typeof errorObject?.message === 'string' && /row-level security|rls/i.test(errorObject.message));
+
       // Remove temp message on failure
+      console.error('Error sending dream message:', error);
+
       setMessages(prev => prev.filter(msg => msg.id !== tempId));
       toast({
         title: 'Error sending dream message',
-        description: message,
+        description: isRowLevelSecurityError
+          ? 'Dream messages are still blocked by the database policy. Apply the live Supabase migration so both partners can see the same message.'
+          : message,
         variant: 'destructive',
       });
       return false;

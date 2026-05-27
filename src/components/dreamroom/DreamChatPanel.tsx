@@ -46,10 +46,7 @@ export const DreamChatPanel: React.FC<DreamChatPanelProps> = ({
     [typingUsers, currentUserId]
   );
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+  // timestamps removed for Dream Room messages
 
   return (
     <div className="flex flex-col rounded-2xl overflow-hidden mb-3" style={{
@@ -113,7 +110,6 @@ export const DreamChatPanel: React.FC<DreamChatPanelProps> = ({
               }}>
                 <p className="leading-relaxed">{msg.content}</p>
                 <div className={`flex items-center gap-1 mt-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                  <span className="text-[9px] opacity-50">{formatTime(msg.created_at)}</span>
                   {isMine && (
                     <span className="text-[9px]">
                       {msg.read_at ? (

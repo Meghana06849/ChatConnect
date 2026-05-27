@@ -62,7 +62,8 @@ export const ChatLayout = () => {
   const [currentHour, setCurrentHour] = useState(new Date().getHours());
   
   const isLoversMode = mode === 'lovers';
-  const isDreamRoomTime = currentHour >= 0 && currentHour < 6; // 12am-6am
+    // Dream Room is no longer time-restricted in UI — open anytime in Lovers Mode
+    const isDreamRoomTime = true;
 
   // Update hour every minute
   useEffect(() => {
@@ -75,7 +76,7 @@ export const ChatLayout = () => {
   // Deep-link support for ?section=dreamroom
   useEffect(() => {
     const section = searchParams.get('section');
-    if (section && isLoversMode && isDreamRoomTime) {
+      if (section && isLoversMode) {
       if (section === 'dreamroom') {
         setActiveSection('dreamroom');
       }
@@ -192,34 +193,10 @@ export const ChatLayout = () => {
       case 'dreamroom':
       case 'dreamroom-call':
       case 'dreamroom-video-call':
-        if (!isDreamRoomTime) {
-          return (
-            <div className="flex-1 p-6 flex items-center justify-center">
-              <Card className="max-w-md glass border-lovers-primary/20 bg-lovers-primary/5">
-                <CardContent className="p-8 text-center">
-                  <div className="flex justify-center mb-4">
-                    <Clock className="w-12 h-12 text-lovers-secondary animate-spin" />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2 text-lovers-primary">Dream Room Active</h2>
-                  <p className="text-muted-foreground mb-4">Only available from 12:00 AM to 6:00 AM</p>
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>💤 For intimate moments</p>
-                    <p>📞 Calls & Chat only</p>
-                    <p>🎮 Games & Features</p>
-                  </div>
-                  <div className="mt-6 p-3 bg-lovers-secondary/10 rounded-lg border border-lovers-secondary/20">
-                    <p className="font-semibold text-lovers-secondary">Current time: {new Date().toLocaleTimeString()}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Come back during night hours</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          );
-        }
         return (
           <Suspense fallback={<SectionLoading />}>
             <DreamRoom
-              isTimeRestricted={isDreamRoomTime}
+                isTimeRestricted={false}
               autoStartVoiceCall={activeSection === 'dreamroom-call'}
               autoStartVideoCall={activeSection === 'dreamroom-video-call'}
             />

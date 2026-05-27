@@ -75,6 +75,22 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   // Keep refs in sync with state
   useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
   useEffect(() => { screenStreamRef.current = screenStream; }, [screenStream]);
+
+  useEffect(() => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+
+    const audioEnabled = !isMuted;
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = audioEnabled;
+    });
+
+    peerConnection.current?.getSenders().forEach((sender) => {
+      if (sender.track?.kind === 'audio') {
+        sender.track.enabled = audioEnabled;
+      }
+    });
+  }, [isMuted, localStream]);
   
   const { toast } = useToast();
 
@@ -706,13 +722,8 @@ export const useWebRTCCall = (userId: string | null): UseWebRTCCallReturn => {
   }, [userId, sendSignal, saveCallHistory, callDuration, cleanup, toast]);
 
   const toggleMute = useCallback(() => {
-    if (localStream) {
-      localStream.getAudioTracks().forEach(track => {
-        track.enabled = isMuted;
-      });
-      setIsMuted(!isMuted);
-    }
-  }, [localStream, isMuted]);
+    setIsMuted((currentMuted) => !currentMuted);
+  }, []);
 
   const toggleVideo = useCallback(() => {
     if (localStream) {

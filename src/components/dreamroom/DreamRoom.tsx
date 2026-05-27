@@ -14,7 +14,7 @@ import { useDreamRoomPresence } from '@/hooks/useDreamRoomPresence';
 import { useDreamChat } from '@/hooks/useDreamChat';
 import { useWebRTCCall } from '@/hooks/useWebRTCCall';
 import { useAmbientSounds } from '@/hooks/useAmbientSounds';
-import { useLoveCoins } from '@/contexts/LoveCoinsContext';
+// Love coins gating removed — Dream Room free to enter
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -47,7 +47,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
   const { profile } = useProfile();
   const { partnerOnline, partnerName: presencePartnerName } = useDreamRoomPresence();
   const { muted: ambientMuted, toggleMute: toggleAmbient, activate: activateAmbient, currentType: ambientType } = useAmbientSounds(partnerOnline);
-  const { coins, spendCoins } = useLoveCoins();
+  // coins/spendCoins removed
 
   // WebRTC call integration
   const {
@@ -119,18 +119,18 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
   }, [currentUserId, profile?.lovers_partner_id]);
 
   const isPartnerLinked = Boolean(profile?.lovers_partner_id);
-  const canUseDreamFeatures = isPartnerLinked && isMutuallyLinked;
+  // Dream Room is unlocked as soon as Lovers Mode has a linked partner.
+  // This avoids a second Dream Room re-link step and lets chat/calls work directly.
+  const canUseDreamFeatures = isPartnerLinked;
 
   const chatLockMessage = !profile?.lovers_partner_id
     ? 'No Dream partner linked yet. Link a Lovers Mode friend first to unlock chat and calls.'
-    : !canUseDreamFeatures
-      ? `Dream chat is locked until both of you are linked. Ask ${partnerName} to link you back from Friends.`
-      : null;
+    : null;
 
   // Dream chat — uses dedicated dream_messages table, isolated from General Mode
   const {
     messages, typingUsers, sendMessage, setTyping,
-  } = useDreamChat(canUseDreamFeatures ? profile?.lovers_partner_id || null : null);
+  } = useDreamChat(isPartnerLinked ? profile?.lovers_partner_id || null : null);
 
   // Check mutual linking
   useEffect(() => {
@@ -152,7 +152,24 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
         return;
       }
 
-      setIsMutuallyLinked(Boolean(data));
+      const linked = Boolean(data);
+      setIsMutuallyLinked(linked);
+
+      // If the pair is only one-way linked, repair it here so Dream Room
+      // message inserts and call routing satisfy the DB policies.
+      if (!linked) {
+        try {
+          const { error: relinkError } = await supabase.rpc('link_lovers_partner', {
+            _partner_id: profile.lovers_partner_id,
+          });
+
+          if (!relinkError) {
+            setIsMutuallyLinked(true);
+          }
+        } catch (relinkErr) {
+          console.error('Dream Room relink error:', relinkErr);
+        }
+      }
     };
 
     verifyMutualLink();
@@ -213,7 +230,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
     if (!profile?.lovers_partner_id || !canUseDreamFeatures) {
       toast({
         title: 'Dream call locked',
-        description: 'Both partners must link each other before calls are enabled.',
+        description: 'Link a Lovers Mode partner first to enable calls.',
         variant: 'destructive',
       });
       return;
@@ -225,7 +242,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
     if (!profile?.lovers_partner_id || !canUseDreamFeatures) {
       toast({
         title: 'Dream call locked',
-        description: 'Both partners must link each other before calls are enabled.',
+        description: 'Link a Lovers Mode partner first to enable calls.',
         variant: 'destructive',
       });
       return;
@@ -257,7 +274,7 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
     if (view === 'games' && !canUseDreamFeatures) {
       toast({
         title: 'Games locked',
-        description: 'Both partners must link each other to play lovers games.',
+        description: 'Link a Lovers Mode partner first to play lovers games.',
         variant: 'destructive',
       });
       return;
@@ -266,8 +283,6 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
   }, [canUseDreamFeatures]);
 
   const handleEnterRoom = useCallback(async () => {
-    const DREAMROOM_ENTRY_COST = 250; // Love coins needed to enter
-
     // Check if already entered in this session
     if (hasEnteredDreamRoom) {
       setShowWelcome(false);
@@ -275,28 +290,15 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
       return;
     }
 
-    // Check if user has enough coins
-    if (coins < DREAMROOM_ENTRY_COST) {
-      toast({
-        title: "Insufficient Love Coins",
-        description: `DreamRoom entry costs ${DREAMROOM_ENTRY_COST} coins. You have ${coins}.`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Charge coins for entry
-    const spent = await spendCoins(DREAMROOM_ENTRY_COST, "DreamRoom Entry");
-    if (spent) {
-      setHasEnteredDreamRoom(true);
-      setShowWelcome(false);
-      activateAmbient();
-      toast({
-        title: "Welcome to DreamRoom! 💕",
-        description: `Entered with your love. Have fun!`
-      });
-    }
-  }, [coins, spendCoins, activateAmbient, hasEnteredDreamRoom]);
+    // No coin requirement — allow immediate entry
+    setHasEnteredDreamRoom(true);
+    setShowWelcome(false);
+    activateAmbient();
+    toast({
+      title: "Welcome to DreamRoom! 💕",
+      description: `Enjoy your time together!`
+    });
+  }, [activateAmbient, hasEnteredDreamRoom]);
 
   // Reject/ignore calls from users other than linked lover in Dream Room
   useEffect(() => {
@@ -479,9 +481,6 @@ export const DreamRoom: React.FC<DreamRoomProps> = ({
                     }}>
                       {msg.content}
                       <div className="flex items-center justify-end gap-1 mt-0.5">
-                        <span className="text-[9px] text-white/30">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
                         {isMe && (
                           <span className="text-[8px]">
                             {msg.read_at ? '💜' : '🤍'}
